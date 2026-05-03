@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model CharacterTemplate {
+  id              String              @id @default(uuid())
+  name            String
+  type            CharacterType
+  maxHp           Int
+  baseAc          Int
+  initiativeBonus Int
+  stats           Json
+  abilities       Json?
+  source          String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  participants    CombatParticipant[]
+  groupMembers    GroupMember[]
+}
+
+model Group {
+  id        String        @id @default(uuid())
+  name      String
+  createdAt DateTime      @default(now())
+  members   GroupMember[]
+}
+
+model GroupMember {
+  id         String            @id @default(uuid())
+  groupId    String
+  templateId String
+  quantity   Int               @default(1)
+  group      Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  template   CharacterTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model Combat {
+  id           String              @id @default(uuid())
+  name         String
+  status       CombatStatus        @default(ACTIVE)
+  createdAt    DateTime            @default(now())
+  logs         CombatLog[]
+  participants CombatParticipant[]
+
+  @@index([status])
+}
+
+model CombatParticipant {
+  id           String            @id @default(uuid())
+  combatId     String
+  templateId   String
+  nameOverride String?
+  currentHp    Int
+  tempHp       Int               @default(0)
+  baseAc       Int
+  acModifiers  Json
+  initiative   Int
+  turnOrder    Int
+  conditions   Json
+  isDead       Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  logs         CombatLog[]
+  combat       Combat            @relation(fields: [combatId], references: [id], onDelete: Cascade)
+  template     CharacterTemplate @relation(fields: [templateId], references: [id])
+
+  @@index([combatId])
+  @@index([turnOrder])
+}
+
+model CombatLog {
+  id            String             @id @default(uuid())
+  combatId      String
+  participantId String?
+  type          LogType
+  value         Int?
+  rollMode      RollMode?
+  rollValue     Int?
+  description   String?
+  createdAt     DateTime           @default(now())
+  combat        Combat             @relation(fields: [combatId], references: [id], onDelete: Cascade)
+  participant   CombatParticipant? @relation(fields: [participantId], references: [id])
+
+  @@index([combatId])
+}
+
+model AppState {
+  id              Int     @id @default(1)
+  currentCombatId String?
+}
+
+enum CharacterType {
+  PLAYER
+  NPC
+  MONSTER
+}
+
+enum CombatStatus {
+  ACTIVE
+  FINISHED
+}
+
+enum LogType {
+  DAMAGE
+  HEAL
+  ATTACK
+  EFFECT
+}
+
+enum RollMode {
+  MANUAL
+  AUTO
+}
