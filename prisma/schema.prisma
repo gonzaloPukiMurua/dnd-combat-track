@@ -3,95 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-model CharacterTemplate {
-  id              String              @id @default(uuid())
-  name            String
-  type            CharacterType
-  maxHp           Int
-  baseAc          Int
-  initiativeBonus Int
-  stats           Json
-  abilities       Json?
-  source          String?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  participants    CombatParticipant[]
-  groupMembers    GroupMember[]
-}
-
-model Group {
-  id        String        @id @default(uuid())
-  name      String
-  createdAt DateTime      @default(now())
-  members   GroupMember[]
-}
-
-model GroupMember {
-  id         String            @id @default(uuid())
-  groupId    String
-  templateId String
-  quantity   Int               @default(1)
-  group      Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  template   CharacterTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-}
-
-model Combat {
-  id           String              @id @default(uuid())
-  name         String
-  status       CombatStatus        @default(ACTIVE)
-  createdAt    DateTime            @default(now())
-  logs         CombatLog[]
-  participants CombatParticipant[]
-
-  @@index([status])
-}
-
-model CombatParticipant {
-  id           String            @id @default(uuid())
-  combatId     String
-  templateId   String
-  nameOverride String?
-  currentHp    Int
-  tempHp       Int               @default(0)
-  baseAc       Int
-  acModifiers  Json
-  initiative   Int
-  turnOrder    Int
-  conditions   Json
-  isDead       Boolean           @default(false)
-  createdAt    DateTime          @default(now())
-  logs         CombatLog[]
-  combat       Combat            @relation(fields: [combatId], references: [id], onDelete: Cascade)
-  template     CharacterTemplate @relation(fields: [templateId], references: [id])
-
-  @@index([combatId])
-  @@index([turnOrder])
-}
-
-model CombatLog {
-  id            String             @id @default(uuid())
-  combatId      String
-  participantId String?
-  type          LogType
-  value         Int?
-  rollMode      RollMode?
-  rollValue     Int?
-  description   String?
-  createdAt     DateTime           @default(now())
-  combat        Combat             @relation(fields: [combatId], references: [id], onDelete: Cascade)
-  participant   CombatParticipant? @relation(fields: [participantId], references: [id])
-
-  @@index([combatId])
-}
-
-model AppState {
-  id              Int     @id @default(1)
-  currentCombatId String?
-}
+// ─── Enums ────────────────────────────────────────────────────────────────────
 
 enum CharacterType {
   PLAYER
@@ -100,18 +17,115 @@ enum CharacterType {
 }
 
 enum CombatStatus {
-  ACTIVE
+  SETUP   // participants being added, initiatives not rolled yet
+  ACTIVE  // combat running
   FINISHED
 }
 
 enum LogType {
   DAMAGE
   HEAL
-  ATTACK
-  EFFECT
+  CONDITION_ADDED
+  CONDITION_REMOVED
+  NOTE
 }
 
-enum RollMode {
-  MANUAL
-  AUTO
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+// The reusable definition of a character, NPC or monster.
+// Never mutated during combat — CombatParticipant holds the live state.
+model CharacterTemplate {
+  id              String   @id @default(uuid())
+  name            String
+  type            CharacterType
+  maxHp           Int
+  baseAc          Int
+  initiativeBonus Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  participants CombatParticipant[]
+}
+
+// One combat encounter.
+model Combat {
+  id               String       @id @default(uuid())
+  name             String
+  status           CombatStatus @default(SETUP)
+  round            Int          @default(0)   // 0 = not started yet, 1 = first round
+  currentTurnIndex Int          @default(0)   // index into participants sorted by turnOrder
+  createdAt        DateTime     @default(now())
+
+  participants CombatParticipant[]
+  logs         CombatLog[]
+
+  @@index([status])
+}
+
+// The live instance of a CharacterTemplate inside a specific Combat.
+// All mutable combat state lives here — never on the template.
+model CombatParticipant {
+  id          String  @id @default(uuid())
+  combatId    String
+  templateId  String
+  displayName String  // "Wolf #1", "Thora", etc.
+
+  // Initiative
+  initiative Int @default(0) // final value: d20 roll + initiativeBonus
+  turnOrder  Int @default(0) // 0 = goes first; sorted descending by initiative
+
+  // Hit points — snapshot from template at combat start, then live
+  maxHp     Int
+  currentHp Int
+  tempHp    Int @default(0)
+
+  // Armor class — snapshot + optional modifier stack
+  baseAc      Int
+  // [{source: "Shield", value: 2}, {source: "Shield of Faith", value: 2}]
+  acModifiers Json @default("[]")
+
+  // Condition tracking — [{name: "Prone"}, {name: "Poisoned"}]
+  conditions Json @default("[]")
+
+  // State flags
+  isConscious Boolean @default(true) // false when currentHp <= 0
+
+  createdAt DateTime @default(now())
+
+  combat   Combat            @relation(fields: [combatId], references: [id], onDelete: Cascade)
+  template CharacterTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+
+  actorLogs  CombatLog[] @relation("actor")
+  targetLogs CombatLog[] @relation("target")
+
+  @@index([combatId])
+  @@index([combatId, turnOrder])
+}
+
+// Immutable record of everything that happens during combat.
+// Append-only — never update or delete log entries.
+model CombatLog {
+  id       String  @id @default(uuid())
+  combatId String
+  round    Int     // which round this happened in
+  type     LogType
+
+  // Who did it and who received it (both optional — a NOTE has neither)
+  actorId  String?
+  targetId String?
+
+  // For DAMAGE and HEAL: the final HP value applied
+  // Positive number always — type field tells you if it's damage or heal
+  amount Int?
+
+  // Free text for CONDITION_ADDED / CONDITION_REMOVED / NOTE
+  note String?
+
+  createdAt DateTime @default(now())
+
+  combat Combat            @relation(fields: [combatId], references: [id], onDelete: Cascade)
+  actor  CombatParticipant? @relation("actor",  fields: [actorId],  references: [id], onDelete: SetNull)
+  target CombatParticipant? @relation("target", fields: [targetId], references: [id], onDelete: SetNull)
+
+  @@index([combatId])
+  @@index([combatId, round])
 }

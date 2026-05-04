@@ -1,0 +1,227 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+
+// ─── Queries ─────────────────────────────────────────────────────────────────
+
+// Returns the single SETUP or ACTIVE combat, or null.
+// We enforce one combat at a time at the query level.
+export async function getActiveCombat() {
+  return prisma.combat.findFirst({
+    where: { status: { in: ["SETUP", "ACTIVE"] } },
+    include: {
+      participants: {
+        orderBy: { turnOrder: "asc" },
+        include: { template: true },
+      },
+      logs: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          actor:  true,
+          target: true,
+        },
+      },
+    },
+  });
+}
+
+export async function getCombatById(id: string) {
+  return prisma.combat.findUnique({
+    where: { id },
+    include: {
+      participants: {
+        orderBy: { turnOrder: "asc" },
+        include: { template: true },
+      },
+      logs: {
+        orderBy: { createdAt: "asc" },
+        include: { actor: true, target: true },
+      },
+    },
+  });
+}
+
+// ─── Create combat ───────────────────────────────────────────────────────────
+
+export async function createCombat(formData: FormData) {
+  const name = formData.get("name")?.toString().trim() || "New Combat";
+
+  // Enforce one combat at a time
+  const existing = await prisma.combat.findFirst({
+    where: { status: { in: ["SETUP", "ACTIVE"] } },
+  });
+  if (existing) {
+    throw new Error("A combat is already in progress. End it before starting a new one.");
+  }
+
+  const combat = await prisma.combat.create({
+    data: { name, status: "SETUP", round: 0, currentTurnIndex: 0 },
+  });
+
+  revalidatePath("/combat");
+  redirect(`/combat/${combat.id}/setup`);
+}
+
+// ─── Add participant to a SETUP combat ───────────────────────────────────────
+
+export async function addParticipant(formData: FormData) {
+  const combatId   = formData.get("combatId")?.toString();
+  const templateId = formData.get("templateId")?.toString();
+  const quantity   = Number(formData.get("quantity") ?? 1);
+
+  if (!combatId || !templateId) throw new Error("Missing combatId or templateId");
+
+  const [combat, template] = await Promise.all([
+    prisma.combat.findUnique({ where: { id: combatId } }),
+    prisma.characterTemplate.findUnique({ where: { id: templateId } }),
+  ]);
+
+  if (!combat)    throw new Error("Combat not found");
+  if (!template)  throw new Error("Template not found");
+  if (combat.status !== "SETUP") throw new Error("Cannot add participants after combat has started");
+
+  // Count existing participants with this template to generate correct suffix
+  const existing = await prisma.combatParticipant.count({
+    where: { combatId, templateId },
+  });
+
+  // Create one participant per quantity
+  const data = Array.from({ length: quantity }, (_, i) => {
+    const suffix = quantity > 1 || existing > 0
+      ? ` #${existing + i + 1}`
+      : "";
+    return {
+      combatId,
+      templateId,
+      displayName: `${template.name}${suffix}`,
+      maxHp:       template.maxHp,
+      currentHp:   template.maxHp,
+      tempHp:      0,
+      baseAc:      template.baseAc,
+      initiative:  0,
+      turnOrder:   0,
+      acModifiers: [],
+      conditions:  [],
+      isConscious: true,
+    };
+  });
+
+  await prisma.combatParticipant.createMany({ data });
+
+  revalidatePath(`/combat/${combatId}/setup`);
+}
+
+// ─── Remove participant from SETUP combat ────────────────────────────────────
+
+export async function removeParticipant(participantId: string, combatId: string) {
+  const combat = await prisma.combat.findUnique({ where: { id: combatId } });
+  if (combat?.status !== "SETUP") throw new Error("Cannot remove participants after combat has started");
+
+  await prisma.combatParticipant.delete({ where: { id: participantId } });
+
+  revalidatePath(`/combat/${combatId}/setup`);
+}
+
+// ─── Roll initiative and start combat ────────────────────────────────────────
+//
+// Accepts a map of { participantId → dieRoll } from the form.
+// We add the template's initiativeBonus server-side so it can't be tampered with.
+// Then we sort, assign turnOrder, and flip status to ACTIVE.
+
+export async function startCombat(formData: FormData) {
+  const combatId = formData.get("combatId")?.toString();
+  if (!combatId) throw new Error("Missing combatId");
+
+  const combat = await prisma.combat.findUnique({
+    where: { id: combatId },
+    include: {
+      participants: { include: { template: true } },
+    },
+  });
+
+  if (!combat)                    throw new Error("Combat not found");
+  if (combat.status !== "SETUP")  throw new Error("Combat has already started");
+  if (combat.participants.length === 0) throw new Error("Add at least one participant before starting");
+
+  // Read each die roll from formData — field names are "roll_<participantId>"
+  const withInitiative = combat.participants.map((p) => {
+    const dieRoll = Number(formData.get(`roll_${p.id}`) ?? 0);
+    const initiative = dieRoll + p.template.initiativeBonus;
+    return { participant: p, dieRoll, initiative };
+  });
+
+  // Sort descending by initiative; ties broken by initiativeBonus (higher bonus wins)
+  withInitiative.sort((a, b) => {
+    if (b.initiative !== a.initiative) return b.initiative - a.initiative;
+    return b.participant.template.initiativeBonus - a.participant.template.initiativeBonus;
+  });
+
+  // Persist initiative values and turn order in a transaction
+  await prisma.$transaction([
+    // Update each participant
+    ...withInitiative.map(({ participant, initiative }, index) =>
+      prisma.combatParticipant.update({
+        where: { id: participant.id },
+        data:  { initiative, turnOrder: index },
+      })
+    ),
+    // Flip combat to ACTIVE, start at round 1, first participant's turn
+    prisma.combat.update({
+      where: { id: combatId },
+      data:  { status: "ACTIVE", round: 1, currentTurnIndex: 0 },
+    }),
+  ]);
+
+  revalidatePath(`/combat/${combatId}`);
+  redirect(`/combat/${combatId}`);
+}
+
+// ─── Advance to next turn ────────────────────────────────────────────────────
+
+export async function advanceTurn(combatId: string) {
+  const combat = await prisma.combat.findUnique({
+    where: { id: combatId },
+    include: {
+      participants: {
+        where:   { isConscious: true },
+        orderBy: { turnOrder: "asc" },
+      },
+    },
+  });
+
+  if (!combat)                   throw new Error("Combat not found");
+  if (combat.status !== "ACTIVE") throw new Error("Combat is not active");
+
+  const consciousCount = combat.participants.length;
+  if (consciousCount === 0) return; // everyone is down, DM should end combat
+
+  let nextIndex = combat.currentTurnIndex + 1;
+  let nextRound = combat.round;
+
+  // Wrap around → new round
+  if (nextIndex >= consciousCount) {
+    nextIndex = 0;
+    nextRound += 1;
+  }
+
+  await prisma.combat.update({
+    where: { id: combatId },
+    data:  { currentTurnIndex: nextIndex, round: nextRound },
+  });
+
+  revalidatePath(`/combat/${combatId}`);
+}
+
+// ─── End combat ──────────────────────────────────────────────────────────────
+
+export async function endCombat(combatId: string) {
+  await prisma.combat.update({
+    where: { id: combatId },
+    data:  { status: "FINISHED" },
+  });
+
+  revalidatePath(`/combat/${combatId}`);
+  redirect("/combat");
+}

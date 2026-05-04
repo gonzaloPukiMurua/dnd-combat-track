@@ -1,81 +1,65 @@
-import { createTemplate, getTemplates } from "./actions";
+import { getTemplates } from "@/lib/actions/templates";
+import { CreateTemplateForm } from "@/components/templates/CreateTemplateForm";
+import { TemplateCard } from "@/components/templates/TemplateCard";
 
 export default async function TemplatesPage() {
   const templates = await getTemplates();
 
+  const players  = templates.filter((t) => t.type === "PLAYER");
+  const npcs     = templates.filter((t) => t.type === "NPC");
+  const monsters = templates.filter((t) => t.type === "MONSTER");
+
   return (
-    <div className="space-y-8 max-w-3xl">
+    <div className="max-w-2xl mx-auto py-8 px-4 space-y-8">
+
       <h1 className="text-2xl font-bold">Templates</h1>
 
-      {/* CREATE FORM */}
-      <form
-        action={createTemplate}
-        className="grid grid-cols-2 gap-3 border p-4 rounded"
-      >
-        <input
-          name="name"
-          placeholder="Name"
-          className="border p-2 col-span-2"
-          required
-        />
+      {/* Create form */}
+      <CreateTemplateForm />
 
-        <select name="type" className="border p-2">
-          <option value="PLAYER">Player</option>
-          <option value="NPC">NPC</option>
-          <option value="MONSTER">Monster</option>
-        </select>
+      {/* Empty state */}
+      {templates.length === 0 && (
+        <p className="text-gray-400 text-sm text-center py-8">
+          No templates yet. Create your first one above.
+        </p>
+      )}
 
-        <input
-          name="maxHp"
-          type="number"
-          placeholder="HP"
-          className="border p-2"
-          required
-        />
+      {/* Players */}
+      {players.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            Players
+          </h2>
+          {players.map((t) => (
+            <TemplateCard key={t.id} template={t} />
+          ))}
+        </section>
+      )}
 
-        <input
-          name="baseAc"
-          type="number"
-          placeholder="AC"
-          className="border p-2"
-          required
-        />
+      {/* NPCs */}
+      {npcs.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            NPCs
+          </h2>
+          {npcs.map((t) => (
+            <TemplateCard key={t.id} template={t} />
+          ))}
+        </section>
+      )}
 
-        <input
-          name="initiativeBonus"
-          type="number"
-          placeholder="Initiative"
-          className="border p-2 col-span-2"
-          required
-        />
+      {/* Monsters */}
+      {monsters.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            Monsters
+          </h2>
+          {monsters.map((t) => (
+            <TemplateCard key={t.id} template={t} />
+          ))}
+        </section>
+      )}
 
-        <button className="bg-blue-500 text-white p-2 col-span-2 rounded">
-          Create Template
-        </button>
-      </form>
-
-      {/* TEMPLATE LIST */}
-      <div className="space-y-2">
-        {templates.length === 0 && (
-          <p className="text-gray-500">No templates yet</p>
-        )}
-
-        {templates.map((t) => (
-          <div
-            key={t.id}
-            className="border p-3 rounded flex justify-between items-center"
-          >
-            <div>
-              <p className="font-semibold">
-                {t.name} ({t.type})
-              </p>
-              <p className="text-sm text-gray-500">
-                HP {t.maxHp} | AC {t.baseAc} | Init {t.initiativeBonus}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
