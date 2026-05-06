@@ -211,6 +211,15 @@ export async function advanceTurn(combatId: string) {
     data:  { currentTurnIndex: nextIndex, round: nextRound },
   });
 
+  await prisma.combatParticipant.updateMany({
+    where: { combatId },
+    data: {
+      actionUsed: false,
+      bonusUsed: false,
+      reactionUsed: false,
+    },
+  });
+
   revalidatePath(`/combat/${combatId}`);
 }
 

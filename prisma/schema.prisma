@@ -99,6 +99,10 @@ model CombatParticipant {
 
   @@index([combatId])
   @@index([combatId, turnOrder])
+
+  actionUsed   Boolean @default(false)
+  bonusUsed    Boolean @default(false)
+  reactionUsed Boolean @default(false)
 }
 
 // Immutable record of everything that happens during combat.

@@ -290,3 +290,31 @@ export async function removeAcModifier(formData: FormData) {
   revalidatePath(`/combat/${combatId}`);
 }
 
+export async function toggleActionState(formData: FormData) {
+  const combatId = formData.get("combatId")?.toString();
+  const targetId = formData.get("targetId")?.toString();
+  const field    = formData.get("field")?.toString();
+
+  if (!combatId || !targetId || !field) {
+    throw new Error("Missing required fields");
+  }
+
+  if (!["actionUsed", "bonusUsed", "reactionUsed"].includes(field)) {
+    throw new Error("Invalid field");
+  }
+
+  const target = await prisma.combatParticipant.findUnique({
+    where: { id: targetId },
+  });
+
+  if (!target) throw new Error("Target not found");
+
+  await prisma.combatParticipant.update({
+    where: { id: targetId },
+    data: {
+      [field]: !target[field as keyof typeof target],
+    },
+  });
+
+  revalidatePath(`/combat/${combatId}`);
+}
