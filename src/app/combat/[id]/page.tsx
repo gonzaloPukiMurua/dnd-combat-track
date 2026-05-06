@@ -94,7 +94,7 @@ export default async function CombatPage({
               combatId={combat.id}
               isCurrentTurn={isCurrentTurn}
               isFinished={isFinished}
-              round={combat.round}
+              //round={combat.round}
             />
           );
         })}
