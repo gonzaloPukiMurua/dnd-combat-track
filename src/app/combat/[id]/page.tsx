@@ -28,23 +28,26 @@ export default async function CombatPage({
   const { id } = await params;
   const combat = await getCombat(id);
 
-  if (!id) {
-    throw new Error("Missing combat ID");
-  }
-
   if (!combat) notFound();
 
   const isFinished = combat.status === "FINISHED";
+  const conscious  = combat.participants.filter((p) => p.isConscious);
+  const current    = conscious[combat.currentTurnIndex] ?? null;
 
-  // The participant whose turn it currently is
-  const conscious = combat.participants.filter((p) => p.isConscious);
-  const current   = conscious[combat.currentTurnIndex] ?? null;
+  // Slim version of all participants passed to each row for the target selector
+  const participantSummaries = combat.participants.map((p) => ({
+    id:          p.id,
+    displayName: p.displayName,
+    isConscious: p.isConscious,
+    currentHp:   p.currentHp,
+    maxHp:       p.maxHp,
+  }));
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 space-y-6">
 
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">{combat.name}</h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -55,22 +58,19 @@ export default async function CombatPage({
         </div>
 
         {!isFinished && (
-          <div className="flex gap-2">
-            {/* Advance turn */}
+          <div className="flex gap-2 flex-shrink-0">
             <form action={async () => { "use server"; await advanceTurn(id); }}>
               <button
                 type="submit"
-                className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700"
+                className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 min-h-[44px]"
               >
                 Next turn →
               </button>
             </form>
-
-            {/* End combat */}
             <form action={async () => { "use server"; await endCombat(id); }}>
               <button
                 type="submit"
-                className="border rounded px-4 py-2 text-sm text-gray-500 hover:text-red-600 hover:border-red-300 transition-colors"
+                className="border rounded-lg px-4 py-2 text-sm text-gray-500 hover:text-red-600 hover:border-red-300 transition-colors min-h-[44px]"
               >
                 End combat
               </button>
@@ -85,7 +85,7 @@ export default async function CombatPage({
           Initiative order
         </h2>
 
-        {combat.participants.map((p, index) => {
+        {combat.participants.map((p) => {
           const isCurrentTurn = !isFinished && p.id === current?.id;
           return (
             <CombatantRow
@@ -94,7 +94,8 @@ export default async function CombatPage({
               combatId={combat.id}
               isCurrentTurn={isCurrentTurn}
               isFinished={isFinished}
-              //round={combat.round}
+              round={combat.round}
+              allParticipants={participantSummaries}
             />
           );
         })}
