@@ -24,16 +24,21 @@ type Condition = {
 export async function dealDamage(formData: FormData) {
   const combatId     = formData.get("combatId")?.toString();
   const targetId     = formData.get("targetId")?.toString();
-  const actorId      = formData.get("actorId")?.toString() || null;
+  const actorId      = formData.get("actorId")?.toString();
   const rawAmount    = Number(formData.get("amount"));
 
-  if (!combatId || !targetId)   throw new Error("Missing combatId or targetId");
+  if (!combatId || !targetId || !actorId)   throw new Error("Missing combatId or targetId");
   if (isNaN(rawAmount) || rawAmount < 1) throw new Error("Damage amount must be at least 1");
 
-  const target = await prisma.combatParticipant.findUnique({
-    where: { id: targetId },
-  });
-  if (!target) throw new Error("Target not found");
+  const [target, actor, combat] = await Promise.all([
+    prisma.combatParticipant.findUnique({ where: { id: targetId } }),
+    prisma.combatParticipant.findUnique({ where: { id: actorId } }),
+    prisma.combat.findUnique({ where: { id: combatId } }),
+  ]);
+
+  if (!target|| !actor || !combat) {
+    throw new Error("Invalid data");
+  }
 
   let amount    = rawAmount;
   let newTempHp = target.tempHp;
@@ -53,8 +58,6 @@ export async function dealDamage(formData: FormData) {
 
   const isConscious = newHp > 0;
 
-  const combat = await prisma.combat.findUnique({ where: { id: combatId } });
-
   await prisma.$transaction([
     prisma.combatParticipant.update({
       where: { id: targetId },
@@ -65,7 +68,7 @@ export async function dealDamage(formData: FormData) {
         combatId,
         round:    combat?.round ?? 0,
         type:     "DAMAGE",
-        actorId:  actorId ?? null,
+        actorId:  actorId,
         targetId,
         amount:   rawAmount, // log the original amount, not the absorbed remainder
         note:     !isConscious ? `${target.displayName} fell unconscious` : null,
