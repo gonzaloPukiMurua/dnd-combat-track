@@ -103,6 +103,10 @@ model CombatParticipant {
   actionUsed   Boolean @default(false)
   bonusUsed    Boolean @default(false)
   reactionUsed Boolean @default(false)
+
+  isStabilized     Boolean @default(false)
+  deathSaveSuccesses Int   @default(0)
+  deathSaveFailures  Int   @default(0)
 }
 
 // Immutable record of everything that happens during combat.

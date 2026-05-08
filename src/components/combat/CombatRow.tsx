@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { DeathSaveTracker } from "./DeathSaveTracker";
 import {
   dealDamage,
   healParticipant,
@@ -36,6 +37,9 @@ type Participant = {
   actionUsed:   boolean;
   bonusUsed:    boolean;
   reactionUsed: boolean;
+  isStabilized:       boolean;
+  deathSaveSuccesses: number;
+  deathSaveFailures:  number;
   template:     { type: string };
 };
 
@@ -164,6 +168,17 @@ export function CombatantRow({
         onClick={() => !isFinished && setExpanded((e) => !e)}
         className="p-3 space-y-2 cursor-pointer active:scale-[0.99] transition select-none"
       >
+        {/* Death saves — only shown when unconscious */}
+        {!p.isConscious && (
+          <DeathSaveTracker
+            participantId={p.id}
+            combatId={combatId}
+            displayName={p.displayName}
+            deathSaveSuccesses={p.deathSaveSuccesses}
+            deathSaveFailures={p.deathSaveFailures}
+            isStabilized={p.isStabilized}
+          />
+        )}
         {/* Row 1: initiative bubble + name + AC */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">

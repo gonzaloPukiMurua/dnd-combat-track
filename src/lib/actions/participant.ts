@@ -228,3 +228,84 @@ export async function toggleActionState(formData: FormData) {
 
   revalidatePath(`/combat/${combatId}`);
 }
+
+export async function recordDeathSave(formData: FormData) {
+  const combatId = formData.get("combatId")?.toString();
+  const targetId = formData.get("targetId")?.toString();
+  const result   = formData.get("result")?.toString(); // "success" | "failure"
+
+  if (!combatId || !targetId || !result) throw new Error("Missing required fields");
+  if (result !== "success" && result !== "failure") throw new Error("Invalid result");
+
+  const [target, combat] = await Promise.all([
+    prisma.combatParticipant.findUnique({ where: { id: targetId } }),
+    prisma.combat.findUnique({ where: { id: combatId } }),
+  ]);
+
+  if (!target || !combat) throw new Error("Invalid data");
+
+  // Can't roll death saves if conscious or already stabilized
+  if (target.isConscious || target.isStabilized) return;
+
+  let deathSaveSuccesses = target.deathSaveSuccesses;
+  let deathSaveFailures  = target.deathSaveFailures;
+  let isStabilized       = target.isStabilized as boolean;
+  let note = "";
+
+  if (result === "success") {
+    deathSaveSuccesses = Math.min(3, deathSaveSuccesses + 1);
+
+    if (deathSaveSuccesses >= 3) {
+      // 3 successes → stabilized
+      isStabilized = true;
+      note = `${target.displayName} is stabilized`;
+    } else {
+      note = `${target.displayName} death save success (${deathSaveSuccesses}/3)`;
+    }
+  } else {
+    deathSaveFailures = Math.min(3, deathSaveFailures + 1);
+
+    if (deathSaveFailures >= 3) {
+      // 3 failures → dead (we mark with a note, DM confirms)
+      note = `${target.displayName} has died (3 failed death saves)`;
+    } else {
+      note = `${target.displayName} death save failure (${deathSaveFailures}/3)`;
+    }
+  }
+
+  await prisma.$transaction([
+    prisma.combatParticipant.update({
+      where: { id: targetId },
+      data:  { deathSaveSuccesses, deathSaveFailures, isStabilized },
+    }),
+    prisma.combatLog.create({
+      data: {
+        combatId,
+        round:    combat.round,
+        type:     "NOTE",
+        targetId,
+        note,
+      },
+    }),
+  ]);
+
+  revalidatePath(`/combat/${combatId}`);
+}
+
+export async function resetDeathSaves(formData: FormData) {
+  const combatId = formData.get("combatId")?.toString();
+  const targetId = formData.get("targetId")?.toString();
+
+  if (!combatId || !targetId) throw new Error("Missing required fields");
+
+  await prisma.combatParticipant.update({
+    where: { id: targetId },
+    data:  {
+      deathSaveSuccesses: 0,
+      deathSaveFailures:  0,
+      isStabilized:       false,
+    },
+  });
+
+  revalidatePath(`/combat/${combatId}`);
+}
