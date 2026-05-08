@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useOptimistic } from "react";
 import { useRouter } from "next/navigation";
 import { DeathSaveTracker } from "./DeathSaveTracker";
 import {
@@ -80,11 +80,68 @@ export function CombatantRow({
 
   // Target for damage/heal — defaults to self
   const [targetId, setTargetId] = useState(p.id);
+  const [optimisticHp, applyOptimisticHp] = useOptimistic(
+  {
+    currentHp: p.currentHp,
+    tempHp: p.tempHp,
+  },
+  (
+    state,
+    action: {
+      type: "damage" | "heal" | "temp";
+      amount: number;
+    }
+  ) => {
+    switch (action.type) {
+      case "damage": {
+        let remaining = action.amount;
 
+        let tempHp = state.tempHp;
+        let currentHp = state.currentHp;
+
+        if (tempHp > 0) {
+          const absorbed = Math.min(tempHp, remaining);
+          tempHp -= absorbed;
+          remaining -= absorbed;
+        }
+
+        if (remaining > 0) {
+          currentHp = Math.max(0, currentHp - remaining);
+        }
+
+        return { currentHp, tempHp };
+      }
+
+      case "heal":
+        return {
+          ...state,
+          currentHp: Math.min(
+            p.maxHp,
+            state.currentHp + action.amount
+          ),
+        };
+
+      case "temp":
+        return {
+          ...state,
+          tempHp: Math.max(state.tempHp, action.amount),
+        };
+
+      default:
+        return state;
+    }
+  }
+);
   const acMods     = (p.acModifiers as AcModifier[]) ?? [];
   const conditions = (p.conditions  as Condition[])  ?? [];
   const acTotal    = p.baseAc + acMods.reduce((s, m) => s + m.value, 0);
-  const hpPct      = p.maxHp > 0 ? Math.max(0, Math.round((p.currentHp / p.maxHp) * 100)) : 0;
+  const hpPct =
+  p.maxHp > 0
+    ? Math.max(
+        0,
+        Math.round((optimisticHp.currentHp / p.maxHp) * 100)
+      )
+    : 0;
 
   const barColor =
     !p.isConscious ? "bg-gray-400" :
@@ -104,37 +161,68 @@ export function CombatantRow({
   function handleDamage() {
     const n = parseInt(amount);
     if (!n || n < 1) return;
+
+    applyOptimisticHp({
+      type: "damage",
+      amount: n,
+    });
+
+    setAmount("");
+
     run(async () => {
-      await dealDamage(makeFormData({
-        combatId,
-        actorId:  p.id,      // who is dealing
-        targetId,            // who receives — may differ from self
-        amount:   n,
-      }));
-      setAmount("");
+      await dealDamage(
+        makeFormData({
+          combatId,
+          actorId: p.id,
+          targetId,
+          amount: n,
+        })
+      );
     });
   }
 
-  function handleHeal() {
-    const n = parseInt(amount);
-    if (!n || n < 1) return;
-    run(async () => {
-      await healParticipant(makeFormData({
+function handleHeal() {
+  const n = parseInt(amount);
+  if (!n || n < 1) return;
+
+  applyOptimisticHp({
+    type: "heal",
+    amount: n,
+  });
+
+  setAmount("");
+
+  run(async () => {
+    await healParticipant(
+      makeFormData({
         combatId,
-        actorId:  p.id,
+        actorId: p.id,
         targetId,
-        amount:   n,
-      }));
-      setAmount("");
-    });
+        amount: n,
+      })
+    );
+   });
   }
 
   function handleSetTempHp() {
     const n = parseInt(tempAmount);
     if (isNaN(n) || n < 0) return;
+
+    applyOptimisticHp({
+      type: "temp",
+      amount: n,
+    });
+
+    setTempAmount("");
+
     run(async () => {
-      await setTempHp(makeFormData({ combatId, targetId: p.id, amount: n }));
-      setTempAmount("");
+      await setTempHp(
+        makeFormData({
+          combatId,
+          targetId: p.id,
+          amount: n,
+        })
+      );
     });
   }
 
@@ -225,9 +313,15 @@ export function CombatantRow({
           </div>
           <div className="flex justify-between text-sm font-mono text-gray-600">
             <span>
-              <strong className={p.currentHp === 0 ? "text-red-500" : ""}>{p.currentHp}</strong>
+              <strong className={optimisticHp.currentHp === 0 ? "text-red-500" : ""}>
+                {optimisticHp.currentHp}
+              </strong>
               /{p.maxHp}
-              {p.tempHp > 0 && <span className="text-blue-500 ml-1">+{p.tempHp}</span>}
+                {optimisticHp.tempHp > 0 && (
+                  <span className="text-blue-500 ml-1">
+                    +{optimisticHp.tempHp}
+                  </span>
+                )}
             </span>
             <span className="text-gray-400">{hpPct}%</span>
           </div>
