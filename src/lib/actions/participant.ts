@@ -412,7 +412,7 @@ export async function resetDeathSaves(formData: FormData): Promise<ActionResult>
 // Note: revalidatePath IS kept here because turn advancement
 // must be reflected in any full page reload or navigation.
 
-export async function advanceTurn(combatId: string): Promise<ActionResult> {
+/*export async function advanceTurn(combatId: string): Promise<ActionResult> {
   try {
     const combat = await prisma.combat.findUnique({
       where:   { id: combatId },
@@ -458,4 +458,4 @@ export async function advanceTurn(combatId: string): Promise<ActionResult> {
     console.error("[advanceTurn]", err);
     return { ok: false, error: "Failed to advance turn. Please try again." };
   }
-}
+}*/

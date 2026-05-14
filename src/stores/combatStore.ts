@@ -70,7 +70,7 @@ type CombatActions = {
   // Derived
   currentActor:          () => Participant | null;
   consciousParticipants: () => Participant[];
-
+  
   // Hydration — called once on page load
   hydrate: (data: {
     id: string; name: string; status: CombatStatus;
@@ -84,6 +84,7 @@ type CombatActions = {
   applyTempHp:               (targetId: string, amount: number) => void;
   applyCondition:            (targetId: string, condition: string) => void;
   removeConditionOptimistic: (targetId: string, condition: string) => void;
+  resetDeathSavesOptimistic: (targetId: string) => void;
   toggleAction:              (targetId: string, field: "actionUsed" | "bonusUsed" | "reactionUsed") => void;
   advanceTurnOptimistic:     () => void;
   applyDeathSave:            (targetId: string, result: "success" | "failure") => void;
@@ -228,22 +229,56 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   }),
 
   applyDeathSave: (targetId, result) => set((state) => ({
-    participants: state.participants.map((p) => {
-      if (p.id !== targetId) return p;
-      let { deathSaveSuccesses, deathSaveFailures, isStabilized } = p;
-      if (result === "success") {
-        deathSaveSuccesses = Math.min(3, deathSaveSuccesses + 1);
-        if (deathSaveSuccesses >= 3) isStabilized = true;
-      } else {
-        deathSaveFailures = Math.min(3, deathSaveFailures + 1);
+  participants: state.participants.map((p) => {
+    if (p.id !== targetId) return p;
+
+    let {
+      deathSaveSuccesses,
+      deathSaveFailures,
+      isStabilized,
+    } = p;
+
+    if (result === "success") {
+      deathSaveSuccesses = Math.min(
+        3,
+        deathSaveSuccesses + 1
+      );
+
+      if (deathSaveSuccesses >= 3) {
+        isStabilized = true;
       }
-      return { ...p, deathSaveSuccesses, deathSaveFailures, isStabilized };
+    } else {
+      deathSaveFailures = Math.min(
+        3,
+        deathSaveFailures + 1
+      );
+    }
+
+    return {
+      ...p,
+      deathSaveSuccesses,
+      deathSaveFailures,
+      isStabilized,
+    };
+  }),
+})),
+
+resetDeathSavesOptimistic: (targetId) => set((state) => ({
+  participants: state.participants.map((p) => {
+    if (p.id !== targetId) return p;
+
+      return {
+        ...p,
+        deathSaveSuccesses: 0,
+        deathSaveFailures: 0,
+        isStabilized: false,
+      };
     }),
   })),
 
-  appendLog: (entry) => set((state) => ({
-    logs: [...state.logs, entry],
-  })),
+appendLog: (entry) => set((state) => ({
+  logs: [...state.logs, entry],
+})),
 
   // ── Snapshot / rollback ───────────────────────────────────────────────────
 

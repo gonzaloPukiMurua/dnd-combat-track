@@ -4,7 +4,7 @@ import { useCombatStore } from "@/stores/combatStore";
 import { CombatantRow } from "@/components/combat/CombatRow";
 import { CurrentTurnPanel } from "@/components/combat/CurrentTurnPanel";
 import { CombatLog } from "@/components/combat/CombatLog";
-
+import { ErrorToast } from "../ErrorToast";
 type Props = {
   combatId:   string;
   isFinished: boolean;
@@ -38,7 +38,7 @@ export function CombatView({ combatId, isFinished }: Props) {
       The panel is ~120px + nav tabs ~64px on mobile = ~184px total.
     */
     <div className="space-y-4 pb-48 sm:pb-36">
-
+        <ErrorToast />
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="pt-2">
         <h1 className="text-xl font-bold text-slate-800">{combatName}</h1>
