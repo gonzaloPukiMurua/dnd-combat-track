@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { endCombat } from "@/lib/actions/combat";
-import { CombatantRow } from "@/components/combat/CombatRow";
-import { CombatLog } from "@/components/combat/CombatLog";
-import { CurrentTurnPanel } from "@/components/combat/CurrentTurnPanel";
+import { CombatStoreInitializer } from "@/components/combat/CombatStoreInitializer";
+import { ErrorToast } from "@/components/ErrorToast";
+import { CombatView } from "@/components/combat/CombatView";
 
 async function getCombat(id: string) {
   return prisma.combat.findUnique({
@@ -32,92 +32,84 @@ export default async function CombatPage({
   if (!combat) notFound();
 
   const isFinished = combat.status === "FINISHED";
-  const conscious  = combat.participants.filter((p) => p.isConscious);
-  const current    = conscious[combat.currentTurnIndex] ?? null;
-
-  const participantSummaries = combat.participants.map((p) => ({
-    id:          p.id,
-    displayName: p.displayName,
-    isConscious: p.isConscious,
-    currentHp:   p.currentHp,
-    maxHp:       p.maxHp,
-    tempHp:      p.tempHp,
-  }));
 
   return (
     <>
-      <div className="space-y-4 pb-48 sm:pb-36">
+      {/* Hydrate store once — after this the server is write-only */}
+      <CombatStoreInitializer
+        combat={{
+          id:               combat.id,
+          name:             combat.name,
+          status:           combat.status as "SETUP" | "ACTIVE" | "FINISHED",
+          round:            combat.round,
+          currentTurnIndex: combat.currentTurnIndex,
+          participants: combat.participants.map((p) => ({
+            id:                 p.id,
+            combatId:           p.combatId,
+            templateId:         p.templateId,
+            displayName:        p.displayName,
+            initiative:         p.initiative,
+            turnOrder:          p.turnOrder,
+            maxHp:              p.maxHp,
+            currentHp:          p.currentHp,
+            tempHp:             p.tempHp,
+            baseAc:             p.baseAc,
+            acModifiers:        p.acModifiers as never,
+            conditions:         p.conditions  as never,
+            isConscious:        p.isConscious,
+            isStabilized:       p.isStabilized,
+            deathSaveSuccesses: p.deathSaveSuccesses,
+            deathSaveFailures:  p.deathSaveFailures,
+            actionUsed:         p.actionUsed,
+            bonusUsed:          p.bonusUsed,
+            reactionUsed:       p.reactionUsed,
+            template: {
+              id:              p.template.id,
+              name:            p.template.name,
+              type:            p.template.type,
+              maxHp:           p.template.maxHp,
+              baseAc:          p.template.baseAc,
+              initiativeBonus: p.template.initiativeBonus,
+            },
+          })),
+          logs: combat.logs.map((l) => ({
+            id:        l.id,
+            combatId:  l.combatId,
+            round:     l.round,
+            type:      l.type as "DAMAGE" | "HEAL" | "CONDITION_ADDED" | "CONDITION_REMOVED" | "NOTE",
+            actorId:   l.actorId,
+            targetId:  l.targetId,
+            amount:    l.amount,
+            note:      l.note,
+            createdAt: l.createdAt,
+            actor:     l.actor  ? { displayName: l.actor.displayName  } : null,
+            target:    l.target ? { displayName: l.target.displayName } : null,
+          })),
+        }}
+      />
 
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3 pt-2">
-          <div>
-            <h1 className="text-xl font-bold text-gray-800">{combat.name}</h1>
-            <p className="text-sm text-gray-500">
-              {isFinished
-                ? "Combat finished"
-                : `Round ${combat.round} · ${conscious.length} active`}
-            </p>
-          </div>
+      {/* Error toast — appears on any mutation failure */}
+      <ErrorToast />
 
-          <form action={async () => { "use server"; await endCombat(id); }}>
-            <button
-              type="submit"
-              className="border-2 rounded-xl px-4 py-2 text-sm text-gray-500 hover:text-red-600 hover:border-red-300 transition-colors min-h-[44px]"
-            >
-              {isFinished ? "← Back" : "End combat"}
-            </button>
-          </form>
-        </div>
+      {/* CombatView reads entirely from Zustand store */}
+      <CombatView combatId={combat.id} isFinished={isFinished} />
 
-        {/* Initiative list */}
-        <section className="space-y-2">
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-            Initiative order
-          </h2>
-          {combat.participants.map((p) => {
-            const isCurrentTurn = !isFinished && p.id === current?.id;
-            return (
-              <CombatantRow
-                key={p.id}
-                participant={p}
-                combatId={combat.id}
-                isCurrentTurn={isCurrentTurn}
-                isFinished={isFinished}
-                round={combat.round}
-                allParticipants={participantSummaries}
-              />
-            );
-          })}
-        </section>
-
-        {/* Combat log */}
-        {combat.logs.length > 0 && (
-          <section className="space-y-2">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-              Log
-            </h2>
-            <CombatLog logs={combat.logs} />
-          </section>
-        )}
-      </div>
-
-      {/* Sticky command panel */}
-      {!isFinished && current && (
-        <CurrentTurnPanel
-          actor={{
-            id:           current.id,
-            displayName:  current.displayName,
-            currentHp:    current.currentHp,
-            maxHp:        current.maxHp,
-            tempHp:       current.tempHp,
-            actionUsed:   current.actionUsed,
-            bonusUsed:    current.bonusUsed,
-            reactionUsed: current.reactionUsed,
+      {/* End combat — kept as server action form */}
+      {!isFinished && (
+        <form
+          action={async () => {
+            "use server";
+            await endCombat(combat.id);
           }}
-          combatId={combat.id}
-          round={combat.round}
-          allParticipants={participantSummaries}
-        />
+          className="mt-4"
+        >
+          <button
+            type="submit"
+            className="w-full border-2 border-slate-200 rounded-2xl py-3 text-sm text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"
+          >
+            End combat
+          </button>
+        </form>
       )}
     </>
   );

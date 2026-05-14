@@ -181,46 +181,94 @@ export async function startCombat(formData: FormData) {
 // ─── Advance to next turn ────────────────────────────────────────────────────
 
 export async function advanceTurn(combatId: string) {
-  const combat = await prisma.combat.findUnique({
-    where: { id: combatId },
-    include: {
-      participants: {
-        where:   { isConscious: true },
-        orderBy: { turnOrder: "asc" },
+  try {
+    const combat = await prisma.combat.findUnique({
+      where: { id: combatId },
+      include: {
+        participants: {
+          // Keep unconscious participants in initiative
+          where: {
+            deathSaveFailures: {
+              lt: 3,
+            },
+          },
+          orderBy: {
+            turnOrder: "asc",
+          },
+        },
       },
-    },
-  });
+    });
 
-  if (!combat)                   throw new Error("Combat not found");
-  if (combat.status !== "ACTIVE") throw new Error("Combat is not active");
+    if (!combat) {
+      return {
+        ok: false,
+        error: "Combat not found",
+      };
+    }
 
-  const consciousCount = combat.participants.length;
-  if (consciousCount === 0) return; // everyone is down, DM should end combat
+    if (combat.status !== "ACTIVE") {
+      return {
+        ok: false,
+        error: "Combat is not active",
+      };
+    }
 
-  let nextIndex = combat.currentTurnIndex + 1;
-  let nextRound = combat.round;
+    const activeParticipants = combat.participants;
 
-  // Wrap around → new round
-  if (nextIndex >= consciousCount) {
-    nextIndex = 0;
-    nextRound += 1;
+    if (activeParticipants.length === 0) {
+      return {
+        ok: false,
+        error: "No active participants remaining",
+      };
+    }
+
+    let nextIndex = combat.currentTurnIndex + 1;
+    let nextRound = combat.round;
+
+    // Wrap → new round
+    if (nextIndex >= activeParticipants.length) {
+      nextIndex = 0;
+      nextRound += 1;
+    }
+
+    const nextActor = activeParticipants[nextIndex];
+
+    // Atomic transaction
+    await prisma.$transaction([
+      prisma.combat.update({
+        where: {
+          id: combatId,
+        },
+        data: {
+          currentTurnIndex: nextIndex,
+          round: nextRound,
+        },
+      }),
+
+      // Reset ONLY next actor actions
+      prisma.combatParticipant.update({
+        where: {
+          id: nextActor.id,
+        },
+        data: {
+          actionUsed: false,
+          bonusUsed: false,
+          reactionUsed: false,
+        },
+      }),
+    ]);
+
+    return {
+      ok: true,
+    };
+  } catch (error) {
+    console.error("advanceTurn failed", error);
+
+    return {
+      ok: false,
+      error: "Failed to advance turn",
+    };
   }
-
-  await prisma.combat.update({
-    where: { id: combatId },
-    data:  { currentTurnIndex: nextIndex, round: nextRound },
-  });
-
-  await prisma.combatParticipant.updateMany({
-    where: { combatId },
-    data: {
-      actionUsed: false,
-      bonusUsed: false,
-      reactionUsed: false,
-    },
-  });
-
-  revalidatePath(`/combat/${combatId}`);
 }
 
 // ─── End combat ──────────────────────────────────────────────────────────────
