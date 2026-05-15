@@ -1,6 +1,6 @@
 // ─── Utility: computed AC total ──────────────────────────────────────────────
 // Not a server action — just a pure helper used by UI components.
-import { AcModifier } from "../actions/participant";
+import { AcModifier } from "@/stores/combatStore";
 export function computeAcTotal(
   baseAc: number,
   acModifiers: unknown

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
-export type AcModifier = { source: string; value: number };
+type AcModifier = { source: string; value: number };
 type Condition  = { name: string };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
