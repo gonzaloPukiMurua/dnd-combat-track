@@ -121,10 +121,12 @@ export const useCombatStore = create<CombatState>((set, get) => ({
 
   currentActor: () => {
     const { participants, currentTurnIndex } = get();
-    const conscious = [...participants]
-      .filter((p) => p.isConscious)
+
+    const sorted = [...participants]
+      .filter((p) => p.deathSaveFailures < 3)
       .sort((a, b) => a.turnOrder - b.turnOrder);
-    return conscious[currentTurnIndex] ?? null;
+
+    return sorted[currentTurnIndex] ?? null;
   },
 
   // ── Hydration ─────────────────────────────────────────────────────────────
@@ -204,18 +206,18 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   })),
 
   advanceTurnOptimistic: () => set((state) => {
-    const conscious = [...state.participants]
-      .filter((p) => p.isConscious)
+    const active = [...state.participants]
+      .filter((p) => p.deathSaveFailures < 3)
       .sort((a, b) => a.turnOrder - b.turnOrder);
 
-    if (conscious.length === 0) return {};
+    if (active.length === 0) return {};
 
     let nextIndex = state.currentTurnIndex + 1;
     let nextRound = state.round;
 
-    if (nextIndex >= conscious.length) {
-      nextIndex = 0;
-      nextRound += 1;
+    if (nextIndex >= active.length) {
+     nextIndex = 0;
+     nextRound += 1;
     }
 
     const participants = state.participants.map((p) => ({

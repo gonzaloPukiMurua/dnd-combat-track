@@ -60,7 +60,6 @@ export async function createCombat(formData: FormData) {
     data: { name, status: "SETUP", round: 0, currentTurnIndex: 0 },
   });
 
-  revalidatePath("/combat");
   redirect(`/combat/${combat.id}/setup`);
 }
 
@@ -174,7 +173,6 @@ export async function startCombat(formData: FormData) {
     }),
   ]);
 
-  revalidatePath(`/combat/${combatId}`);
   redirect(`/combat/${combatId}`);
 }
 
@@ -279,6 +277,5 @@ export async function endCombat(combatId: string) {
     data:  { status: "FINISHED" },
   });
 
-  revalidatePath(`/combat/${combatId}`);
   redirect("/combat");
 }

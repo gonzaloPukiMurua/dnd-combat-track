@@ -1,7 +1,6 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
 
 // ─── Return type ──────────────────────────────────────────────────────────────
 // Every action returns this — never throws to the client.

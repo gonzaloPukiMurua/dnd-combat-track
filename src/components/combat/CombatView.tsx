@@ -30,10 +30,12 @@ export function CombatView({ combatId, isFinished }: Props) {
   }));
 
   const consciousCount = participants.filter((p) => p.isConscious).length;
-  console.log("actor:", actor);
+  console.log("actor mas o menos piolas:", actor);
   console.log("participants:", participants);
   console.log("currentTurnIndex:", useCombatStore.getState().currentTurnIndex);
   if (actor) console.log("Panel should be rendering for:", actor.displayName);
+  const conscious = participants.filter(p => p.isConscious);
+  console.log("conscious count:", conscious.length, "turnIndex:", useCombatStore.getState().currentTurnIndex);
   return (
     /*
       pb-48 sm:pb-36 clears the sticky command panel and bottom nav.
