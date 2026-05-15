@@ -4,7 +4,6 @@ import { useCombatStore } from "@/stores/combatStore";
 import { CombatantRow } from "@/components/combat/CombatRow";
 import { CurrentTurnPanel } from "@/components/combat/CurrentTurnPanel";
 import { CombatLog } from "@/components/combat/CombatLog";
-import { ErrorToast } from "../ErrorToast";
 type Props = {
   combatId:   string;
   isFinished: boolean;
@@ -31,14 +30,16 @@ export function CombatView({ combatId, isFinished }: Props) {
   }));
 
   const consciousCount = participants.filter((p) => p.isConscious).length;
-
+  console.log("actor:", actor);
+  console.log("participants:", participants);
+  console.log("currentTurnIndex:", useCombatStore.getState().currentTurnIndex);
+  if (actor) console.log("Panel should be rendering for:", actor.displayName);
   return (
     /*
       pb-48 sm:pb-36 clears the sticky command panel and bottom nav.
       The panel is ~120px + nav tabs ~64px on mobile = ~184px total.
     */
     <div className="space-y-4 pb-48 sm:pb-36">
-        <ErrorToast />
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="pt-2">
         <h1 className="text-xl font-bold text-slate-800">{combatName}</h1>

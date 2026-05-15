@@ -90,28 +90,7 @@ export function DeathSaveTracker({
 
   function handleReset() {
     mutate({
-      optimistic: () => {
-        store.hydrate({
-          id: store.combatId!,
-          name: store.combatName,
-          status: store.status,
-          round: store.round,
-          currentTurnIndex: store.currentTurnIndex,
-
-          participants: store.participants.map((p) => {
-            if (p.id !== participantId) return p;
-
-            return {
-              ...p,
-              deathSaveSuccesses: 0,
-              deathSaveFailures: 0,
-              isStabilized: false,
-            };
-          }),
-
-          logs: store.logs,
-        });
-      },
+      optimistic: () => store.resetDeathSavesOptimistic(participantId),
 
       action: () =>
         resetDeathSaves(
