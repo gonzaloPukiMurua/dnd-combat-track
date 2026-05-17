@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { endCombat } from "@/lib/actions/combat";
+import { endCombat, saveHpToTemplates } from "@/lib/actions/combat";
 import { CombatStoreInitializer } from "@/components/combat/CombatStoreInitializer";
 import { ErrorToast } from "@/components/ErrorToast";
 import { CombatView } from "@/components/combat/CombatView";
@@ -96,20 +96,27 @@ export default async function CombatPage({
 
       {/* End combat — kept as server action form */}
       {!isFinished && (
-        <form
-          action={async () => {
+        <div className="mt-4 space-y-2">
+          <form action={async () => {
+            "use server";
+            await saveHpToTemplates(combat.id);
+            await endCombat(combat.id);
+          }}>
+            <button type="submit"
+              className="w-full border-2 border-green-200 text-green-700 rounded-2xl py-3 text-sm font-medium hover:bg-green-50 transition-colors">
+              End combat + save HP to templates
+            </button>
+          </form>
+          <form action={async () => {
             "use server";
             await endCombat(combat.id);
-          }}
-          className="mt-4"
-        >
-          <button
-            type="submit"
-            className="w-full border-2 border-slate-200 rounded-2xl py-3 text-sm text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"
-          >
-            End combat
-          </button>
-        </form>
+          }}>
+            <button type="submit"
+              className="w-full border-2 border-slate-200 rounded-2xl py-3 text-sm text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors">
+              End combat (reset HP to full next time)
+            </button>
+          </form>
+        </div>
       )}
     </>
   );

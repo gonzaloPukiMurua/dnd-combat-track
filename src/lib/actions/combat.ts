@@ -279,3 +279,73 @@ export async function endCombat(combatId: string) {
 
   redirect("/combat");
 }
+
+export async function addParticipantsFromGroup(formData: FormData) {
+  const combatId = formData.get("combatId")?.toString();
+  const groupId  = formData.get("groupId")?.toString();
+
+  if (!combatId || !groupId) throw new Error("Missing required fields");
+
+  const [combat, group] = await Promise.all([
+    prisma.combat.findUnique({ where: { id: combatId } }),
+    prisma.group.findUnique({
+      where:   { id: groupId },
+      include: { members: { include: { template: true } } },
+    }),
+  ]);
+
+  if (!combat) throw new Error("Combat not found");
+  if (!group)  throw new Error("Group not found");
+  if (combat.status !== "SETUP") throw new Error("Combat has already started");
+
+  // For each member, create quantity participants
+  const data = group.members.flatMap((m) => {
+    // Count existing to generate correct suffix numbers
+    return Array.from({ length: m.quantity }, (_, i) => ({
+      combatId,
+      templateId:  m.templateId,
+      displayName: m.quantity > 1
+        ? `${m.template.name} #${i + 1}`
+        : m.template.name,
+      maxHp:       m.template.currentHp ?? m.template.maxHp,
+      currentHp:   m.template.currentHp ?? m.template.maxHp,
+      tempHp:      0,
+      baseAc:      m.template.baseAc,
+      initiative:  0,
+      turnOrder:   0,
+      acModifiers: [],
+      conditions:  [],
+      isConscious: true,
+    }));
+  });
+
+  await prisma.combatParticipant.createMany({ data });
+
+  revalidatePath(`/combat/${combatId}/setup`);
+}
+
+// ── Save HP back to templates after combat ───────────────────────────────────
+// Called optionally when ending a combat.
+// Updates each template's currentHp with the participant's final HP.
+
+export async function saveHpToTemplates(combatId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const participants = await prisma.combatParticipant.findMany({
+      where: { combatId },
+    });
+
+    await prisma.$transaction(
+      participants.map((p) =>
+        prisma.characterTemplate.update({
+          where: { id: p.templateId },
+          data:  { currentHp: p.currentHp },
+        })
+      )
+    );
+
+    return { ok: true };
+  } catch (err) {
+    console.error("[saveHpToTemplates]", err);
+    return { ok: false, error: "Failed to save HP to templates" };
+  }
+}

@@ -39,11 +39,13 @@ model CharacterTemplate {
   name            String
   type            CharacterType
   maxHp           Int
+  currentHp       Int?          // null = always start at full HP
   baseAc          Int
   initiativeBonus Int      @default(0)
   createdAt       DateTime @default(now())
 
   participants CombatParticipant[]
+  groupMembers GroupMember[]
 }
 
 // One combat encounter.
@@ -136,4 +138,26 @@ model CombatLog {
 
   @@index([combatId])
   @@index([combatId, round])
+}
+
+model Group {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members GroupMember[]
+}
+
+model GroupMember {
+  id         String @id @default(uuid())
+  groupId    String
+  templateId String
+  quantity   Int    @default(1)
+
+  group    Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  template CharacterTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, templateId])
 }

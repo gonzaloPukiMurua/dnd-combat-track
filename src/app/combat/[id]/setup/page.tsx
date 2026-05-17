@@ -21,11 +21,11 @@ export default async function CombatSetupPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [combat, templates] = await Promise.all([
+  const [combat, templates, groups] = await Promise.all([
     getCombatSetup(id),
     getTemplates(),
+    getGroups(),
   ]);
-
   if (!combat) notFound();
 
   // If already started, redirect to the live view
@@ -41,7 +41,24 @@ export default async function CombatSetupPage({
           Add participants, then roll initiative to begin.
         </p>
       </div>
-
+      <section className="bg-white border-2 border-slate-100 rounded-2xl p-4 space-y-3">
+        <h2 className="font-bold text-slate-700">Load a group</h2>
+          <form action={addParticipantsFromGroup} className="flex gap-2">
+            <input type="hidden" name="combatId" value={combat.id} />
+              <select name="groupId"
+                className="flex-1 border-2 border-slate-200 rounded-xl px-3 h-11 text-sm focus:outline-none focus:border-blue-500">
+                {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name} ({g.members.reduce((n, m) => n + m.quantity, 0)} participants)
+                </option>
+            ))}
+          </select>
+          <button type="submit"
+            className="bg-slate-900 text-white rounded-xl px-4 h-11 text-sm font-semibold hover:bg-slate-800 transition-colors whitespace-nowrap">
+            Load →
+          </button>
+        </form>
+      </section>
       {/* Add participant form */}
       <section className="border rounded p-4 bg-white space-y-3">
         <h2 className="font-semibold">Add participant</h2>
