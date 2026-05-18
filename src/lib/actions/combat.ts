@@ -96,7 +96,7 @@ export async function addParticipant(formData: FormData) {
       templateId,
       displayName: `${template.name}${suffix}`,
       maxHp:       template.maxHp,
-      currentHp:   template.maxHp,
+      currentHp:   template.currentHp ?? template.maxHp,
       tempHp:      0,
       baseAc:      template.baseAc,
       initiative:  0,
