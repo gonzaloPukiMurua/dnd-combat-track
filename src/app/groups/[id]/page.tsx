@@ -25,9 +25,9 @@ export default async function GroupDetailPage({
   return (
     <div className="py-6 space-y-6 max-w-lg">
       <div>
-        <a href="/groups" className="text-sm text-slate-400 hover:text-slate-600">
+        <Link href="/groups" className="text-sm text-slate-400 hover:text-slate-600">
           ← Back to groups
-        </a>
+        </Link>
         <h1 className="text-2xl font-bold text-slate-900 mt-1">{group.name}</h1>
         {group.description && (
           <p className="text-slate-400 text-sm mt-0.5">{group.description}</p>
@@ -75,7 +75,7 @@ export default async function GroupDetailPage({
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
             Add template
           </h2>
-          <form action={addGroupMember}
+          <form action={async (fd) => { await addGroupMember(fd); }}
             className="bg-white border-2 border-slate-100 rounded-2xl p-4 space-y-3">
             <input type="hidden" name="groupId" value={group.id} />
             <div className="flex gap-2">

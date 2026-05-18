@@ -1,11 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
-import { createGroup } from "@/lib/actions/groups";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { createGroup, type GroupFormState } from "@/lib/actions/groups";
+import Link from "next/link";
 
-const INITIAL = {};
+const INITIAL: GroupFormState = {};
 
 export default function NewGroupPage() {
   const router = useRouter();
@@ -20,9 +21,9 @@ export default function NewGroupPage() {
   return (
     <div className="py-6 space-y-6 max-w-lg">
       <div>
-        <a href="/groups" className="text-sm text-slate-400 hover:text-slate-600">
+        <Link href="/groups" className="text-sm text-slate-400 hover:text-slate-600">
           ← Back to groups
-        </a>
+        </Link>
         <h1 className="text-2xl font-bold text-slate-900 mt-1">New group</h1>
       </div>
 
@@ -44,10 +45,10 @@ export default function NewGroupPage() {
         </div>
 
         <div className="flex gap-3 pt-2">
-          <a href="/groups"
+          <Link href="/groups"
             className="flex-1 h-12 flex items-center justify-center border-2 border-slate-200 rounded-xl text-slate-500 text-sm font-medium hover:bg-slate-50">
             Cancel
-          </a>
+          </Link>
           <button type="submit" disabled={isPending}
             className="flex-1 h-12 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 disabled:opacity-50">
             {isPending ? "Creating…" : "Create group"}
