@@ -127,3 +127,49 @@ export async function deleteCombat(id: string): Promise<TemplateFormState> {
   revalidatePath("/combat");
   return { success: true };
 }
+
+// Long rest — restore all characters to maxHp
+export async function longRest(templateIds: string[]): Promise<TemplateFormState> {
+  try {
+    await prisma.$transaction(
+      templateIds.map((id) =>
+        prisma.characterTemplate.update({
+          where: { id },
+          data:  { currentHp: null }, // null = full HP on next combat start
+        })
+      )
+    );
+    revalidatePath("/templates");
+    return { success: true };
+  } catch {
+    return { error: "Failed to apply long rest" };
+  }
+}
+
+// Short rest — restore a specific amount to specific characters
+export async function shortRest(
+  updates: { id: string; healAmount: number }[]
+): Promise<TemplateFormState> {
+  try {
+    const templates = await prisma.characterTemplate.findMany({
+      where: { id: { in: updates.map((u) => u.id) } },
+    });
+
+    await prisma.$transaction(
+      updates.map((u) => {
+        const template = templates.find((t) => t.id === u.id);
+        if (!template) return prisma.characterTemplate.update({ where: { id: u.id }, data: {} });
+        const currentHp = template.currentHp ?? template.maxHp;
+        const newHp = Math.min(template.maxHp, currentHp + u.healAmount);
+        return prisma.characterTemplate.update({
+          where: { id: u.id },
+          data:  { currentHp: newHp },
+        });
+      })
+    );
+    revalidatePath("/templates");
+    return { success: true };
+  } catch {
+    return { error: "Failed to apply short rest" };
+  }
+}

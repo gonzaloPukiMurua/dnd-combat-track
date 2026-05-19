@@ -122,11 +122,15 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   currentActor: () => {
     const { participants, currentTurnIndex } = get();
 
-    const sorted = [...participants]
+    const active = [...participants]
       .filter((p) => p.deathSaveFailures < 3)
       .sort((a, b) => a.turnOrder - b.turnOrder);
 
-    return sorted[currentTurnIndex] ?? null;
+    if (active.length === 0) return null;
+
+    // Clamp here too — store may have stale index from DB hydration
+    const safeIndex = Math.min(currentTurnIndex, active.length - 1);
+    return active[safeIndex] ?? null;
   },
 
   // ── Hydration ─────────────────────────────────────────────────────────────
@@ -212,12 +216,18 @@ export const useCombatStore = create<CombatState>((set, get) => ({
 
     if (active.length === 0) return {};
 
-    let nextIndex = state.currentTurnIndex + 1;
+    // Same clamp as server
+    const safeCurrentIndex = Math.min(
+      state.currentTurnIndex,
+      active.length - 1
+    );
+
+    let nextIndex = safeCurrentIndex + 1;
     let nextRound = state.round;
 
     if (nextIndex >= active.length) {
-     nextIndex = 0;
-     nextRound += 1;
+      nextIndex = 0;
+      nextRound += 1;
     }
 
     const participants = state.participants.map((p) => ({

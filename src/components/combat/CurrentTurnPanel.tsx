@@ -411,6 +411,7 @@ export function CurrentTurnPanel({
                   End Turn →
                 </button>
               </div>
+              
 
               {isMutating && (
                 <p className="text-xs text-slate-500 text-center animate-pulse">

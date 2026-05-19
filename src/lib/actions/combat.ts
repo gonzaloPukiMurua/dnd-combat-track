@@ -214,16 +214,19 @@ export async function advanceTurn(combatId: string) {
     const activeParticipants = combat.participants;
 
     if (activeParticipants.length === 0) {
-      return {
-        ok: false,
-        error: "No active participants remaining",
-      };
+      return { ok: false, error: "No active participants remaining" };
     }
 
-    let nextIndex = combat.currentTurnIndex + 1;
+    // ← ADD THIS: clamp current index before incrementing
+    // Prevents stale index from causing out-of-bounds on next advance
+    const safeCurrentIndex = Math.min(
+      combat.currentTurnIndex,
+      activeParticipants.length - 1
+    );
+
+    let nextIndex = safeCurrentIndex + 1;
     let nextRound = combat.round;
 
-    // Wrap → new round
     if (nextIndex >= activeParticipants.length) {
       nextIndex = 0;
       nextRound += 1;

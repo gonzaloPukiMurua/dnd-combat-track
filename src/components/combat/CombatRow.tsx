@@ -306,6 +306,41 @@ export function CombatantRow({
                 ))}
               </div>
             )}
+
+            {/* Concentration quick-add */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Concentrating on… (spell name)"
+                  id={`conc-${p.id}`}
+                  className="flex-1 border-2 border-slate-600 rounded-xl px-3 h-11 text-sm bg-slate-800 text-white focus:outline-none focus:border-purple-500"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const val = (e.target as HTMLInputElement).value.trim();
+                      if (val) {
+                        handleAddCondition(`Concentration: ${val}`);
+                        (e.target as HTMLInputElement).value = "";
+                      }
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById(`conc-${p.id}`) as HTMLInputElement;
+                    const val = input?.value.trim();
+                    if (val) {
+                      handleAddCondition(`Concentration: ${val}`);
+                      input.value = "";
+                    }
+                  }}
+                  disabled={disabled}
+                  className="border-2 border-purple-600 text-purple-400 rounded-xl px-3 h-11 text-xs font-bold hover:bg-purple-900/40 disabled:opacity-40 transition-colors whitespace-nowrap"
+                >
+                  + Conc
+                </button>
+              </div>
+
             <div className="flex flex-wrap gap-1.5">
               {COMMON_CONDITIONS
                 .filter((cn) => !p.conditions.some((c) => c.name === cn))

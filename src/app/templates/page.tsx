@@ -1,7 +1,7 @@
 import { getTemplates } from "@/lib/actions/templates";
 import { CreateTemplateForm } from "@/components/templates/CreateTemplateForm";
 import { TemplateCard } from "@/components/templates/TemplateCard";
-
+import { RestPanel } from "@/components/templates/RestPanel";
 export default async function TemplatesPage() {
   const templates = await getTemplates();
 
@@ -59,7 +59,7 @@ export default async function TemplatesPage() {
           ))}
         </section>
       )}
-
+      <RestPanel templates={templates} />
     </div>
   );
 }
