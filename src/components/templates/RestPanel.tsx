@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { longRest } from "@/lib/actions/templates";
+import { longRest, shortRest } from "@/lib/actions/templates";
 
 type Template = {
   id:        string;
@@ -17,7 +17,7 @@ export function RestPanel({ templates }: { templates: Template[] }) {
   const [isPending, startTransition] = useTransition();
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-
+  const [shortHeal, setShortHeal] = useState("");
   // Only show PCs and NPCs — monsters always reset
   const restCandidates = templates.filter(
     (t) => t.type === "PLAYER" || t.type === "NPC"
@@ -93,6 +93,14 @@ export function RestPanel({ templates }: { templates: Template[] }) {
               <span className="flex-1 font-medium text-slate-700 text-sm truncate">
                 {t.name}
               </span>
+
+              <div className="w-16 bg-slate-200 rounded-full h-1.5 hidden sm:block">
+                <div
+                  className={`h-1.5 rounded-full ${pct > 60 ? "bg-green-500" : pct > 30 ? "bg-yellow-400" : "bg-red-500"}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+
               {isWounded ? (
                 <span className="text-xs font-mono text-red-500">
                   {hp}/{t.maxHp}
@@ -121,6 +129,34 @@ export function RestPanel({ templates }: { templates: Template[] }) {
           className="flex-1 h-11 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 disabled:opacity-40 transition-colors"
         >
           {isPending ? "Resting…" : `Long rest (${selected.length})`}
+        </button>
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="number"
+          min={1}
+          value={shortHeal}
+          onChange={(e) => setShortHeal(e.target.value)}
+          placeholder="HP to restore"
+          className="flex-1 border-2 border-slate-200 rounded-xl px-3 h-11 text-sm focus:outline-none focus:border-amber-400"
+        />
+        <button
+          type="button"
+          disabled={selected.length === 0 || !shortHeal || isPending}
+          onClick={() => {
+            const n = parseInt(shortHeal);
+            if (!n || n < 1) return;
+            startTransition(async () => {
+              const result = await shortRest(
+                selected.map((id) => ({ id, healAmount: n }))
+              );
+              if (result.error) setError(result.error);
+              else { setShortHeal(""); router.refresh(); }
+            });
+          }}
+          className="h-11 px-4 border-2 border-amber-300 text-amber-700 rounded-xl text-sm font-semibold hover:bg-amber-50 disabled:opacity-40 transition-colors whitespace-nowrap"
+        >
+          Short rest
         </button>
       </div>
       <p className="text-xs text-slate-400 text-center">
