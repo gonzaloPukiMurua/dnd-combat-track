@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-
+import { generateJoinCode } from "../utils/combat";
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 // Returns the single SETUP or ACTIVE combat, or null.
@@ -169,7 +169,12 @@ export async function startCombat(formData: FormData) {
     // Flip combat to ACTIVE, start at round 1, first participant's turn
     prisma.combat.update({
       where: { id: combatId },
-      data:  { status: "ACTIVE", round: 1, currentTurnIndex: 0 },
+      data:  { 
+        status: "ACTIVE", 
+        round: 1, 
+        currentTurnIndex: 0,
+        joinCode:         generateJoinCode(), 
+      },
     }),
   ]);
 
@@ -351,4 +356,16 @@ export async function saveHpToTemplates(combatId: string): Promise<{ ok: boolean
     console.error("[saveHpToTemplates]", err);
     return { ok: false, error: "Failed to save HP to templates" };
   }
+}
+
+export async function getCombatByJoinCode(code: string) {
+  return prisma.combat.findUnique({
+    where:   { joinCode: code.toUpperCase().trim() },
+    include: {
+      participants: {
+        orderBy: { turnOrder: "asc" },
+        include: { template: true },
+      },
+    },
+  });
 }

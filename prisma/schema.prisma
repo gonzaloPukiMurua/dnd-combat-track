@@ -55,12 +55,15 @@ model Combat {
   status           CombatStatus @default(SETUP)
   round            Int          @default(0)   // 0 = not started yet, 1 = first round
   currentTurnIndex Int          @default(0)   // index into participants sorted by turnOrder
+  joinCode         String?      @unique   // ← add this
+  isPublic         Boolean  @default(false)
   createdAt        DateTime     @default(now())
 
   participants CombatParticipant[]
   logs         CombatLog[]
 
   @@index([status])
+  @@index([joinCode])
 }
 
 // The live instance of a CharacterTemplate inside a specific Combat.
