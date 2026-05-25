@@ -171,7 +171,15 @@ export const useCombatStore = create<CombatState>((set, get) => ({
     participants: state.participants.map((p) => {
       if (p.id !== targetId) return p;
       const newHp = Math.min(p.maxHp, p.currentHp + amount);
-      return { ...p, currentHp: newHp, isConscious: newHp > 0 };
+      return {
+        ...p,
+        currentHp:   newHp,
+        isConscious: newHp > 0,
+        // If healed from 0, clear death saves so they're back in combat properly
+        deathSaveSuccesses: newHp > 0 && p.currentHp === 0 ? 0 : p.deathSaveSuccesses,
+        deathSaveFailures:  newHp > 0 && p.currentHp === 0 ? 0 : p.deathSaveFailures,
+        isStabilized:       newHp > 0 && p.currentHp === 0 ? false : p.isStabilized,
+      };
     }),
   })),
 
@@ -229,6 +237,8 @@ export const useCombatStore = create<CombatState>((set, get) => ({
       nextIndex = 0;
       nextRound += 1;
     }
+
+    const nextActorId = active[nextIndex]?.id;
 
     const participants = state.participants.map((p) => ({
       ...p,

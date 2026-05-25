@@ -175,8 +175,15 @@ function ParticipantRow({
   }
 
   function handleRemoveCondition(name: string) {
-    run(() => removeCondition(makeFormData({ combatId, targetId: p.id, condition: name })));
-  }
+    run(async () => {
+      await removeCondition(
+        makeFormData({ 
+          combatId, 
+          targetId: p.id, 
+          condition: name })
+        );
+      });
+    }
 
   const COMMON_CONDITIONS = [
     "Blinded","Charmed","Deafened","Frightened","Grappled",

@@ -43,13 +43,15 @@ export function CombatView({ combatId, isFinished }: Props) {
     */
     <div className="space-y-4 pb-48 sm:pb-36">
       {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="pt-2">
-        <h1 className="text-xl font-bold text-slate-800">{combatName}</h1>
-        <p className="text-sm text-slate-400 mt-0.5">
-          {isFinished
-            ? "Combat finished"
-            : `Round ${round} · ${consciousCount} active`}
-        </p>
+      <div className="pt-2 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">{combatName}</h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {isFinished
+              ? "Combat finished"
+              : `Round ${round} · ${consciousCount} active`}
+          </p>
+        </div>
       </div>
 
       {/* ── Initiative list ─────────────────────────────────────── */}

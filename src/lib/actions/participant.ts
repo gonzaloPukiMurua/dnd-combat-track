@@ -101,7 +101,15 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
     await prisma.$transaction([
       prisma.combatParticipant.update({
         where: { id: targetId },
-        data:  { currentHp: newHp, isConscious },
+        data:  { 
+          currentHp: newHp, 
+          isConscious,
+          ...(wasDown && newHp > 0 ? {
+            deathSaveSuccesses: 0,
+            deathSaveFailures:  0,
+            isStabilized:       false,
+          } : {}),
+        },
       }),
       prisma.combatLog.create({
         data: {
