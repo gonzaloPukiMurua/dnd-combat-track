@@ -128,9 +128,8 @@ export default async function CombatSetupPage({
             </span>
           </h2>
 
-          <form action={startCombat} className="space-y-2">
-            <input type="hidden" name="combatId" value={combat.id} />
-
+          {/* Participant rows — initiative inputs tied to start-form by id */}
+          <div className="space-y-2">
             {combat.participants.map((p) => {
               const bonus = p.template.initiativeBonus >= 0
                 ? `+${p.template.initiativeBonus}`
@@ -139,6 +138,7 @@ export default async function CombatSetupPage({
               return (
                 <div
                   key={p.id}
+                  data-participant={p.displayName.toLowerCase()}
                   className="bg-white border-2 border-slate-100 rounded-2xl px-4 py-3 flex items-center gap-3"
                 >
                   <div className="flex-1 min-w-0">
@@ -150,7 +150,9 @@ export default async function CombatSetupPage({
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <label className="text-xs text-slate-400 hidden sm:block">d20</label>
+                    {/* form="start-form" ties this input to the start form by id */}
                     <input
+                      form="start-form"
                       name={`roll_${p.id}`}
                       type="number"
                       min={1}
@@ -162,29 +164,36 @@ export default async function CombatSetupPage({
                     <span className="text-xs text-slate-400 w-6 text-right">{bonus}</span>
                   </div>
 
-                  <button
-                    formAction={async () => {
-                      "use server";
-                      await removeParticipant(p.id, combat.id);
-                    }}
-                    className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
-                    aria-label={`Remove ${p.displayName}`}
-                  >
-                    ✕
-                  </button>
+                  {/* Standalone remove form — no required fields, no connection to start-form */}
+                  <form action={async () => {
+                    "use server";
+                    await removeParticipant(p.id, combat.id);
+                  }}>
+                    <button
+                      type="submit"
+                      className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
+                      aria-label={`Remove ${p.displayName}`}
+                    >
+                      ✕
+                    </button>
+                  </form>
                 </div>
               );
             })}
+          </div>
 
-            <button
-              type="submit"
-              className="w-full h-14 bg-green-600 text-white rounded-2xl font-bold text-base hover:bg-green-700 transition-colors mt-2"
-            >
-              Roll initiative & start combat →
-            </button>
-          </form>
-        </section>
-      )}
+    {/* Start form — identified by id="start-form" */}
+    <form id="start-form" action={startCombat} className="space-y-2">
+      <input type="hidden" name="combatId" value={combat.id} />
+      <button
+        type="submit"
+        className="w-full h-14 bg-green-600 text-white rounded-2xl font-bold text-base hover:bg-green-700 transition-colors mt-2"
+      >
+        Roll initiative & start combat →
+      </button>
+    </form>
+  </section>
+)}
 
       {/* Empty state */}
       {combat.participants.length === 0 && (

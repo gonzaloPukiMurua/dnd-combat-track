@@ -315,7 +315,7 @@ export async function addParticipantsFromGroup(formData: FormData) {
       displayName: m.quantity > 1
         ? `${m.template.name} #${i + 1}`
         : m.template.name,
-      maxHp:       m.template.currentHp ?? m.template.maxHp,
+      maxHp:       m.template.maxHp,
       currentHp:   m.template.currentHp ?? m.template.maxHp,
       tempHp:      0,
       baseAc:      m.template.baseAc,
