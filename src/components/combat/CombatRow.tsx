@@ -4,40 +4,19 @@ import { useState } from "react";
 import { useCombatStore, type Participant } from "@/stores/combatStore";
 import { useCombatMutation } from "@/hooks/useCombatMutation";
 import { DeathSaveTracker } from "@/components/combat/DeathSaveTracker";
+import { HpBar } from "./HpBar";
 import {
   dealDamage, healParticipant, setTempHp,
   addCondition, removeCondition, toggleActionState,
 } from "@/lib/actions/participant";
+import { makeFormData } from "@/lib/utils/formData";
+import { 
+  hpBarColor,
+  TYPE_ACCENT
+ } from "@/lib/utils/combat";
 
-type ParticipantSummary = {
-  id: string; displayName: string; isConscious: boolean;
-  currentHp: number; maxHp: number; tempHp: number;
-};
-
-const COMMON_CONDITIONS = [
-  "Blinded","Charmed","Deafened","Frightened","Grappled",
-  "Incapacitated","Invisible","Paralyzed","Petrified",
-  "Poisoned","Prone","Restrained","Stunned","Unconscious",
-];
-
-const TYPE_ACCENT: Record<string, string> = {
-  PLAYER:  "border-l-indigo-400",
-  NPC:     "border-l-emerald-400",
-  MONSTER: "border-l-red-400",
-};
-
-function makeFormData(fields: Record<string, string | number>): FormData {
-  const fd = new FormData();
-  for (const [k, v] of Object.entries(fields)) fd.set(k, String(v));
-  return fd;
-}
-
-function hpBarColor(pct: number, conscious: boolean) {
-  if (!conscious) return "bg-slate-600";
-  if (pct > 60)   return "bg-green-500";
-  if (pct > 30)   return "bg-yellow-400";
-  return "bg-red-500";
-}
+import { COMMON_CONDITIONS } from "@/lib/constants/conditions";
+import { ParticipantSummary } from "@/types/combat";
 
 export function CombatantRow({
   participant: p, combatId, isCurrentTurn, isFinished,
@@ -178,7 +157,7 @@ export function CombatantRow({
         </div>
 
         {/* HP bar */}
-        <div className="space-y-1">
+        {/*<div className="space-y-1">
           <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
             <div className={`h-2.5 rounded-full transition-all duration-300 ${barColor}`}
               style={{ width: `${hpPct}%` }} />
@@ -191,7 +170,13 @@ export function CombatantRow({
             </span>
             <span className="text-xs text-slate-500 font-mono">{hpPct}%</span>
           </div>
-        </div>
+        </div>*/}
+        <HpBar
+          currentHp={p.currentHp}
+          maxHp={p.maxHp}
+          tempHp={p.tempHp}
+          isConscious={p.isConscious}
+        />
 
         {/* Death saves — always visible when unconscious */}
         {!p.isConscious && (

@@ -10,7 +10,18 @@ import {
   addCondition,
   removeCondition,
 } from "@/lib/actions/participant";
-import type { Participant, LogEntry, CombatStatus } from "@/stores/combatStore";
+import { makeFormData } from "@/lib/utils/formData";
+import { 
+  hpBarColor, 
+  TYPE_ACCENT
+} from "@/lib/utils/combat";
+import { COMMON_CONDITIONS } from "@/lib/constants/conditions";
+import type { 
+  Participant, 
+  LogEntry, 
+  CombatStatus
+ } from "@/stores/combatStore";
+import { HpBar } from "./HpBar";
 
 type AcModifier = { source: string; value: number };
 type Condition  = { name: string };
@@ -28,25 +39,6 @@ type Props = {
   playerParticipantId: string;
   isFinished:          boolean;
   currentActorId:      string | null;
-};
-
-function makeFormData(fields: Record<string, string | number>): FormData {
-  const fd = new FormData();
-  for (const [k, v] of Object.entries(fields)) fd.set(k, String(v));
-  return fd;
-}
-
-function hpBarColor(pct: number, conscious: boolean) {
-  if (!conscious) return "bg-slate-600";
-  if (pct > 60)   return "bg-green-500";
-  if (pct > 30)   return "bg-yellow-400";
-  return "bg-red-500";
-}
-
-const TYPE_ACCENT: Record<string, string> = {
-  PLAYER:  "border-l-indigo-400",
-  NPC:     "border-l-emerald-400",
-  MONSTER: "border-l-red-400",
 };
 
 export function SpectateView({
@@ -185,11 +177,6 @@ function ParticipantRow({
       });
     }
 
-  const COMMON_CONDITIONS = [
-    "Blinded","Charmed","Deafened","Frightened","Grappled",
-    "Incapacitated","Poisoned","Prone","Restrained","Stunned",
-  ];
-
   return (
     <div className={`
       rounded-2xl border-l-4 overflow-hidden transition-all
@@ -247,6 +234,7 @@ function ParticipantRow({
         </div>
 
         {/* HP bar */}
+        {/*
         <div className="space-y-1">
           <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
             <div className={`h-2.5 rounded-full transition-all duration-300 ${barColor}`}
@@ -261,6 +249,13 @@ function ParticipantRow({
             <span className="text-xs text-slate-500 font-mono">{hpPct}%</span>
           </div>
         </div>
+        */}
+        <HpBar
+          currentHp={p.currentHp}
+          maxHp={p.maxHp}
+          tempHp={p.tempHp}
+          isConscious={p.isConscious}
+        />
 
         {/* Death saves — visible to player for their own character */}
         {!p.isConscious && isMyCharacter && (

@@ -11,15 +11,8 @@ import {
 } from "@/lib/actions/participant";
 
 import { advanceTurn } from "@/lib/actions/combat";
-
-type ParticipantSummary = {
-  id: string;
-  displayName: string;
-  isConscious: boolean;
-  currentHp: number;
-  maxHp: number;
-  tempHp: number;
-};
+import { makeFormData } from "@/lib/utils/formData";
+import { ParticipantSummary } from "@/types/combat";
 
 type CurrentActor = {
   id: string;
@@ -31,16 +24,6 @@ type CurrentActor = {
   bonusUsed: boolean;
   reactionUsed: boolean;
 };
-
-function makeFormData(fields: Record<string, string | number>): FormData {
-  const fd = new FormData();
-
-  for (const [k, v] of Object.entries(fields)) {
-    fd.set(k, String(v));
-  }
-
-  return fd;
-}
 
 function hpBarColor(pct: number) {
   if (pct > 60) return "bg-green-500";

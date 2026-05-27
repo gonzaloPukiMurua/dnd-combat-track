@@ -8,15 +8,7 @@ import {
   resetDeathSaves,
 } from "@/lib/actions/participant";
 
-function makeFormData(fields: Record<string, string>): FormData {
-  const fd = new FormData();
-
-  for (const [k, v] of Object.entries(fields)) {
-    fd.set(k, v);
-  }
-
-  return fd;
-}
+import { makeFormData } from "@/lib/utils/formData";
 
 type Props = {
   participantId: string;
