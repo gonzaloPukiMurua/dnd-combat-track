@@ -5,17 +5,24 @@ import { useCombatStore, type Participant } from "@/stores/combatStore";
 import { useCombatMutation } from "@/hooks/useCombatMutation";
 import { DeathSaveTracker } from "@/components/combat/DeathSaveTracker";
 import { HpBar } from "./ui/HpBar";
+import { ConditionsPanel } from "./ui/ConditionsPanel";
+import { ActionTracker } from "./ui/ActionTracker";
+import { TargetSelector } from "./ui/TargetSelector";
+import { AmountControls } from "./ui/AmountControls";
+import { TempHpControls } from "./ui/TempHpControls";
 import {
-  dealDamage, healParticipant, setTempHp,
-  addCondition, removeCondition, toggleActionState,
+  dealDamage, 
+  healParticipant, 
+  setTempHp,
+  addCondition, 
+  removeCondition, 
+  toggleActionState,
 } from "@/lib/actions/participant";
 import { makeFormData } from "@/lib/utils/formData";
 import { 
   hpBarColor,
   TYPE_ACCENT
  } from "@/lib/utils/combat";
-
-import { COMMON_CONDITIONS } from "@/lib/constants/conditions";
 import { ParticipantSummary } from "@/types/combat";
 
 export function CombatantRow({
@@ -157,20 +164,6 @@ export function CombatantRow({
         </div>
 
         {/* HP bar */}
-        {/*<div className="space-y-1">
-          <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
-            <div className={`h-2.5 rounded-full transition-all duration-300 ${barColor}`}
-              style={{ width: `${hpPct}%` }} />
-          </div>
-          <div className="flex justify-between">
-            <span className="text-sm font-mono text-slate-300">
-              <strong className={p.currentHp === 0 ? "text-red-400" : "text-white"}>{p.currentHp}</strong>
-              <span className="text-slate-500">/{p.maxHp}</span>
-              {p.tempHp > 0 && <span className="text-blue-400 ml-1">+{p.tempHp}</span>}
-            </span>
-            <span className="text-xs text-slate-500 font-mono">{hpPct}%</span>
-          </div>
-        </div>*/}
         <HpBar
           currentHp={p.currentHp}
           maxHp={p.maxHp}
@@ -196,160 +189,47 @@ export function CombatantRow({
           ${disabled ? "opacity-60 pointer-events-none" : ""}`}>
 
           {/* Action trackers */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Turn actions</p>
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                { field: "actionUsed"   as const, label: "Action",   used: p.actionUsed,   active: "bg-blue-600 border-blue-500",    hover: "hover:border-blue-600" },
-                { field: "bonusUsed"    as const, label: "Bonus",    used: p.bonusUsed,    active: "bg-purple-600 border-purple-500", hover: "hover:border-purple-600" },
-                { field: "reactionUsed" as const, label: "Reaction", used: p.reactionUsed, active: "bg-orange-600 border-orange-500", hover: "hover:border-orange-600" },
-              ]).map(({ field, label, used, active, hover }) => (
-                <button key={field} type="button" onClick={() => handleToggleAction(field)}
-                  disabled={disabled}
-                  className={`h-11 rounded-xl text-sm font-bold border-2 transition-all
-                    ${used ? `${active} text-white` : `border-slate-600 text-slate-400 ${hover}`}`}>
-                  {used ? `✓ ${label}` : label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <ActionTracker
+            actionUsed={p.actionUsed}
+            bonusUsed={p.bonusUsed}
+            reactionUsed={p.reactionUsed}
+            disabled={disabled}
+            onToggle={handleToggleAction}
+          />
 
           {/* Target */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Target</p>
-            <select value={targetId} onChange={(e) => setTargetId(e.target.value)}
-              className="w-full border-2 border-slate-600 rounded-xl px-3 h-11 text-sm bg-slate-800 text-white focus:outline-none focus:border-blue-500">
-              {allParticipants.map((ap) => (
-                <option key={ap.id} value={ap.id}>
-                  {ap.id === p.id ? "Self — " : ""}{ap.displayName} ({ap.currentHp}/{ap.maxHp} HP){!ap.isConscious ? " 💀" : ""}
-                </option>
-              ))}
-            </select>
-            {selectedTarget && selectedTarget.id !== p.id && (
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-slate-700 rounded-full h-1.5">
-                  <div className={`h-1.5 rounded-full transition-all
-                    ${hpBarColor(Math.round((selectedTarget.currentHp/selectedTarget.maxHp)*100), selectedTarget.isConscious)}`}
-                    style={{ width: `${Math.round((selectedTarget.currentHp/selectedTarget.maxHp)*100)}%` }} />
-                </div>
-                <span className="text-xs font-mono text-slate-400 whitespace-nowrap">
-                  {selectedTarget.currentHp}/{selectedTarget.maxHp}
-                  {selectedTarget.tempHp > 0 && <span className="text-blue-400"> +{selectedTarget.tempHp}</span>}
-                </span>
-              </div>
-            )}
-          </div>
+          <TargetSelector
+            value={targetId}
+            participants={allParticipants}
+            currentParticipantId={p.id}
+            onChange={setTargetId}
+          />
 
           {/* Amount */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Amount</p>
-            <div className="flex gap-2">
-              <input type="number" min={1} value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleDamage()}
-                placeholder="e.g. 8"
-                className="flex-1 border-2 border-slate-600 rounded-xl px-3 h-11 text-base bg-slate-800 text-white focus:outline-none focus:border-blue-500" />
-              <button type="button" onClick={handleDamage} disabled={!amount || disabled}
-                className="bg-red-600 text-white rounded-xl px-4 h-11 font-bold text-sm hover:bg-red-500 disabled:opacity-40 min-w-[64px] transition-colors">
-                DMG
-              </button>
-              <button type="button" onClick={handleHeal} disabled={!amount || disabled}
-                className="bg-green-600 text-white rounded-xl px-4 h-11 font-bold text-sm hover:bg-green-500 disabled:opacity-40 min-w-[64px] transition-colors">
-                Heal
-              </button>
-            </div>
-          </div>
+          <AmountControls
+            amount={amount}
+            disabled={disabled}
+            onAmountChange={setAmount}
+            onDamage={handleDamage}
+            onHeal={handleHeal}
+          />
 
           {/* Temp HP */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Temp HP (self)</p>
-            <div className="flex gap-2">
-              <input type="number" min={0} value={tempAmount}
-                onChange={(e) => setTempAmount(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSetTempHp()}
-                placeholder="e.g. 10"
-                className="flex-1 border-2 border-slate-600 rounded-xl px-3 h-11 text-base bg-slate-800 text-white focus:outline-none focus:border-blue-500" />
-              <button type="button" onClick={handleSetTempHp} disabled={!tempAmount || disabled}
-                className="bg-blue-500 text-white rounded-xl px-4 h-11 font-bold text-sm hover:bg-blue-400 disabled:opacity-40 transition-colors">
-                Set
-              </button>
-            </div>
-          </div>
-
+          <TempHpControls
+            value={tempAmount}
+            disabled={disabled}
+            label="Temp HP (self)"
+            onChange={setTempAmount}
+            onSubmit={handleSetTempHp}
+          />
+          
           {/* Conditions */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Conditions (self)</p>
-            {p.conditions.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {p.conditions.map((c) => (
-                  <button key={c.name} type="button" onClick={() => handleRemoveCondition(c.name)}
-                    disabled={disabled}
-                    className="text-xs bg-purple-900/60 text-purple-300 border border-purple-700 px-2.5 py-1 rounded-lg hover:bg-red-900/60 hover:text-red-300 hover:border-red-700 transition-colors min-h-[32px]"
-                    title="Tap to remove">
-                    {c.name} ✕
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Concentration quick-add */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Concentrating on… (spell name)"
-                  id={`conc-${p.id}`}
-                  className="flex-1 border-2 border-slate-600 rounded-xl px-3 h-11 text-sm bg-slate-800 text-white focus:outline-none focus:border-purple-500"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      const val = (e.target as HTMLInputElement).value.trim();
-                      if (val) {
-                        handleAddCondition(`Concentration: ${val}`);
-                        (e.target as HTMLInputElement).value = "";
-                      }
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const input = document.getElementById(`conc-${p.id}`) as HTMLInputElement;
-                    const val = input?.value.trim();
-                    if (val) {
-                      handleAddCondition(`Concentration: ${val}`);
-                      input.value = "";
-                    }
-                  }}
-                  disabled={disabled}
-                  className="border-2 border-purple-600 text-purple-400 rounded-xl px-3 h-11 text-xs font-bold hover:bg-purple-900/40 disabled:opacity-40 transition-colors whitespace-nowrap"
-                >
-                  + Conc
-                </button>
-              </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              {COMMON_CONDITIONS
-                .filter((cn) => !p.conditions.some((c) => c.name === cn))
-                .map((cn) => (
-                  <button key={cn} type="button" onClick={() => handleAddCondition(cn)}
-                    disabled={disabled}
-                    className="text-xs border border-slate-600 text-slate-400 px-2.5 py-1 rounded-lg hover:bg-purple-900/40 hover:text-purple-300 hover:border-purple-700 transition-colors min-h-[32px]">
-                    + {cn}
-                  </button>
-                ))}
-            </div>
-            <div className="flex gap-2">
-              <input type="text" value={condInput}
-                onChange={(e) => setCondInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddCondition(condInput)}
-                placeholder="Custom condition…"
-                className="flex-1 border-2 border-slate-600 rounded-xl px-3 h-11 text-sm bg-slate-800 text-white focus:outline-none focus:border-blue-500" />
-              <button type="button" onClick={() => handleAddCondition(condInput)}
-                disabled={!condInput || disabled}
-                className="border-2 border-slate-600 text-slate-400 rounded-xl px-4 h-11 text-sm hover:bg-slate-700 disabled:opacity-40 transition-colors">
-                Add
-              </button>
-            </div>
-          </div>
+          <ConditionsPanel
+            conditions={conditions}
+            disabled={isPending}
+            onAddCondition={handleAddCondition}
+            onRemoveCondition={handleRemoveCondition}
+          />
 
           {isMutating && (
             <p className="text-xs text-slate-500 text-center animate-pulse">Saving…</p>

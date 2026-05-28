@@ -15,14 +15,13 @@ import {
   hpBarColor, 
   TYPE_ACCENT
 } from "@/lib/utils/combat";
-import { COMMON_CONDITIONS } from "@/lib/constants/conditions";
 import type { 
   Participant, 
   LogEntry, 
   CombatStatus
  } from "@/stores/combatStore";
 import { HpBar } from "./ui/HpBar";
-
+import { ConditionsPanel } from "./ui/ConditionsPanel";
 type AcModifier = { source: string; value: number };
 type Condition  = { name: string };
 
@@ -234,22 +233,6 @@ function ParticipantRow({
         </div>
 
         {/* HP bar */}
-        {/*
-        <div className="space-y-1">
-          <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
-            <div className={`h-2.5 rounded-full transition-all duration-300 ${barColor}`}
-              style={{ width: `${hpPct}%` }} />
-          </div>
-          <div className="flex justify-between">
-            <span className="text-sm font-mono text-slate-300">
-              <strong className={p.currentHp === 0 ? "text-red-400" : "text-white"}>{p.currentHp}</strong>
-              <span className="text-slate-500">/{p.maxHp}</span>
-              {p.tempHp > 0 && <span className="text-blue-400 ml-1">+{p.tempHp}</span>}
-            </span>
-            <span className="text-xs text-slate-500 font-mono">{hpPct}%</span>
-          </div>
-        </div>
-        */}
         <HpBar
           currentHp={p.currentHp}
           maxHp={p.maxHp}
@@ -298,48 +281,12 @@ function ParticipantRow({
           </div>
 
           {/* Conditions */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Conditions</p>
-
-            {conditions.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {conditions.map((c) => (
-                  <button key={c.name} type="button"
-                    onClick={() => handleRemoveCondition(c.name)}
-                    className="text-xs bg-purple-900/60 text-purple-300 border border-purple-700 px-2.5 py-1 rounded-lg hover:bg-red-900/60 hover:text-red-300 hover:border-red-700 transition-colors min-h-[32px]"
-                    title="Tap to remove">
-                    {c.name} ✕
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-1.5">
-              {COMMON_CONDITIONS
-                .filter((cn) => !conditions.some((c) => c.name === cn))
-                .map((cn) => (
-                  <button key={cn} type="button"
-                    onClick={() => handleAddCondition(cn)}
-                    className="text-xs border border-slate-600 text-slate-400 px-2.5 py-1 rounded-lg hover:bg-purple-900/40 hover:text-purple-300 hover:border-purple-700 transition-colors min-h-[32px]">
-                    + {cn}
-                  </button>
-                ))}
-            </div>
-
-            <div className="flex gap-2">
-              <input type="text" value={condInput}
-                onChange={(e) => setCondInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddCondition(condInput)}
-                placeholder="Custom condition…"
-                className="flex-1 border-2 border-slate-600 rounded-xl px-3 h-11 text-sm bg-slate-800 text-white focus:outline-none focus:border-blue-500" />
-              <button type="button"
-                onClick={() => handleAddCondition(condInput)}
-                disabled={!condInput || isPending}
-                className="border-2 border-slate-600 text-slate-400 rounded-xl px-4 h-11 text-sm hover:bg-slate-700 disabled:opacity-40 transition-colors">
-                Add
-              </button>
-            </div>
-          </div>
+          <ConditionsPanel
+            conditions={conditions}
+            disabled={isPending}
+            onAddCondition={handleAddCondition}
+            onRemoveCondition={handleRemoveCondition}
+          />
 
           {isPending && (
             <p className="text-xs text-slate-500 text-center animate-pulse">Saving…</p>
