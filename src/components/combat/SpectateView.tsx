@@ -21,7 +21,7 @@ import type {
   LogEntry, 
   CombatStatus
  } from "@/stores/combatStore";
-import { HpBar } from "./HpBar";
+import { HpBar } from "./ui/HpBar";
 
 type AcModifier = { source: string; value: number };
 type Condition  = { name: string };

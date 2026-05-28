@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useCombatStore, type Participant } from "@/stores/combatStore";
 import { useCombatMutation } from "@/hooks/useCombatMutation";
 import { DeathSaveTracker } from "@/components/combat/DeathSaveTracker";
-import { HpBar } from "./HpBar";
+import { HpBar } from "./ui/HpBar";
 import {
   dealDamage, healParticipant, setTempHp,
   addCondition, removeCondition, toggleActionState,
