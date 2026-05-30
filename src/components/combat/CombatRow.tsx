@@ -10,6 +10,7 @@ import { ActionTracker } from "./ui/ActionTracker";
 import { TargetSelector } from "./ui/TargetSelector";
 import { AmountControls } from "./ui/AmountControls";
 import { TempHpControls } from "./ui/TempHpControls";
+import { CombatantNameRow } from "./ui/CombatNameRow";
 import {
   dealDamage, 
   healParticipant, 
@@ -19,10 +20,7 @@ import {
   toggleActionState,
 } from "@/lib/actions/participant";
 import { makeFormData } from "@/lib/utils/formData";
-import { 
-  hpBarColor,
-  TYPE_ACCENT
- } from "@/lib/utils/combat";
+import {TYPE_ACCENT} from "@/lib/utils/combat";
 import { ParticipantSummary } from "@/types/combat";
 
 export function CombatantRow({
@@ -41,13 +39,9 @@ export function CombatantRow({
   const [tempAmount, setTempAmount] = useState("");
   const [condInput,  setCondInput]  = useState("");
   const [targetId,   setTargetId]   = useState(p.id);
-
   const acTotal  = p.baseAc + p.acModifiers.reduce((s, m) => s + m.value, 0);
-  const hpPct    = p.maxHp > 0 ? Math.max(0, Math.round((p.currentHp / p.maxHp) * 100)) : 0;
-  const barColor = hpBarColor(hpPct, p.isConscious);
   const isDead   = p.deathSaveFailures >= 3;
   const disabled = isMutating || globalMutating || isFinished;
-  const selectedTarget = allParticipants.find((ap) => ap.id === targetId);
 
   function handleDamage() {
     const n = parseInt(amount);
@@ -125,43 +119,21 @@ export function CombatantRow({
           ${isCurrentTurn ? "bg-blue-900/20" : "hover:bg-slate-700/40"}`}
       >
         {/* Name row */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold font-mono flex-shrink-0
-              ${isCurrentTurn ? "bg-blue-500 text-white" : "bg-slate-700 text-slate-300"}`}>
-              {p.initiative}
-            </div>
-            <div className="min-w-0">
-              <p className={`font-bold leading-tight truncate ${!p.isConscious ? "line-through text-slate-500" : "text-white"}`}>
-                {p.displayName}
-              </p>
-              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                {isDead        && <span className="text-xs text-red-400 font-medium">💀 Dead</span>}
-                {!isDead && !p.isConscious && !p.isStabilized && <span className="text-xs text-amber-400 font-medium">⚠ Unconscious</span>}
-                {p.isStabilized && <span className="text-xs text-green-400 font-medium">💚 Stable</span>}
-                {p.conditions.map((c) => (
-                  <span key={c.name} className="text-xs bg-purple-900/60 text-purple-300 border border-purple-700 px-1.5 py-0.5 rounded-lg">
-                    {c.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 flex-shrink-0">
-            {(p.actionUsed || p.bonusUsed || p.reactionUsed) && (
-              <div className="flex gap-1">
-                {p.actionUsed   && <span className="text-xs bg-blue-800 text-blue-300 px-1.5 py-0.5 rounded-lg font-bold">A</span>}
-                {p.bonusUsed    && <span className="text-xs bg-purple-800 text-purple-300 px-1.5 py-0.5 rounded-lg font-bold">B</span>}
-                {p.reactionUsed && <span className="text-xs bg-orange-800 text-orange-300 px-1.5 py-0.5 rounded-lg font-bold">R</span>}
-              </div>
-            )}
-            <span className="text-sm text-slate-400">
-              AC <strong className="text-white font-mono">{acTotal}</strong>
-            </span>
-            {!isFinished && <span className="text-slate-600 text-xs">{expanded ? "▲" : "▼"}</span>}
-          </div>
-        </div>
+          <CombatantNameRow
+            initiative={p.initiative}
+            displayName={p.displayName}
+            isConscious={p.isConscious}
+            isStabilized={p.isStabilized}
+            isDead={isDead}
+            conditions={p.conditions}
+            actionUsed={p.actionUsed}
+            bonusUsed={p.bonusUsed}
+            reactionUsed={p.reactionUsed}
+            acTotal={acTotal}
+            isCurrentTurn={isCurrentTurn}
+            isFinished={isFinished}
+            expanded={expanded}
+          />
 
         {/* HP bar */}
         <HpBar
@@ -222,11 +194,11 @@ export function CombatantRow({
             onChange={setTempAmount}
             onSubmit={handleSetTempHp}
           />
-          
+
           {/* Conditions */}
           <ConditionsPanel
-            conditions={conditions}
-            disabled={isPending}
+            conditions={p.conditions}
+            disabled={disabled}
             onAddCondition={handleAddCondition}
             onRemoveCondition={handleRemoveCondition}
           />
