@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { generateJoinCode } from "../utils/combat";
+import { generateJoinCode } from "@/lib/utils/combat";
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 // Returns the single SETUP or ACTIVE combat, or null.
@@ -79,7 +79,7 @@ export async function addParticipant(formData: FormData) {
 
   if (!combat)    throw new Error("Combat not found");
   if (!template)  throw new Error("Template not found");
-  if (combat.status !== "SETUP") throw new Error("Cannot add participants after combat has started");
+  if (combat.status === "FINISHED") throw new Error("Cannot add participants after combat has started");
 
   // Count existing participants with this template to generate correct suffix
   const existing = await prisma.combatParticipant.count({
@@ -304,7 +304,7 @@ export async function addParticipantsFromGroup(formData: FormData) {
 
   if (!combat) throw new Error("Combat not found");
   if (!group)  throw new Error("Group not found");
-  if (combat.status !== "SETUP") throw new Error("Combat has already started");
+  if (combat.status === "FINISHED") throw new Error("Combat has already started");
 
   // For each member, create quantity participants
   const data = group.members.flatMap((m) => {

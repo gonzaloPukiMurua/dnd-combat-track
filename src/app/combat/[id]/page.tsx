@@ -27,7 +27,13 @@ export default async function CombatPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const combat = await getCombat(id);
+  const [combat, templates] = await Promise.all([
+  getCombat(id),
+  prisma.characterTemplate.findMany({
+    orderBy: [{ type: "asc" }, { name: "asc" }],
+    select:  { id: true, name: true, type: true, maxHp: true, baseAc: true },
+  }),
+]);
 
   if (!combat) notFound();
 
@@ -120,7 +126,11 @@ export default async function CombatPage({
         </div>
       )}
       {/* CombatView reads entirely from Zustand store */}
-      <CombatView combatId={combat.id} isFinished={isFinished} />
+      <CombatView 
+        combatId={combat.id} 
+        isFinished={isFinished} 
+        templates={templates}
+        />
 
       {/* End combat buttons — positioned above the sticky panel */}
       {!isFinished && (

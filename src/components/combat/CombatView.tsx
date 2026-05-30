@@ -4,12 +4,15 @@ import { useCombatStore } from "@/stores/combatStore";
 import { CombatantRow } from "@/components/combat/CombatRow";
 import { CurrentTurnPanel } from "@/components/combat/CurrentTurnPanel";
 import { CombatLog } from "@/components/combat/CombatLog";
+import { AddParticipantMidCombat } from "./ui/AddParticipantMidCombat";
+import { TemplateSummary } from "@/types/combat";
 type Props = {
   combatId:   string;
   isFinished: boolean;
+  templates: TemplateSummary[];
 };
 
-export function CombatView({ combatId, isFinished }: Props) {
+export function CombatView({ combatId, isFinished, templates }: Props) {
   const participants     = useCombatStore((s) => s.participants);
   const logs             = useCombatStore((s) => s.logs);
   const round            = useCombatStore((s) => s.round);
@@ -77,7 +80,12 @@ export function CombatView({ combatId, isFinished }: Props) {
           </p>
         )}
       </section>
-
+      {!isFinished && (
+        <AddParticipantMidCombat
+          combatId={combatId}
+          templates={templates}
+        />
+      )}  
       {/* ── Combat log ──────────────────────────────────────────── */}
       {logs.length > 0 && (
         <section className="space-y-2">

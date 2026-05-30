@@ -201,6 +201,7 @@ export function CombatantRow({
             disabled={disabled}
             onAddCondition={handleAddCondition}
             onRemoveCondition={handleRemoveCondition}
+            showConcentration={true}
           />
 
           {isMutating && (
