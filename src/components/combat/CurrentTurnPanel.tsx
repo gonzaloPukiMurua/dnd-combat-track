@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCombatStore } from "@/stores/combatStore";
 import { useCombatMutation } from "@/hooks/useCombatMutation";
-
+import { useRouter } from "next/navigation";
 import {
   dealDamage,
   healParticipant,
@@ -50,7 +50,15 @@ export function CurrentTurnPanel({
   const [amount, setAmount] = useState("");
   const [targetId, setTargetId] = useState(actor.id);
   const [expanded, setExpanded] = useState(true);
-
+  const router = useRouter();
+  const shouldRefresh = useRef(false);
+  // When a refresh is pending and mutation completes, trigger it
+  useEffect(() => {
+    if (shouldRefresh.current && !isMutating) {
+      shouldRefresh.current = false;
+      router.refresh();
+    }
+  }, [isMutating, router]);
   const disabled = isMutating || globalMutating;
 
   const hpPct =
@@ -136,12 +144,12 @@ export function CurrentTurnPanel({
       optimistic: () => {
         store.advanceTurnOptimistic();
       },
-
       action: async () => {
         const result = await advanceTurn(combatId);
-
         setAmount("");
-
+        if (result.ok) {
+          shouldRefresh.current = true;
+        }
         return result;
       },
     });

@@ -242,9 +242,9 @@ export const useCombatStore = create<CombatState>((set, get) => ({
 
     const participants = state.participants.map((p) => ({
       ...p,
-      actionUsed:   false,
-      bonusUsed:    false,
-      reactionUsed: false,
+      actionUsed:   p.id === nextActorId ? false : p.actionUsed,
+      bonusUsed:    p.id === nextActorId ? false : p.bonusUsed,
+      reactionUsed: p.id === nextActorId ? false : p.reactionUsed,
     }));
 
     return { currentTurnIndex: nextIndex, round: nextRound, participants };

@@ -59,6 +59,9 @@ export function useCombatMutation() {
             ? err.message
             : "Network error. Check your connection."
         );
+      } finally {
+        // Guarantee isMutating is always released
+        store.setMutating(false);
       }
     });
   }

@@ -116,8 +116,7 @@ export async function addParticipant(formData: FormData) {
 
 export async function removeParticipant(participantId: string, combatId: string) {
   const combat = await prisma.combat.findUnique({ where: { id: combatId } });
-  if (combat?.status !== "SETUP") throw new Error("Cannot remove participants after combat has started");
-
+  if (combat?.status === "FINISHED") throw new Error("Cannot modify a finished combat");
   await prisma.combatParticipant.delete({ where: { id: participantId } });
 
   revalidatePath(`/combat/${combatId}/setup`);

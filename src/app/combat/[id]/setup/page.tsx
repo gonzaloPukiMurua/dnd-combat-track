@@ -36,7 +36,7 @@ export default async function CombatSetupPage({
 
   if (!combat) notFound();
   if (combat.status === "ACTIVE") redirect(`/combat/${id}`);
-
+  if (combat.status === "FINISHED") redirect('/combat')
   return (
     <div className="py-6 space-y-6">
 
