@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import {
   useCombatStore,
   type Participant,
@@ -21,18 +21,9 @@ type Props = {
 };
 
 export function CombatStoreInitializer({ combat }: Props) {
-  const combatId = useCombatStore((s) => s.combatId);
   useEffect(() => {
-    console.log("HYDRATING", combat.id);
-
     useCombatStore.getState().hydrate(combat);
   }, [combat]);
-
-  useEffect(() => {
-    if (combatId !== combat.id) {
-      useCombatStore.getState().hydrate(combat);
-    }
-  }, [combat.id, combatId, combat]);
 
   return null;
 }

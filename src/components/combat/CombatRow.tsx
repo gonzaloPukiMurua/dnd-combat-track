@@ -31,7 +31,7 @@ export function CombatantRow({
   isCurrentTurn: boolean; isFinished: boolean; round: number;
   allParticipants: ParticipantSummary[]; globalMutating: boolean;
 }) {
-  const store = useCombatStore();
+
   const { mutate, isMutating } = useCombatMutation();
 
   const [expanded,   setExpanded]   = useState(false);
@@ -47,7 +47,7 @@ export function CombatantRow({
     const n = parseInt(amount);
     if (!n || n < 1) return;
     mutate({
-      optimistic: () => store.applyDamage(targetId, n),
+      optimistic: () => useCombatStore.getState().applyDamage(targetId, n),
       action: async () => {
         const r = await dealDamage(makeFormData({ combatId, actorId: p.id, targetId, amount: n }));
         setAmount(""); return r;
@@ -59,7 +59,7 @@ export function CombatantRow({
     const n = parseInt(amount);
     if (!n || n < 1) return;
     mutate({
-      optimistic: () => store.applyHeal(targetId, n),
+      optimistic: () => useCombatStore.getState().applyHeal(targetId, n),
       action: async () => {
         const r = await healParticipant(makeFormData({ combatId, actorId: p.id, targetId, amount: n }));
         setAmount(""); return r;
@@ -71,7 +71,7 @@ export function CombatantRow({
     const n = parseInt(tempAmount);
     if (isNaN(n) || n < 0) return;
     mutate({
-      optimistic: () => store.applyTempHp(p.id, n),
+      optimistic: () => useCombatStore.getState().applyTempHp(p.id, n),
       action: async () => {
         const r = await setTempHp(makeFormData({ combatId, targetId: p.id, amount: n }));
         setTempAmount(""); return r;
@@ -82,7 +82,7 @@ export function CombatantRow({
   function handleAddCondition(name: string) {
     if (!name.trim()) return;
     mutate({
-      optimistic: () => store.applyCondition(p.id, name),
+      optimistic: () => useCombatStore.getState().applyCondition(p.id, name),
       action: async () => {
         const r = await addCondition(makeFormData({ combatId, targetId: p.id, condition: name }));
         setCondInput(""); return r;
@@ -92,14 +92,14 @@ export function CombatantRow({
 
   function handleRemoveCondition(name: string) {
     mutate({
-      optimistic: () => store.removeConditionOptimistic(p.id, name),
+      optimistic: () => useCombatStore.getState().removeConditionOptimistic(p.id, name),
       action: () => removeCondition(makeFormData({ combatId, targetId: p.id, condition: name })),
     });
   }
 
   function handleToggleAction(field: "actionUsed" | "bonusUsed" | "reactionUsed") {
     mutate({
-      optimistic: () => store.toggleAction(p.id, field),
+      optimistic: () => useCombatStore.getState().toggleAction(p.id, field),
       action: () => toggleActionState(makeFormData({ combatId, targetId: p.id, field })),
     });
   }

@@ -28,13 +28,9 @@ export async function dealDamage(formData: FormData): Promise<ActionResult> {
     if (!combatId || !targetId) return { ok: false, error: "Missing combatId or targetId" };
     if (isNaN(rawAmount) || rawAmount < 1) return { ok: false, error: "Amount must be at least 1" };
 
-    const [target, combat] = await Promise.all([
-      prisma.combatParticipant.findUnique({ where: { id: targetId } }),
-      prisma.combat.findUnique({ where: { id: combatId } }),
-    ]);
+    const target = await getParticipantWithRound(targetId);
 
     if (!target) return { ok: false, error: "Target not found" };
-    if (!combat) return { ok: false, error: "Combat not found" };
 
     let amount    = rawAmount;
     let newTempHp = target.tempHp;
@@ -57,7 +53,7 @@ export async function dealDamage(formData: FormData): Promise<ActionResult> {
       prisma.combatLog.create({
         data: {
           combatId,
-          round:    combat.round,
+          round: target.combat.round,
           type:     "DAMAGE",
           actorId,
           targetId,
@@ -86,13 +82,9 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
     if (!combatId || !targetId) return { ok: false, error: "Missing combatId or targetId" };
     if (isNaN(rawAmount) || rawAmount < 1) return { ok: false, error: "Amount must be at least 1" };
 
-    const [target, combat] = await Promise.all([
-      prisma.combatParticipant.findUnique({ where: { id: targetId } }),
-      prisma.combat.findUnique({ where: { id: combatId } }),
-    ]);
+    const target = await getParticipantWithRound(targetId);
 
     if (!target) return { ok: false, error: "Target not found" };
-    if (!combat) return { ok: false, error: "Combat not found" };
 
     const wasDown     = target.currentHp === 0;
     const newHp       = Math.min(target.maxHp, target.currentHp + rawAmount);
@@ -114,7 +106,7 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
       prisma.combatLog.create({
         data: {
           combatId,
-          round:    combat.round,
+          round: target.combat.round,
           type:     "HEAL",
           actorId,
           targetId,
@@ -144,7 +136,7 @@ export async function setTempHp(formData: FormData): Promise<ActionResult> {
     if (!combatId || !targetId) return { ok: false, error: "Missing required fields" };
     if (isNaN(rawAmount) || rawAmount < 0) return { ok: false, error: "Temp HP must be 0 or greater" };
 
-    const target = await prisma.combatParticipant.findUnique({ where: { id: targetId } });
+    const target = await getParticipantWithRound(targetId);
     if (!target) return { ok: false, error: "Target not found" };
 
     await prisma.combatParticipant.update({
@@ -171,13 +163,9 @@ export async function addCondition(formData: FormData): Promise<ActionResult> {
       return { ok: false, error: "Missing required fields" };
     }
 
-    const [target, combat] = await Promise.all([
-      prisma.combatParticipant.findUnique({ where: { id: targetId } }),
-      prisma.combat.findUnique({ where: { id: combatId } }),
-    ]);
+    const target = await getParticipantWithRound(targetId);
 
     if (!target) return { ok: false, error: "Target not found" };
-    if (!combat) return { ok: false, error: "Combat not found" };
 
     const current = target.conditions as Condition[];
     if (current.some((c) => c.name.toLowerCase() === conditionName.toLowerCase())) {
@@ -192,7 +180,7 @@ export async function addCondition(formData: FormData): Promise<ActionResult> {
       prisma.combatLog.create({
         data: {
           combatId,
-          round:    combat.round,
+          round:    target.combat.round,
           type:     "CONDITION_ADDED",
           targetId,
           note:     `${target.displayName} gained condition: ${conditionName}`,
@@ -219,13 +207,9 @@ export async function removeCondition(formData: FormData): Promise<ActionResult>
       return { ok: false, error: "Missing required fields" };
     }
 
-    const [target, combat] = await Promise.all([
-      prisma.combatParticipant.findUnique({ where: { id: targetId } }),
-      prisma.combat.findUnique({ where: { id: combatId } }),
-    ]);
+    const target = await getParticipantWithRound(targetId);
 
     if (!target) return { ok: false, error: "Target not found" };
-    if (!combat) return { ok: false, error: "Combat not found" };
 
     const updated = (target.conditions as Condition[]).filter(
       (c) => c.name.toLowerCase() !== conditionName.toLowerCase()
@@ -239,7 +223,7 @@ export async function removeCondition(formData: FormData): Promise<ActionResult>
       prisma.combatLog.create({
         data: {
           combatId,
-          round:    combat.round,
+          round:    target.combat.round,
           type:     "CONDITION_REMOVED",
           targetId,
           note:     `${target.displayName} lost condition: ${conditionName}`,
@@ -266,7 +250,7 @@ export async function addAcModifier(formData: FormData): Promise<ActionResult> {
     if (!combatId || !targetId || !source) return { ok: false, error: "Missing required fields" };
     if (isNaN(value) || value === 0) return { ok: false, error: "AC modifier value must be non-zero" };
 
-    const target = await prisma.combatParticipant.findUnique({ where: { id: targetId } });
+    const target = await getParticipantWithRound(targetId);
     if (!target) return { ok: false, error: "Target not found" };
 
     await prisma.combatParticipant.update({
@@ -353,13 +337,9 @@ export async function recordDeathSave(formData: FormData): Promise<ActionResult>
     if (!combatId || !targetId || !result) return { ok: false, error: "Missing required fields" };
     if (result !== "success" && result !== "failure") return { ok: false, error: "Invalid result" };
 
-    const [target, combat] = await Promise.all([
-      prisma.combatParticipant.findUnique({ where: { id: targetId } }),
-      prisma.combat.findUnique({ where: { id: combatId } }),
-    ]);
+    const target = await getParticipantWithRound(targetId);
 
     if (!target) return { ok: false, error: "Target not found" };
-    if (!combat) return { ok: false, error: "Combat not found" };
     if (target.isConscious || target.isStabilized) return { ok: true };
 
     let { deathSaveSuccesses, deathSaveFailures } = target;
@@ -385,7 +365,7 @@ export async function recordDeathSave(formData: FormData): Promise<ActionResult>
         data:  { deathSaveSuccesses, deathSaveFailures, isStabilized },
       }),
       prisma.combatLog.create({
-        data: { combatId, round: combat.round, type: "NOTE", targetId, note },
+        data: { combatId, round: target.combat.round, type: "NOTE", targetId, note },
       }),
     ]);
 
@@ -413,4 +393,11 @@ export async function resetDeathSaves(formData: FormData): Promise<ActionResult>
     console.error("[resetDeathSaves]", err);
     return { ok: false, error: "Failed to reset death saves. Please try again." };
   }
+}
+
+function getParticipantWithRound(targetId: string) {
+  return prisma.combatParticipant.findUnique({
+    where: { id: targetId },
+    include: { combat: { select: { round: true } } },
+  });
 }

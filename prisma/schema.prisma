@@ -73,7 +73,16 @@ model CombatParticipant {
   combatId    String
   templateId  String
   displayName String  // "Wolf #1", "Thora", etc.
-
+  level           Int     @default(1)
+  proficiencyBonus Int    @default(2)
+  str             Int     @default(10)
+  dex             Int     @default(10)
+  con             Int     @default(10)
+  int             Int     @default(10)
+  wis             Int     @default(10)
+  cha             Int     @default(10)
+  speed           Int     @default(30)
+  hitDice         String?
   // Initiative
   initiative Int @default(0) // final value: d20 roll + initiativeBonus
   turnOrder  Int @default(0) // 0 = goes first; sorted descending by initiative

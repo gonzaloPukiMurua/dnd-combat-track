@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useCombatStore } from "@/stores/combatStore";
 import { CombatantRow } from "@/components/combat/CombatRow";
 import { CurrentTurnPanel } from "@/components/combat/CurrentTurnPanel";
@@ -17,23 +18,19 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
   const logs             = useCombatStore((s) => s.logs);
   const round            = useCombatStore((s) => s.round);
   const combatName       = useCombatStore((s) => s.combatName);
-  const currentActor     = useCombatStore((s) => s.currentActor);
+  const currentTurnIndex = useCombatStore((s) => s.currentTurnIndex);
   const isMutating       = useCombatStore((s) => s.isMutating);
 
-  const actor = useCombatStore((s) => {
-    const active = [...s.participants]
+  const actor = useMemo(() => {
+    const active = participants
       .filter((p) => p.deathSaveFailures < 3)
       .sort((a, b) => a.turnOrder - b.turnOrder);
 
     if (active.length === 0) return null;
 
-    const safeIndex = Math.min(
-      s.currentTurnIndex,
-      active.length - 1
-    );
-
+    const safeIndex = Math.min(currentTurnIndex, active.length - 1);
     return active[safeIndex] ?? null;
-  });
+  }, [participants, currentTurnIndex]);
 
   // Slim summaries for target selectors
   const participantSummaries = participants.map((p) => ({
@@ -46,26 +43,6 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
   }));
 
   const consciousCount = participants.filter((p) => p.isConscious).length;
-  const conscious = participants.filter(p => p.isConscious);
-  console.log("CombatView");
-  console.log("participants:", participants.length);
-  console.log("combatName:", combatName);
-  console.log("round:", round);
-  console.log("actor:", actor);
-  console.log(
-    "turnIndex",
-    useCombatStore.getState().currentTurnIndex
-  );
-
-  console.log(
-    "participants",
-    useCombatStore.getState().participants.map(p => ({
-      name: p.displayName,
-      turnOrder: p.turnOrder,
-      failures: p.deathSaveFailures,
-      conscious: p.isConscious
-    }))
-  );
   return (
     /*
       pb-48 sm:pb-36 clears the sticky command panel and bottom nav.

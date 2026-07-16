@@ -18,17 +18,19 @@ import { useCombatStore } from "@/stores/combatStore";
  */
 export function useCombatMutation() {
   const [isPending, startTransition] = useTransition();
-  const store = useCombatStore();
+  const storeIsMutating = useCombatStore((s) => s.isMutating);
 
   async function mutate({
     optimistic,
     action,
   }: {
+    
     // Runs immediately — pure store update, no async
     optimistic: () => void;
     // Async server call — must return { ok: true } or { ok: false; error: string }
     action: () => Promise<{ ok: boolean; error?: string }>;
   }) {
+    const store = useCombatStore.getState();
     // Block double-taps
     if (store.isMutating) return;
 
@@ -68,6 +70,6 @@ export function useCombatMutation() {
 
   return {
     mutate,
-    isMutating: store.isMutating || isPending,
+    isMutating: storeIsMutating  || isPending,
   };
 }
