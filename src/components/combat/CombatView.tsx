@@ -33,21 +33,22 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
   }, [participants, currentTurnIndex]);
 
   // Slim summaries for target selectors
-  const participantSummaries = participants.map((p) => ({
-    id:          p.id,
-    displayName: p.displayName,
-    isConscious: p.isConscious,
-    currentHp:   p.currentHp,
-    maxHp:       p.maxHp,
-    tempHp:      p.tempHp,
-  }));
+  const participantSummaries = useMemo(
+    () =>
+      participants.map((p) => ({
+        id:          p.id,
+        displayName: p.displayName,
+        isConscious: p.isConscious,
+        currentHp:   p.currentHp,
+        maxHp:       p.maxHp,
+        tempHp:      p.tempHp,
+      })),
+    [participants]
+  );
 
   const consciousCount = participants.filter((p) => p.isConscious).length;
   return (
-    /*
-      pb-48 sm:pb-36 clears the sticky command panel and bottom nav.
-      The panel is ~120px + nav tabs ~64px on mobile = ~184px total.
-    */
+
     <div className="space-y-4 pb-48 sm:pb-36">
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="pt-2 flex items-start justify-between gap-3">

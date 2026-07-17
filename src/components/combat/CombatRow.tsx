@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { useCombatStore, type Participant } from "@/stores/combatStore";
 import { useCombatMutation } from "@/hooks/useCombatMutation";
 import { DeathSaveTracker } from "@/components/combat/DeathSaveTracker";
@@ -23,7 +23,7 @@ import { makeFormData } from "@/lib/utils/formData";
 import {TYPE_ACCENT} from "@/lib/utils/combat";
 import { ParticipantSummary } from "@/types/combat";
 
-export function CombatantRow({
+function CombatantRowBase({
   participant: p, combatId, isCurrentTurn, isFinished,
   round, allParticipants, globalMutating,
 }: {
@@ -212,3 +212,5 @@ export function CombatantRow({
     </div>
   );
 }
+
+export const CombatantRow = memo(CombatantRowBase);
