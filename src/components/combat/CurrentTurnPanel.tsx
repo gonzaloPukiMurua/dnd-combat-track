@@ -43,7 +43,6 @@ export function CurrentTurnPanel({
   allParticipants: ParticipantSummary[];
   globalMutating: boolean;
 }) {
-  const store = useCombatStore();
   const { mutate, isMutating } = useCombatMutation();
 
   const [amount, setAmount] = useState("");
@@ -69,7 +68,7 @@ export function CurrentTurnPanel({
     if (!n || n < 1) return;
 
     mutate({
-      optimistic: () => store.applyDamage(targetId, n),
+      optimistic: () => useCombatStore.getState().applyDamage(targetId, n),
 
       action: async () => {
         const result = await dealDamage(
@@ -94,7 +93,7 @@ export function CurrentTurnPanel({
     if (!n || n < 1) return;
 
     mutate({
-      optimistic: () => store.applyHeal(targetId, n),
+      optimistic: () => useCombatStore.getState().applyHeal(targetId, n),
 
       action: async () => {
         const result = await healParticipant(
@@ -117,7 +116,7 @@ export function CurrentTurnPanel({
     field: "actionUsed" | "bonusUsed" | "reactionUsed"
   ) {
     mutate({
-      optimistic: () => store.toggleAction(actor.id, field),
+      optimistic: () => useCombatStore.getState().toggleAction(actor.id, field),
 
       action: () =>
         toggleActionState(
@@ -132,7 +131,7 @@ export function CurrentTurnPanel({
 
   function handleEndTurn() {
     mutate({
-      optimistic: () => { store.advanceTurnOptimistic(); },
+      optimistic: () => { useCombatStore.getState().advanceTurnOptimistic(); },
       action: async () => {
         const result = await advanceTurn(combatId);
         setAmount("");

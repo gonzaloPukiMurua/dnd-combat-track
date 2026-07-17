@@ -57,7 +57,6 @@ export function DeathSaveTracker({
   deathSaveFailures,
   isStabilized,
 }: Props) {
-  const store = useCombatStore();
 
   const { mutate, isMutating } = useCombatMutation();
 
@@ -66,7 +65,7 @@ export function DeathSaveTracker({
   function handleSave(result: "success" | "failure") {
     mutate({
       optimistic: () => {
-        store.applyDeathSave(participantId, result);
+        useCombatStore.getState().applyDeathSave(participantId, result);
       },
 
       action: () =>
@@ -82,8 +81,7 @@ export function DeathSaveTracker({
 
   function handleReset() {
     mutate({
-      optimistic: () => store.resetDeathSavesOptimistic(participantId),
-
+      optimistic: () => useCombatStore.getState().resetDeathSavesOptimistic(participantId),
       action: () =>
         resetDeathSaves(
           makeFormData({

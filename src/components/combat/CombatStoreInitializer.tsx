@@ -21,9 +21,13 @@ type Props = {
 };
 
 export function CombatStoreInitializer({ combat }: Props) {
+  const combatId = useCombatStore((s) => s.combatId);
+
   useEffect(() => {
-    useCombatStore.getState().hydrate(combat);
-  }, [combat]);
+    if (combatId !== combat.id) {
+      useCombatStore.getState().hydrate(combat);
+    }
+  }, [combat.id, combatId, combat]);
 
   return null;
 }
