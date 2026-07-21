@@ -75,7 +75,10 @@ export default async function GroupDetailPage({
           <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
             Add template
           </h2>
-          <form action={async (fd) => { await addGroupMember(fd); }}
+          <form action={async (fd) => {
+            "use server";
+            await addGroupMember(fd);
+            }}
             className="bg-white border-2 border-slate-100 rounded-2xl p-4 space-y-3">
             <input type="hidden" name="groupId" value={group.id} />
             <div className="flex gap-2">

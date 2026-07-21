@@ -1,6 +1,6 @@
 import { getGroups } from "@/lib/actions/groups";
-import { GroupCard } from "@/components/groups/GroupCard";
 import Link from "next/link";
+import { GroupListFilter } from "@/components/templates/GroupListFilter";
 
 export default async function GroupsPage() {
   const groups = await getGroups();
@@ -24,12 +24,7 @@ export default async function GroupsPage() {
           <p className="text-sm">Save your party or a common encounter for quick combat setup.</p>
         </div>
       )}
-
-      <div className="space-y-3">
-        {groups.map((g) => (
-          <GroupCard key={g.id} group={g} />
-        ))}
-      </div>
+      <GroupListFilter groups={groups}/>
     </div>
   );
 }

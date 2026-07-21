@@ -1,13 +1,10 @@
 import { getTemplates } from "@/lib/actions/templates";
 import { CreateTemplateForm } from "@/components/templates/CreateTemplateForm";
-import { TemplateCard } from "@/components/templates/TemplateCard";
 import { RestPanel } from "@/components/templates/RestPanel";
+import { TemplateListFilter } from "@/components/templates/TemplatesListFilter";
+
 export default async function TemplatesPage() {
   const templates = await getTemplates();
-
-  const players  = templates.filter((t) => t.type === "PLAYER");
-  const npcs     = templates.filter((t) => t.type === "NPC");
-  const monsters = templates.filter((t) => t.type === "MONSTER");
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4 space-y-8">
@@ -24,41 +21,9 @@ export default async function TemplatesPage() {
         </p>
       )}
 
-      {/* Players */}
-      {players.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-            Players
-          </h2>
-          {players.map((t) => (
-            <TemplateCard key={t.id} template={t} />
-          ))}
-        </section>
-      )}
+      {/* Filterable list */}
+      <TemplateListFilter templates={templates} />
 
-      {/* NPCs */}
-      {npcs.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-            NPCs
-          </h2>
-          {npcs.map((t) => (
-            <TemplateCard key={t.id} template={t} />
-          ))}
-        </section>
-      )}
-
-      {/* Monsters */}
-      {monsters.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-            Monsters
-          </h2>
-          {monsters.map((t) => (
-            <TemplateCard key={t.id} template={t} />
-          ))}
-        </section>
-      )}
       <RestPanel templates={templates} />
     </div>
   );
