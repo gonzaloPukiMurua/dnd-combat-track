@@ -1,23 +1,8 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { getCombatDetail } from "@/lib/actions/queries/combat";
+import { mapCombatDetail } from "@/lib/actions/mappers/combat";
 import { SpectateView } from "@/components/combat/SpectateView";
-
-async function getCombat(id: string) {
-  return prisma.combat.findUnique({
-    where: { id },
-    include: {
-      participants: {
-        orderBy: { turnOrder: "asc" },
-        include: { template: true },
-      },
-      logs: {
-        orderBy: { createdAt: "asc" },
-        include: { actor: true, target: true },
-      },
-    },
-  });
-}
 
 export default async function SpectatePage({
   params,
@@ -36,11 +21,11 @@ export default async function SpectatePage({
     redirect(`/join`);
   }
 
-  const combat = await getCombat(id);
-  if (!combat) notFound();
+  const combatRow = await getCombatDetail(id);
+  if (!combatRow) notFound();
 
   // Verify the participant actually belongs to this combat
-  const playerParticipant = combat.participants.find(
+  const playerParticipant = combatRow.participants.find(
     (p) => p.id === playerParticipantId
   );
 
@@ -48,61 +33,17 @@ export default async function SpectatePage({
     redirect(`/join`);
   }
 
+  const combat = mapCombatDetail(combatRow);
   const isFinished = combat.status === "FINISHED";
-  const conscious  = combat.participants.filter((p) => p.isConscious);
-  const current    = conscious[combat.currentTurnIndex] ?? null;
+
+  // NOTE: intentionally indexes by isConscious rather than the canonical
+  // domain.combat.rules turn order (pre-existing behavior, kept as-is).
+  const conscious = combat.participants.filter((p) => p.isConscious);
+  const current   = conscious[combat.currentTurnIndex] ?? null;
 
   return (
     <SpectateView
-      combat={{
-        id:               combat.id,
-        name:             combat.name,
-        status:           combat.status as "SETUP" | "ACTIVE" | "FINISHED",
-        round:            combat.round,
-        currentTurnIndex: combat.currentTurnIndex,
-        participants: combat.participants.map((p) => ({
-          id:                 p.id,
-          combatId:           p.combatId,
-          templateId:         p.templateId,
-          displayName:        p.displayName,
-          initiative:         p.initiative,
-          turnOrder:          p.turnOrder,
-          maxHp:              p.maxHp,
-          currentHp:          p.currentHp,
-          tempHp:             p.tempHp,
-          baseAc:             p.baseAc,
-          acModifiers:        p.acModifiers as never,
-          conditions:         p.conditions  as never,
-          isConscious:        p.isConscious,
-          isStabilized:       p.isStabilized,
-          deathSaveSuccesses: p.deathSaveSuccesses,
-          deathSaveFailures:  p.deathSaveFailures,
-          actionUsed:         p.actionUsed,
-          bonusUsed:          p.bonusUsed,
-          reactionUsed:       p.reactionUsed,
-          template: {
-            id:              p.template.id,
-            name:            p.template.name,
-            type:            p.template.type,
-            maxHp:           p.template.maxHp,
-            baseAc:          p.template.baseAc,
-            initiativeBonus: p.template.initiativeBonus,
-          },
-        })),
-        logs: combat.logs.map((l) => ({
-          id:        l.id,
-          combatId:  l.combatId,
-          round:     l.round,
-          type:      l.type as "DAMAGE" | "HEAL" | "CONDITION_ADDED" | "CONDITION_REMOVED" | "NOTE",
-          actorId:   l.actorId,
-          targetId:  l.targetId,
-          amount:    l.amount,
-          note:      l.note,
-          createdAt: l.createdAt,
-          actor:     l.actor  ? { displayName: l.actor.displayName  } : null,
-          target:    l.target ? { displayName: l.target.displayName } : null,
-        })),
-      }}
+      combat={combat}
       playerParticipantId={playerParticipantId}
       isFinished={isFinished}
       currentActorId={current?.id ?? null}

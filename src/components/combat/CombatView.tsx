@@ -2,11 +2,12 @@
 
 import { useMemo } from "react";
 import { useCombatStore } from "@/stores/combatStore";
+import { computeCurrentActor } from "@/domain/combat/rules";
 import { CombatantRow } from "@/components/combat/CombatRow";
 import { CurrentTurnPanel } from "@/components/combat/CurrentTurnPanel";
 import { CombatLog } from "@/components/combat/CombatLog";
-import { AddParticipantMidCombat } from "./ui/AddParticipantMidCombat";
-import { TemplateSummary } from "@/types/combat";
+import { AddParticipantMidCombat } from "./AddParticipantMidCombat";
+import { TemplateSummary } from "@/domain/templates/types";
 type Props = {
   combatId:   string;
   isFinished: boolean;
@@ -21,16 +22,10 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
   const currentTurnIndex = useCombatStore((s) => s.currentTurnIndex);
   const isMutating       = useCombatStore((s) => s.isMutating);
 
-  const actor = useMemo(() => {
-    const active = participants
-      .filter((p) => p.deathSaveFailures < 3)
-      .sort((a, b) => a.turnOrder - b.turnOrder);
-
-    if (active.length === 0) return null;
-
-    const safeIndex = Math.min(currentTurnIndex, active.length - 1);
-    return active[safeIndex] ?? null;
-  }, [participants, currentTurnIndex]);
+  const actor = useMemo(
+    () => computeCurrentActor(participants, currentTurnIndex),
+    [participants, currentTurnIndex]
+  );
 
   // Slim summaries for target selectors
   const participantSummaries = useMemo(

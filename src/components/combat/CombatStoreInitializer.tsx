@@ -1,12 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  useCombatStore,
-  type Participant,
-  type LogEntry,
-  type CombatStatus,
-} from "@/stores/combatStore";
+import { useCombatStore } from "@/stores/combatStore";
+import type { Participant, LogEntry, CombatStatus } from "@/domain/combat/types";
 
 type Props = {
   combat: {

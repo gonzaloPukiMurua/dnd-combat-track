@@ -1,8 +1,8 @@
 "use client";
 
-import { ActionBadges } from "./ActionBadges";
-import { CombatStatusBadges } from "./CombatStatusBadges";
-import { ConditionBadges } from "./ConditionBadges";
+import { ActionBadges } from "@/components/ui/ActionBadges";
+import { CombatStatusBadges } from "@/components/ui/CombatStatusBadges";
+import { ConditionBadges } from "@/components/ui/ConditionBadges";
 
 type Condition = { name: string };
 

@@ -11,19 +11,20 @@ import {
   removeCondition,
 } from "@/lib/actions/participant";
 import { makeFormData } from "@/lib/utils/formData";
-import { 
-  hpBarColor, 
-  TYPE_ACCENT
-} from "@/lib/utils/combat";
-import type { 
-  Participant, 
-  LogEntry, 
-  CombatStatus
- } from "@/stores/combatStore";
-import { HpBar } from "./ui/HpBar";
-import { ConditionsPanel } from "./ui/ConditionsPanel";
-type AcModifier = { source: string; value: number };
-type Condition  = { name: string };
+import {
+  hpBarColor,
+  computeAcTotal,
+  computeHpPct,
+  TYPE_ACCENT,
+} from "@/domain/combat/selectors";
+import type {
+  Participant,
+  LogEntry,
+  CombatStatus,
+  Condition,
+} from "@/domain/combat/types";
+import { HpBar } from "@/components/ui/HpBar";
+import { ConditionsPanel } from "@/components/ui/ConditionsPanel";
 
 type Props = {
   combat: {
@@ -128,10 +129,9 @@ function ParticipantRow({
   const [condInput, setCondInput] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  const acMods     = (p.acModifiers as unknown as AcModifier[]) ?? [];
-  const conditions = (p.conditions  as unknown as Condition[])  ?? [];
-  const acTotal    = p.baseAc + acMods.reduce((s, m) => s + m.value, 0);
-  const hpPct      = p.maxHp > 0 ? Math.max(0, Math.round((p.currentHp / p.maxHp) * 100)) : 0;
+  const conditions = ((p.conditions as unknown as Condition[]) ?? []);
+  const acTotal    = computeAcTotal(p.baseAc, p.acModifiers);
+  const hpPct      = computeHpPct(p.currentHp, p.maxHp);
   const barColor   = hpBarColor(hpPct, p.isConscious);
   const isDead     = p.deathSaveFailures >= 3;
 

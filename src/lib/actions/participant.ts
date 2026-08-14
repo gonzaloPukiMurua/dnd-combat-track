@@ -1,14 +1,20 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import type { AcModifier, Condition } from "@/domain/combat/types";
+import {
+  applyDamage,
+  applyHeal,
+  applyTempHp,
+  addCondition as addConditionRule,
+  removeCondition as removeConditionRule,
+  applyDeathSave,
+} from "@/domain/combat/rules";
 
 // ─── Return type ──────────────────────────────────────────────────────────────
 // Every action returns this — never throws to the client.
 
 type ActionResult = { ok: true } | { ok: false; error: string };
-
-type AcModifier = { source: string; value: number };
-type Condition  = { name: string };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -32,18 +38,7 @@ export async function dealDamage(formData: FormData): Promise<ActionResult> {
 
     if (!target) return { ok: false, error: "Target not found" };
 
-    let amount    = rawAmount;
-    let newTempHp = target.tempHp;
-    let newHp     = target.currentHp;
-
-    if (newTempHp > 0) {
-      const absorbed = Math.min(newTempHp, amount);
-      newTempHp -= absorbed;
-      amount    -= absorbed;
-    }
-    if (amount > 0) newHp = Math.max(0, newHp - amount);
-
-    const isConscious = newHp > 0;
+    const { currentHp: newHp, tempHp: newTempHp, isConscious } = applyDamage(target, rawAmount);
 
     await prisma.$transaction([
       prisma.combatParticipant.update({
@@ -86,20 +81,18 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
 
     if (!target) return { ok: false, error: "Target not found" };
 
-    const wasDown     = target.currentHp === 0;
-    const newHp       = Math.min(target.maxHp, target.currentHp + rawAmount);
-    const isConscious = newHp > 0;
+    const healed = applyHeal(target, rawAmount);
 
     await prisma.$transaction([
       prisma.combatParticipant.update({
         where: { id: targetId },
-        data:  { 
-          currentHp: newHp, 
-          isConscious,
-          ...(wasDown && newHp > 0 ? {
-            deathSaveSuccesses: 0,
-            deathSaveFailures:  0,
-            isStabilized:       false,
+        data:  {
+          currentHp:   healed.currentHp,
+          isConscious: healed.isConscious,
+          ...(healed.regainedConsciousness ? {
+            deathSaveSuccesses: healed.deathSaveSuccesses,
+            deathSaveFailures:  healed.deathSaveFailures,
+            isStabilized:       healed.isStabilized,
           } : {}),
         },
       }),
@@ -111,7 +104,7 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
           actorId,
           targetId,
           amount:   rawAmount,
-          note:     wasDown && newHp > 0
+          note:     healed.regainedConsciousness
             ? `${target.displayName} regained consciousness`
             : null,
         },
@@ -141,7 +134,7 @@ export async function setTempHp(formData: FormData): Promise<ActionResult> {
 
     await prisma.combatParticipant.update({
       where: { id: targetId },
-      data:  { tempHp: Math.max(target.tempHp, rawAmount) },
+      data:  { tempHp: applyTempHp(target, rawAmount) },
     });
 
     return { ok: true };
@@ -168,14 +161,15 @@ export async function addCondition(formData: FormData): Promise<ActionResult> {
     if (!target) return { ok: false, error: "Target not found" };
 
     const current = target.conditions as Condition[];
-    if (current.some((c) => c.name.toLowerCase() === conditionName.toLowerCase())) {
+    const updated = addConditionRule(current, conditionName);
+    if (updated === current) {
       return { ok: true }; // Already has it — not an error
     }
 
     await prisma.$transaction([
       prisma.combatParticipant.update({
         where: { id: targetId },
-        data:  { conditions: [...current, { name: conditionName }] },
+        data:  { conditions: updated },
       }),
       prisma.combatLog.create({
         data: {
@@ -211,9 +205,7 @@ export async function removeCondition(formData: FormData): Promise<ActionResult>
 
     if (!target) return { ok: false, error: "Target not found" };
 
-    const updated = (target.conditions as Condition[]).filter(
-      (c) => c.name.toLowerCase() !== conditionName.toLowerCase()
-    );
+    const updated = removeConditionRule(target.conditions as Condition[], conditionName);
 
     await prisma.$transaction([
       prisma.combatParticipant.update({
@@ -342,22 +334,15 @@ export async function recordDeathSave(formData: FormData): Promise<ActionResult>
     if (!target) return { ok: false, error: "Target not found" };
     if (target.isConscious || target.isStabilized) return { ok: true };
 
-    let { deathSaveSuccesses, deathSaveFailures } = target;
-    let isStabilized = target.isStabilized as boolean;
-    let note = "";
+    const { deathSaveSuccesses, deathSaveFailures, isStabilized } = applyDeathSave(target, result);
 
-    if (result === "success") {
-      deathSaveSuccesses = Math.min(3, deathSaveSuccesses + 1);
-      isStabilized = deathSaveSuccesses >= 3;
-      note = isStabilized
+    const note = result === "success"
+      ? isStabilized
         ? `${target.displayName} is stabilized`
-        : `${target.displayName} death save success (${deathSaveSuccesses}/3)`;
-    } else {
-      deathSaveFailures = Math.min(3, deathSaveFailures + 1);
-      note = deathSaveFailures >= 3
+        : `${target.displayName} death save success (${deathSaveSuccesses}/3)`
+      : deathSaveFailures >= 3
         ? `${target.displayName} has died (3 failed death saves)`
         : `${target.displayName} death save failure (${deathSaveFailures}/3)`;
-    }
 
     await prisma.$transaction([
       prisma.combatParticipant.update({

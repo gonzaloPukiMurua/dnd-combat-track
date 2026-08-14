@@ -1,25 +1,12 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { endCombat, saveHpToTemplates } from "@/lib/actions/combat";
+import { getCombatDetail } from "@/lib/actions/queries/combat";
+import { mapCombatDetail } from "@/lib/actions/mappers/combat";
 import { CombatStoreInitializer } from "@/components/combat/CombatStoreInitializer";
 import { ErrorToast } from "@/components/ErrorToast";
 import { CombatView } from "@/components/combat/CombatView";
 import Link from "next/link";
-async function getCombat(id: string) {
-  return prisma.combat.findUnique({
-    where: { id },
-    include: {
-      participants: {
-        orderBy: { turnOrder: "asc" },
-        include: { template: true },
-      },
-      logs: {
-        orderBy: { createdAt: "asc" },
-        include: { actor: true, target: true },
-      },
-    },
-  });
-}
 
 export default async function CombatPage({
   params,
@@ -27,77 +14,28 @@ export default async function CombatPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [combat, templates] = await Promise.all([
-  getCombat(id),
-  prisma.characterTemplate.findMany({
-    orderBy: [{ type: "asc" }, { name: "asc" }],
-    select:  { id: true, name: true, type: true, maxHp: true, baseAc: true },
-  }),
-]);
+  const [combatRow, templates] = await Promise.all([
+    getCombatDetail(id),
+    prisma.characterTemplate.findMany({
+      orderBy: [{ type: "asc" }, { name: "asc" }],
+      select:  { id: true, name: true, type: true, maxHp: true, baseAc: true },
+    }),
+  ]);
 
-  if (!combat) notFound();
+  if (!combatRow) notFound();
 
+  const combat = mapCombatDetail(combatRow);
   const isFinished = combat.status === "FINISHED";
 
   return (
     <>
       {/* Hydrate store once — after this the server is write-only */}
-      <CombatStoreInitializer
-        combat={{
-          id:               combat.id,
-          name:             combat.name,
-          status:           combat.status as "SETUP" | "ACTIVE" | "FINISHED",
-          round:            combat.round,
-          currentTurnIndex: combat.currentTurnIndex,
-          participants: combat.participants.map((p) => ({
-            id:                 p.id,
-            combatId:           p.combatId,
-            templateId:         p.templateId,
-            displayName:        p.displayName,
-            initiative:         p.initiative,
-            turnOrder:          p.turnOrder,
-            maxHp:              p.maxHp,
-            currentHp:          p.currentHp,
-            tempHp:             p.tempHp,
-            baseAc:             p.baseAc,
-            acModifiers:        p.acModifiers as never,
-            conditions:         p.conditions  as never,
-            isConscious:        p.isConscious,
-            isStabilized:       p.isStabilized,
-            deathSaveSuccesses: p.deathSaveSuccesses,
-            deathSaveFailures:  p.deathSaveFailures,
-            actionUsed:         p.actionUsed,
-            bonusUsed:          p.bonusUsed,
-            reactionUsed:       p.reactionUsed,
-            template: {
-              id:              p.template.id,
-              name:            p.template.name,
-              type:            p.template.type,
-              maxHp:           p.template.maxHp,
-              baseAc:          p.template.baseAc,
-              initiativeBonus: p.template.initiativeBonus,
-            },
-          })),
-          logs: combat.logs.map((l) => ({
-            id:        l.id,
-            combatId:  l.combatId,
-            round:     l.round,
-            type:      l.type as "DAMAGE" | "HEAL" | "CONDITION_ADDED" | "CONDITION_REMOVED" | "NOTE",
-            actorId:   l.actorId,
-            targetId:  l.targetId,
-            amount:    l.amount,
-            note:      l.note,
-            createdAt: l.createdAt,
-            actor:     l.actor  ? { displayName: l.actor.displayName  } : null,
-            target:    l.target ? { displayName: l.target.displayName } : null,
-          })),
-        }}
-      />
+      <CombatStoreInitializer combat={combat} />
 
       {/* Error toast — appears on any mutation failure */}
       <ErrorToast />
       {/* Join code — shown when combat is active */}
-      {!isFinished && combat.joinCode && (
+      {!isFinished && combatRow.joinCode && (
         <div className="bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 flex items-center justify-between gap-4 mb-4">
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
@@ -105,7 +43,7 @@ export default async function CombatPage({
             </p>
 
             <p className="text-2xl font-bold font-mono tracking-widest text-white mt-0.5">
-              {combat.joinCode}
+              {combatRow.joinCode}
             </p>
           </div>
 

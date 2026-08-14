@@ -1,55 +1,17 @@
 import { create } from "zustand";
+import type { AcModifier, Condition, Participant, LogEntry, CombatStatus } from "@/domain/combat/types";
+import {
+  applyDamage as ruleApplyDamage,
+  applyHeal as ruleApplyHeal,
+  applyTempHp as ruleApplyTempHp,
+  addCondition as ruleAddCondition,
+  removeCondition as ruleRemoveCondition,
+  applyDeathSave as ruleApplyDeathSave,
+  computeCurrentActor,
+  computeAdvanceTurn,
+} from "@/domain/combat/rules";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export type AcModifier = { source: string; value: number };
-export type Condition  = { name: string };
-
-export type Participant = {
-  id:                 string;
-  combatId:           string;
-  templateId:         string;
-  displayName:        string;
-  initiative:         number;
-  turnOrder:          number;
-  maxHp:              number;
-  currentHp:          number;
-  tempHp:             number;
-  baseAc:             number;
-  acModifiers:        AcModifier[];
-  conditions:         Condition[];
-  isConscious:        boolean;
-  isStabilized:       boolean;
-  deathSaveSuccesses: number;
-  deathSaveFailures:  number;
-  actionUsed:         boolean;
-  bonusUsed:          boolean;
-  reactionUsed:       boolean;
-  template: {
-    id:              string;
-    name:            string;
-    type:            string;
-    maxHp:           number;
-    baseAc:          number;
-    initiativeBonus: number;
-  };
-};
-
-export type LogEntry = {
-  id:        string;
-  combatId:  string;
-  round:     number;
-  type:      "DAMAGE" | "HEAL" | "CONDITION_ADDED" | "CONDITION_REMOVED" | "NOTE";
-  actorId:   string | null;
-  targetId:  string | null;
-  amount:    number | null;
-  note:      string | null;
-  createdAt: Date;
-  actor:     { displayName: string } | null;
-  target:    { displayName: string } | null;
-};
-
-export type CombatStatus = "SETUP" | "ACTIVE" | "FINISHED";
+export type { AcModifier, Condition, Participant, LogEntry, CombatStatus };
 
 // ─── State shape ──────────────────────────────────────────────────────────────
 
@@ -70,7 +32,7 @@ type CombatActions = {
   // Derived
   currentActor:          () => Participant | null;
   consciousParticipants: () => Participant[];
-  
+
   // Hydration — called once on page load
   hydrate: (data: {
     id: string; name: string; status: CombatStatus;
@@ -121,16 +83,7 @@ export const useCombatStore = create<CombatState>((set, get) => ({
 
   currentActor: () => {
     const { participants, currentTurnIndex } = get();
-
-    const active = [...participants]
-      .filter((p) => p.deathSaveFailures < 3)
-      .sort((a, b) => a.turnOrder - b.turnOrder);
-
-    if (active.length === 0) return null;
-
-    // Clamp here too — store may have stale index from DB hydration
-    const safeIndex = Math.min(currentTurnIndex, active.length - 1);
-    return active[safeIndex] ?? null;
+    return computeCurrentActor(participants, currentTurnIndex);
   },
 
   // ── Hydration ─────────────────────────────────────────────────────────────
@@ -154,31 +107,26 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   applyDamage: (targetId, rawAmount) => set((state) => ({
     participants: state.participants.map((p) => {
       if (p.id !== targetId) return p;
-      let amount = rawAmount;
-      let newTempHp = p.tempHp;
-      let newHp = p.currentHp;
-      if (newTempHp > 0) {
-        const absorbed = Math.min(newTempHp, amount);
-        newTempHp -= absorbed;
-        amount    -= absorbed;
-      }
-      if (amount > 0) newHp = Math.max(0, newHp - amount);
-      return { ...p, currentHp: newHp, tempHp: newTempHp, isConscious: newHp > 0 };
+      const result = ruleApplyDamage(p, rawAmount);
+      return { ...p, ...result };
     }),
   })),
 
   applyHeal: (targetId, amount) => set((state) => ({
     participants: state.participants.map((p) => {
       if (p.id !== targetId) return p;
-      const newHp = Math.min(p.maxHp, p.currentHp + amount);
+      const healed = ruleApplyHeal(p, amount);
       return {
         ...p,
-        currentHp:   newHp,
-        isConscious: newHp > 0,
-        // If healed from 0, clear death saves so they're back in combat properly
-        deathSaveSuccesses: newHp > 0 && p.currentHp === 0 ? 0 : p.deathSaveSuccesses,
-        deathSaveFailures:  newHp > 0 && p.currentHp === 0 ? 0 : p.deathSaveFailures,
-        isStabilized:       newHp > 0 && p.currentHp === 0 ? false : p.isStabilized,
+        currentHp:   healed.currentHp,
+        isConscious: healed.isConscious,
+        ...(healed.regainedConsciousness
+          ? {
+              deathSaveSuccesses: healed.deathSaveSuccesses!,
+              deathSaveFailures:  healed.deathSaveFailures!,
+              isStabilized:       healed.isStabilized!,
+            }
+          : {}),
       };
     }),
   })),
@@ -186,27 +134,21 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   applyTempHp: (targetId, amount) => set((state) => ({
     participants: state.participants.map((p) => {
       if (p.id !== targetId) return p;
-      return { ...p, tempHp: Math.max(p.tempHp, amount) };
+      return { ...p, tempHp: ruleApplyTempHp(p, amount) };
     }),
   })),
 
   applyCondition: (targetId, condition) => set((state) => ({
     participants: state.participants.map((p) => {
       if (p.id !== targetId) return p;
-      if (p.conditions.some((c) => c.name.toLowerCase() === condition.toLowerCase())) return p;
-      return { ...p, conditions: [...p.conditions, { name: condition }] };
+      return { ...p, conditions: ruleAddCondition(p.conditions, condition) };
     }),
   })),
 
   removeConditionOptimistic: (targetId, condition) => set((state) => ({
     participants: state.participants.map((p) => {
       if (p.id !== targetId) return p;
-      return {
-        ...p,
-        conditions: p.conditions.filter(
-          (c) => c.name.toLowerCase() !== condition.toLowerCase()
-        ),
-      };
+      return { ...p, conditions: ruleRemoveCondition(p.conditions, condition) };
     }),
   })),
 
@@ -218,27 +160,10 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   })),
 
   advanceTurnOptimistic: () => set((state) => {
-    const active = [...state.participants]
-      .filter((p) => p.deathSaveFailures < 3)
-      .sort((a, b) => a.turnOrder - b.turnOrder);
+    const advance = computeAdvanceTurn(state.participants, state.currentTurnIndex, state.round);
+    if (!advance) return {};
 
-    if (active.length === 0) return {};
-
-    // Same clamp as server
-    const safeCurrentIndex = Math.min(
-      state.currentTurnIndex,
-      active.length - 1
-    );
-
-    let nextIndex = safeCurrentIndex + 1;
-    let nextRound = state.round;
-
-    if (nextIndex >= active.length) {
-      nextIndex = 0;
-      nextRound += 1;
-    }
-
-    const nextActorId = active[nextIndex]?.id;
+    const { nextIndex, nextRound, nextActorId } = advance;
 
     const participants = state.participants.map((p) => ({
       ...p,
@@ -251,44 +176,15 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   }),
 
   applyDeathSave: (targetId, result) => set((state) => ({
-  participants: state.participants.map((p) => {
-    if (p.id !== targetId) return p;
+    participants: state.participants.map((p) => {
+      if (p.id !== targetId) return p;
+      return { ...p, ...ruleApplyDeathSave(p, result) };
+    }),
+  })),
 
-    let {
-      deathSaveSuccesses,
-      deathSaveFailures,
-      isStabilized,
-    } = p;
-
-    if (result === "success") {
-      deathSaveSuccesses = Math.min(
-        3,
-        deathSaveSuccesses + 1
-      );
-
-      if (deathSaveSuccesses >= 3) {
-        isStabilized = true;
-      }
-    } else {
-      deathSaveFailures = Math.min(
-        3,
-        deathSaveFailures + 1
-      );
-    }
-
-    return {
-      ...p,
-      deathSaveSuccesses,
-      deathSaveFailures,
-      isStabilized,
-    };
-  }),
-})),
-
-resetDeathSavesOptimistic: (targetId) => set((state) => ({
-  participants: state.participants.map((p) => {
-    if (p.id !== targetId) return p;
-
+  resetDeathSavesOptimistic: (targetId) => set((state) => ({
+    participants: state.participants.map((p) => {
+      if (p.id !== targetId) return p;
       return {
         ...p,
         deathSaveSuccesses: 0,
@@ -298,9 +194,9 @@ resetDeathSavesOptimistic: (targetId) => set((state) => ({
     }),
   })),
 
-appendLog: (entry) => set((state) => ({
-  logs: [...state.logs, entry],
-})),
+  appendLog: (entry) => set((state) => ({
+    logs: [...state.logs, entry],
+  })),
 
   // ── Snapshot / rollback ───────────────────────────────────────────────────
 

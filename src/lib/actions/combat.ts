@@ -4,43 +4,26 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { generateJoinCode } from "@/lib/utils/combat";
+import { computeAdvanceTurn } from "@/domain/combat/rules";
+import {
+  getActiveCombatDetail,
+  getCombatDetail,
+  getCombatByJoinCodeDetail,
+} from "@/lib/actions/queries/combat";
+
 // ─── Queries ─────────────────────────────────────────────────────────────────
+// Thin async wrappers — "use server" files may only export async functions,
+// so these can't be plain const re-exports. Shared include shape lives in
+// lib/actions/queries/combat.ts.
 
 // Returns the single SETUP or ACTIVE combat, or null.
 // We enforce one combat at a time at the query level.
 export async function getActiveCombat() {
-  return prisma.combat.findFirst({
-    where: { status: { in: ["SETUP", "ACTIVE"] } },
-    include: {
-      participants: {
-        orderBy: { turnOrder: "asc" },
-        include: { template: true },
-      },
-      logs: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          actor:  true,
-          target: true,
-        },
-      },
-    },
-  });
+  return getActiveCombatDetail();
 }
 
 export async function getCombatById(id: string) {
-  return prisma.combat.findUnique({
-    where: { id },
-    include: {
-      participants: {
-        orderBy: { turnOrder: "asc" },
-        include: { template: true },
-      },
-      logs: {
-        orderBy: { createdAt: "asc" },
-        include: { actor: true, target: true },
-      },
-    },
-  });
+  return getCombatDetail(id);
 }
 
 // ─── Create combat ───────────────────────────────────────────────────────────
@@ -215,28 +198,13 @@ export async function advanceTurn(combatId: string) {
       };
     }
 
-    const activeParticipants = combat.participants;
+    const advance = computeAdvanceTurn(combat.participants, combat.currentTurnIndex, combat.round);
 
-    if (activeParticipants.length === 0) {
+    if (!advance || !advance.nextActorId) {
       return { ok: false, error: "No active participants remaining" };
     }
 
-    // ← ADD THIS: clamp current index before incrementing
-    // Prevents stale index from causing out-of-bounds on next advance
-    const safeCurrentIndex = Math.min(
-      combat.currentTurnIndex,
-      activeParticipants.length - 1
-    );
-
-    let nextIndex = safeCurrentIndex + 1;
-    let nextRound = combat.round;
-
-    if (nextIndex >= activeParticipants.length) {
-      nextIndex = 0;
-      nextRound += 1;
-    }
-
-    const nextActor = activeParticipants[nextIndex];
+    const { nextIndex, nextRound, nextActorId } = advance;
 
     // Atomic transaction
     await prisma.$transaction([
@@ -253,7 +221,7 @@ export async function advanceTurn(combatId: string) {
       // Reset ONLY next actor actions
       prisma.combatParticipant.update({
         where: {
-          id: nextActor.id,
+          id: nextActorId,
         },
         data: {
           actionUsed: false,
@@ -358,13 +326,5 @@ export async function saveHpToTemplates(combatId: string): Promise<{ ok: boolean
 }
 
 export async function getCombatByJoinCode(code: string) {
-  return prisma.combat.findUnique({
-    where:   { joinCode: code.toUpperCase().trim() },
-    include: {
-      participants: {
-        orderBy: { turnOrder: "asc" },
-        include: { template: true },
-      },
-    },
-  });
+  return getCombatByJoinCodeDetail(code);
 }

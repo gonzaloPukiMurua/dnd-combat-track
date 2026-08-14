@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { longRest, shortRest } from "@/lib/actions/templates";
+import { hpBarColor } from "@/domain/combat/selectors";
 
 type Template = {
   id:        string;
@@ -96,7 +97,7 @@ export function RestPanel({ templates }: { templates: Template[] }) {
 
               <div className="w-16 bg-slate-200 rounded-full h-1.5 hidden sm:block">
                 <div
-                  className={`h-1.5 rounded-full ${pct > 60 ? "bg-green-500" : pct > 30 ? "bg-yellow-400" : "bg-red-500"}`}
+                  className={`h-1.5 rounded-full ${hpBarColor(pct, true)}`}
                   style={{ width: `${pct}%` }}
                 />
               </div>

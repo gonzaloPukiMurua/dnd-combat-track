@@ -1,7 +1,6 @@
-// src/components/combat/HpBar.tsx
 "use client";
 
-import { hpBarColor } from "@/lib/utils/combat";
+import { hpBarColor } from "@/domain/combat/selectors";
 
 type HpBarProps = {
   currentHp: number;

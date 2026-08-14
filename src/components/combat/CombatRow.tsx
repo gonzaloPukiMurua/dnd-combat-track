@@ -4,13 +4,13 @@ import { useState, memo } from "react";
 import { useCombatStore, type Participant } from "@/stores/combatStore";
 import { useCombatMutation } from "@/hooks/useCombatMutation";
 import { DeathSaveTracker } from "@/components/combat/DeathSaveTracker";
-import { HpBar } from "./ui/HpBar";
-import { ConditionsPanel } from "./ui/ConditionsPanel";
-import { ActionTracker } from "./ui/ActionTracker";
-import { TargetSelector } from "./ui/TargetSelector";
-import { AmountControls } from "./ui/AmountControls";
-import { TempHpControls } from "./ui/TempHpControls";
-import { CombatantNameRow } from "./ui/CombatNameRow";
+import { HpBar } from "@/components/ui/HpBar";
+import { ConditionsPanel } from "@/components/ui/ConditionsPanel";
+import { ActionTracker } from "@/components/ui/ActionTracker";
+import { TargetSelector } from "@/components/ui/TargetSelector";
+import { AmountControls } from "@/components/ui/AmountControls";
+import { TempHpControls } from "@/components/ui/TempHpControls";
+import { CombatantNameRow } from "./CombatNameRow";
 import {
   dealDamage, 
   healParticipant, 
@@ -20,8 +20,8 @@ import {
   toggleActionState,
 } from "@/lib/actions/participant";
 import { makeFormData } from "@/lib/utils/formData";
-import {TYPE_ACCENT} from "@/lib/utils/combat";
-import { ParticipantSummary } from "@/types/combat";
+import { TYPE_ACCENT, computeAcTotal } from "@/domain/combat/selectors";
+import { ParticipantSummary } from "@/domain/combat/types";
 
 function CombatantRowBase({
   participant: p, combatId, isCurrentTurn, isFinished,
@@ -39,7 +39,7 @@ function CombatantRowBase({
   const [tempAmount, setTempAmount] = useState("");
   const [condInput,  setCondInput]  = useState("");
   const [targetId,   setTargetId]   = useState(p.id);
-  const acTotal  = p.baseAc + p.acModifiers.reduce((s, m) => s + m.value, 0);
+  const acTotal  = computeAcTotal(p.baseAc, p.acModifiers);
   const isDead   = p.deathSaveFailures >= 3;
   const disabled = isMutating || globalMutating || isFinished;
 

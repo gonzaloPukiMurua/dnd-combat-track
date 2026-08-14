@@ -8,19 +8,7 @@ import {
   startCombat,
   addParticipantsFromGroup,
 } from "@/lib/actions/combat";
-import { prisma } from "@/lib/prisma";
-
-async function getCombatSetup(id: string) {
-  return prisma.combat.findUnique({
-    where: { id },
-    include: {
-      participants: {
-        orderBy: { createdAt: "asc" },
-        include: { template: true },
-      },
-    },
-  });
-}
+import { getCombatSetupDetail } from "@/lib/actions/queries/combat";
 
 export default async function CombatSetupPage({
   params,
@@ -29,7 +17,7 @@ export default async function CombatSetupPage({
 }) {
   const { id } = await params;
   const [combat, templates, groups] = await Promise.all([
-    getCombatSetup(id),
+    getCombatSetupDetail(id),
     getTemplates(),
     getGroups(),
   ]);

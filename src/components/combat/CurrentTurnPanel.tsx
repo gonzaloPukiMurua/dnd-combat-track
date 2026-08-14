@@ -11,7 +11,8 @@ import {
 
 import { advanceTurn } from "@/lib/actions/combat";
 import { makeFormData } from "@/lib/utils/formData";
-import { ParticipantSummary } from "@/types/combat";
+import { ParticipantSummary } from "@/domain/combat/types";
+import { hpBarColor, computeHpPct } from "@/domain/combat/selectors";
 
 type CurrentActor = {
   id: string;
@@ -23,12 +24,6 @@ type CurrentActor = {
   bonusUsed: boolean;
   reactionUsed: boolean;
 };
-
-function hpBarColor(pct: number) {
-  if (pct > 60) return "bg-green-500";
-  if (pct > 30) return "bg-yellow-400";
-  return "bg-red-500";
-}
 
 export function CurrentTurnPanel({
   actor,
@@ -51,12 +46,11 @@ export function CurrentTurnPanel({
 
   const disabled = isMutating || globalMutating;
 
-  const hpPct =
-    actor.maxHp > 0
-      ? Math.max(0, Math.round((actor.currentHp / actor.maxHp) * 100))
-      : 0;
+  const hpPct = computeHpPct(actor.currentHp, actor.maxHp);
 
-  const barColor = hpBarColor(hpPct);
+  // NOTE: always passed as "conscious" — matches this panel's pre-existing
+  // behavior, which never factored consciousness into the bar color.
+  const barColor = hpBarColor(hpPct, true);
 
   const selectedTarget = allParticipants.find(
     (p) => p.id === targetId
@@ -289,20 +283,10 @@ export function CurrentTurnPanel({
                   <div className="flex-1 bg-slate-700 rounded-full h-1.5">
                     <div
                       className={`h-1.5 rounded-full transition-all ${
-                        hpBarColor(
-                          Math.round(
-                            (selectedTarget.currentHp /
-                              selectedTarget.maxHp) *
-                              100
-                          )
-                        )
+                        hpBarColor(computeHpPct(selectedTarget.currentHp, selectedTarget.maxHp), true)
                       }`}
                       style={{
-                        width: `${Math.round(
-                          (selectedTarget.currentHp /
-                            selectedTarget.maxHp) *
-                            100
-                        )}%`,
+                        width: `${computeHpPct(selectedTarget.currentHp, selectedTarget.maxHp)}%`,
                       }}
                     />
                   </div>
