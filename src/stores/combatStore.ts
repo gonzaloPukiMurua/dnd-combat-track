@@ -9,6 +9,7 @@ import {
   applyDeathSave as ruleApplyDeathSave,
   computeCurrentActor,
   computeAdvanceTurn,
+  relocateCurrentActor,
 } from "@/domain/combat/rules";
 
 export type { AcModifier, Condition, Participant, LogEntry, CombatStatus };
@@ -49,6 +50,7 @@ type CombatActions = {
   resetDeathSavesOptimistic: (targetId: string) => void;
   toggleAction:              (targetId: string, field: "actionUsed" | "bonusUsed" | "reactionUsed") => void;
   advanceTurnOptimistic:     () => void;
+  reorderParticipantsOptimistic: (orderedIds: string[]) => void;
   applyDeathSave:            (targetId: string, result: "success" | "failure") => void;
   appendLog:                 (entry: LogEntry) => void;
 
@@ -173,6 +175,24 @@ export const useCombatStore = create<CombatState>((set, get) => ({
     }));
 
     return { currentTurnIndex: nextIndex, round: nextRound, participants };
+  }),
+
+  reorderParticipantsOptimistic: (orderedIds) => set((state) => {
+    const currentActorId = computeCurrentActor(state.participants, state.currentTurnIndex)?.id ?? null;
+
+    // Rebuild the array in the new order — the list renders in array order,
+    // so just updating turnOrder in place wouldn't move anything on screen.
+    const byId = new Map(state.participants.map((p) => [p.id, p]));
+    const reordered = orderedIds.flatMap((id, turnOrder) => {
+      const p = byId.get(id);
+      return p ? [{ ...p, turnOrder }] : [];
+    });
+    const missing = state.participants.filter((p) => !byId.has(p.id) || !orderedIds.includes(p.id));
+    const participants = [...reordered, ...missing];
+
+    const currentTurnIndex = relocateCurrentActor(participants, currentActorId, state.currentTurnIndex);
+
+    return { participants, currentTurnIndex };
   }),
 
   applyDeathSave: (targetId, result) => set((state) => ({

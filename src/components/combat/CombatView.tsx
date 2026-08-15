@@ -2,11 +2,14 @@
 
 import { useMemo } from "react";
 import { useCombatStore } from "@/stores/combatStore";
+import { useCombatMutation } from "@/hooks/useCombatMutation";
 import { computeCurrentActor } from "@/domain/combat/rules";
 import { CombatantRow } from "@/components/combat/CombatRow";
 import { CurrentTurnPanel } from "@/components/combat/CurrentTurnPanel";
 import { CombatLog } from "@/components/combat/CombatLog";
 import { AddParticipantMidCombat } from "./AddParticipantMidCombat";
+import { reorderParticipants } from "@/lib/actions/participant";
+import { makeFormData } from "@/lib/utils/formData";
 import { TemplateSummary } from "@/domain/templates/types";
 type Props = {
   combatId:   string;
@@ -21,6 +24,8 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
   const combatName       = useCombatStore((s) => s.combatName);
   const currentTurnIndex = useCombatStore((s) => s.currentTurnIndex);
   const isMutating       = useCombatStore((s) => s.isMutating);
+  const status           = useCombatStore((s) => s.status);
+  const { mutate } = useCombatMutation();
 
   const actor = useMemo(
     () => computeCurrentActor(participants, currentTurnIndex),
@@ -42,6 +47,34 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
   );
 
   const consciousCount = participants.filter((p) => p.isConscious).length;
+
+  function handleDropParticipant(draggedId: string, targetId: string) {
+    if (draggedId === targetId) return;
+
+    const currentIds = participants.map((p) => p.id);
+    const fromIndex = currentIds.indexOf(draggedId);
+    const toIndex   = currentIds.indexOf(targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const orderedIds = [...currentIds];
+    orderedIds.splice(fromIndex, 1);
+    orderedIds.splice(toIndex, 0, draggedId);
+
+    const currentActorId = actor?.id ?? null;
+
+    mutate({
+      optimistic: () => useCombatStore.getState().reorderParticipantsOptimistic(orderedIds),
+      action: () =>
+        reorderParticipants(
+          makeFormData({
+            combatId,
+            orderedIds: JSON.stringify(orderedIds),
+            currentActorId: currentActorId ?? "",
+          })
+        ),
+    });
+  }
+
   return (
 
     <div className="space-y-4 pb-48 sm:pb-36">
@@ -75,6 +108,8 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
               round={round}
               allParticipants={participantSummaries}
               globalMutating={isMutating}
+              canDrag={status === "ACTIVE"}
+              onDropParticipant={handleDropParticipant}
             />
           );
         })}

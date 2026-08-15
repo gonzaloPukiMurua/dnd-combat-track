@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, memo } from "react";
+import { useState, memo, type DragEvent } from "react";
 import { useCombatStore, type Participant } from "@/stores/combatStore";
 import { useCombatMutation } from "@/hooks/useCombatMutation";
 import { DeathSaveTracker } from "@/components/combat/DeathSaveTracker";
@@ -25,11 +25,12 @@ import { ParticipantSummary } from "@/domain/combat/types";
 
 function CombatantRowBase({
   participant: p, combatId, isCurrentTurn, isFinished,
-  round, allParticipants, globalMutating,
+  round, allParticipants, globalMutating, canDrag, onDropParticipant,
 }: {
   participant: Participant; combatId: string;
   isCurrentTurn: boolean; isFinished: boolean; round: number;
   allParticipants: ParticipantSummary[]; globalMutating: boolean;
+  canDrag?: boolean; onDropParticipant?: (draggedId: string, targetId: string) => void;
 }) {
 
   const { mutate, isMutating } = useCombatMutation();
@@ -104,8 +105,23 @@ function CombatantRowBase({
     });
   }
 
+  function handleDragOver(e: DragEvent) {
+    if (!canDrag) return;
+    e.preventDefault();
+  }
+
+  function handleDrop(e: DragEvent) {
+    if (!canDrag) return;
+    e.preventDefault();
+    const draggedId = e.dataTransfer.getData("text/plain");
+    if (draggedId && draggedId !== p.id) onDropParticipant?.(draggedId, p.id);
+  }
+
   return (
-    <div className={`
+    <div
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className={`
       rounded-2xl border-l-4 overflow-hidden transition-all
       bg-slate-800 border border-slate-700
       ${isCurrentTurn ? "border-l-blue-400 shadow-lg shadow-blue-900/30" : TYPE_ACCENT[p.template.type] ?? "border-l-slate-600"}
@@ -119,6 +135,23 @@ function CombatantRowBase({
           ${isCurrentTurn ? "bg-blue-900/20" : "hover:bg-slate-700/40"}`}
       >
         {/* Name row */}
+        <div className="flex items-center gap-2">
+          {canDrag && (
+            <span
+              draggable
+              onDragStart={(e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData("text/plain", p.id);
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="cursor-grab active:cursor-grabbing text-slate-500 hover:text-slate-300 select-none flex-shrink-0 px-1"
+              aria-label={`Drag to reorder ${p.displayName}`}
+            >
+              ⠿
+            </span>
+          )}
+          <div className="flex-1 min-w-0">
           <CombatantNameRow
             initiative={p.initiative}
             displayName={p.displayName}
@@ -134,6 +167,8 @@ function CombatantRowBase({
             isFinished={isFinished}
             expanded={expanded}
           />
+          </div>
+        </div>
 
         {/* HP bar */}
         <HpBar

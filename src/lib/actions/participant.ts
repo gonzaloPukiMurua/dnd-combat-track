@@ -9,6 +9,7 @@ import {
   addCondition as addConditionRule,
   removeCondition as removeConditionRule,
   applyDeathSave,
+  relocateCurrentActor,
 } from "@/domain/combat/rules";
 
 // ─── Return type ──────────────────────────────────────────────────────────────
@@ -377,6 +378,63 @@ export async function resetDeathSaves(formData: FormData): Promise<ActionResult>
   } catch (err) {
     console.error("[resetDeathSaves]", err);
     return { ok: false, error: "Failed to reset death saves. Please try again." };
+  }
+}
+
+// ─── Reorder participants (manual drag, ACTIVE combat only) ──────────────────
+
+export async function reorderParticipants(formData: FormData): Promise<ActionResult> {
+  try {
+    const combatId       = fd(formData, "combatId");
+    const orderedIdsRaw  = fd(formData, "orderedIds");
+    const currentActorId = fd(formData, "currentActorId") || null;
+
+    if (!combatId || !orderedIdsRaw) return { ok: false, error: "Missing required fields" };
+
+    let orderedIds: unknown;
+    try {
+      orderedIds = JSON.parse(orderedIdsRaw);
+    } catch {
+      return { ok: false, error: "Invalid order payload" };
+    }
+    if (!Array.isArray(orderedIds) || orderedIds.some((id) => typeof id !== "string")) {
+      return { ok: false, error: "Invalid order payload" };
+    }
+
+    const combat = await prisma.combat.findUnique({
+      where: { id: combatId },
+      include: { participants: { select: { id: true, deathSaveFailures: true } } },
+    });
+    if (!combat) return { ok: false, error: "Combat not found" };
+    if (combat.status !== "ACTIVE") return { ok: false, error: "Combat is not active" };
+
+    const byId = new Map(combat.participants.map((p) => [p.id, p]));
+    if (
+      orderedIds.length !== byId.size ||
+      !(orderedIds as string[]).every((id) => byId.has(id))
+    ) {
+      return { ok: false, error: "Order must include exactly the combat's current participants" };
+    }
+
+    const reordered = (orderedIds as string[]).map((id, turnOrder) => ({
+      id,
+      turnOrder,
+      deathSaveFailures: byId.get(id)!.deathSaveFailures,
+    }));
+
+    const currentTurnIndex = relocateCurrentActor(reordered, currentActorId, combat.currentTurnIndex);
+
+    await prisma.$transaction([
+      ...reordered.map(({ id, turnOrder }) =>
+        prisma.combatParticipant.update({ where: { id }, data: { turnOrder } })
+      ),
+      prisma.combat.update({ where: { id: combatId }, data: { currentTurnIndex } }),
+    ]);
+
+    return { ok: true };
+  } catch (err) {
+    console.error("[reorderParticipants]", err);
+    return { ok: false, error: "Failed to reorder participants. Please try again." };
   }
 }
 

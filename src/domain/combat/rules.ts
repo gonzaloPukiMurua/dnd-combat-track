@@ -116,6 +116,25 @@ export function computeCurrentActor<T extends TurnParticipant>(
   return active[safeIndex] ?? null;
 }
 
+// After a manual reorder, the positional index no longer points at whoever
+// was acting — relocate it by following the actor's id into the new order
+// instead of trusting the old index.
+export function relocateCurrentActor<T extends TurnParticipant>(
+  participants: T[],
+  currentActorId: string | null,
+  fallbackIndex: number
+): number {
+  const active = activeTurnOrder(participants);
+  if (active.length === 0) return 0;
+
+  if (currentActorId !== null) {
+    const idx = active.findIndex((p) => p.id === currentActorId);
+    if (idx !== -1) return idx;
+  }
+
+  return Math.min(fallbackIndex, active.length - 1);
+}
+
 export type AdvanceTurnResult = {
   nextIndex: number;
   nextRound: number;
