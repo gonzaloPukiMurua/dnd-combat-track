@@ -83,6 +83,34 @@ export function CreateTemplateForm() {
         </div>
       </div>
 
+      {/* Level + Proficiency bonus */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium">Level</label>
+          <input name="level" type="number" min={1} defaultValue={1} className="border rounded px-3 py-2 text-sm" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium">Proficiency bonus</label>
+          <input name="proficiencyBonus" type="number" defaultValue={2} className="border rounded px-3 py-2 text-sm" />
+        </div>
+      </div>
+
+      {/* Ability scores */}
+      <div className="grid grid-cols-3 gap-3">
+        {(["str", "dex", "con", "int", "wis", "cha"] as const).map((key) => (
+          <div key={key} className="flex flex-col gap-1">
+            <label className="text-sm font-medium uppercase">{key}</label>
+            <input name={key} type="number" min={1} max={30} defaultValue={10} className="border rounded px-3 py-2 text-sm" />
+          </div>
+        ))}
+      </div>
+
+      {/* Exhaustion */}
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium">Exhaustion level</label>
+        <input name="exhaustionLevel" type="number" min={0} max={6} defaultValue={0} className="border rounded px-3 py-2 text-sm" />
+      </div>
+
       <button
         type="submit"
         disabled={isPending}
