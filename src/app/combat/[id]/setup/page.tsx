@@ -159,7 +159,7 @@ export default async function CombatSetupPage({
                   }}>
                     <button
                       type="submit"
-                      className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
+                      className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
                       aria-label={`Remove ${p.displayName}`}
                     >
                       ✕

@@ -61,7 +61,8 @@ export default async function GroupDetailPage({
               await removeGroupMember(m.id, group.id);
             }}>
               <button type="submit"
-                className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                aria-label={`Remove ${m.template.name}`}
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                 ✕
               </button>
             </form>

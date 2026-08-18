@@ -252,6 +252,11 @@ export async function endCombat(combatId: string) {
     data:  { status: "FINISHED" },
   });
 
+  // /combat is statically rendered — without this it keeps serving the
+  // stale cached page where this combat still shows as in progress,
+  // hiding the "start a new combat" form.
+  revalidatePath("/combat");
+
   redirect("/combat");
 }
 
