@@ -52,6 +52,15 @@ model CharacterTemplate {
   currentHp       Int?          // null = always start at full HP
   baseAc          Int
   initiativeBonus Int      @default(0)
+  level            Int     @default(1)
+  proficiencyBonus Int     @default(2)
+  str              Int     @default(10)
+  dex              Int     @default(10)
+  con              Int     @default(10)
+  int              Int     @default(10)
+  wis              Int     @default(10)
+  cha              Int     @default(10)
+  exhaustionLevel  Int     @default(0)
   createdAt       DateTime @default(now())
 
   participants CombatParticipant[]

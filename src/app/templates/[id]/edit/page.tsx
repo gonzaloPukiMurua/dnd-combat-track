@@ -123,6 +123,34 @@ export default async function EditTemplatePage({
           />
         </div>
 
+        {/* Level + Proficiency bonus */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label htmlFor="level" className={labelCls}>Level</label>
+            <input id="level" name="level" type="number" min={1} defaultValue={template.level} className={inputCls} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="proficiencyBonus" className={labelCls}>Proficiency bonus</label>
+            <input id="proficiencyBonus" name="proficiencyBonus" type="number" defaultValue={template.proficiencyBonus} className={inputCls} />
+          </div>
+        </div>
+
+        {/* Ability scores */}
+        <div className="grid grid-cols-3 gap-3">
+          {(["str", "dex", "con", "int", "wis", "cha"] as const).map((key) => (
+            <div key={key} className="space-y-1.5">
+              <label htmlFor={key} className={`${labelCls} uppercase`}>{key}</label>
+              <input id={key} name={key} type="number" min={1} max={30} defaultValue={template[key]} className={inputCls} />
+            </div>
+          ))}
+        </div>
+
+        {/* Exhaustion */}
+        <div className="space-y-1.5">
+          <label htmlFor="exhaustionLevel" className={labelCls}>Exhaustion level</label>
+          <input id="exhaustionLevel" name="exhaustionLevel" type="number" min={0} max={6} defaultValue={template.exhaustionLevel} className={inputCls} />
+        </div>
+
         {/* Actions */}
         <div className="flex gap-3 pt-2">
           <a
