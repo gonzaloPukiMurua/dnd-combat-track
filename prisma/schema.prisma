@@ -17,8 +17,8 @@ enum CharacterType {
 }
 
 enum CombatStatus {
-  SETUP   // participants being added, initiatives not rolled yet
-  ACTIVE  // combat running
+  SETUP // participants being added, initiatives not rolled yet
+  ACTIVE // combat running
   FINISHED
 }
 
@@ -30,28 +30,125 @@ enum LogType {
   NOTE
 }
 
+enum CampaignRole {
+  DM
+  PLAYER
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 // Account used to log in. Campaign membership/roles are modeled separately
 // (CampaignMember) — a user's role differs per campaign, so it doesn't live here.
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  createdAt    DateTime @default(now())
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+
+  ownedCampaigns     Campaign[]
+  campaignMembers    CampaignMember[]
+  characterTemplates CharacterTemplate[]
+}
+
+// A tabletop campaign — owns its members, character roster, groups and combats.
+model Campaign {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  inviteCode  String   @unique // 6 alphanumeric uppercase chars, generated server-side (see generateUniqueInviteCode)
+  ownerId     String
+  createdAt   DateTime @default(now())
+
+  owner   User             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  members CampaignMember[]
+  combats Combat[]
+
+  characterTemplates CharacterTemplate[]
+  groups             Group[]
+  groupMembers       GroupMember[]
+
+  @@index([ownerId])
+}
+
+// A user's membership + role within a specific campaign.
+model CampaignMember {
+  id         String       @id @default(uuid())
+  userId     String
+  campaignId String
+  role       CampaignRole
+  joinedAt   DateTime     @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, campaignId])
+  @@index([campaignId])
 }
 
 // The reusable definition of a character, NPC or monster.
 // Never mutated during combat — CombatParticipant holds the live state.
 model CharacterTemplate {
-  id              String   @id @default(uuid())
-  name            String
-  type            CharacterType
-  maxHp           Int
-  currentHp       Int?          // null = always start at full HP
-  baseAc          Int
-  initiativeBonus Int      @default(0)
+  id               String        @id @default(uuid())
+  campaignId       String
+  ownerId          String? // null = NPC/monster with no player owner
+  name             String
+  type             CharacterType
+  maxHp            Int
+  currentHp        Int? // null = always start at full HP
+  baseAc           Int
+  initiativeBonus  Int           @default(0)
+  level            Int           @default(1)
+  proficiencyBonus Int           @default(2)
+  str              Int           @default(10)
+  dex              Int           @default(10)
+  con              Int           @default(10)
+  int              Int           @default(10)
+  wis              Int           @default(10)
+  cha              Int           @default(10)
+  exhaustionLevel  Int           @default(0)
+  createdAt        DateTime      @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  owner    User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+
+  participants CombatParticipant[]
+  groupMembers GroupMember[]
+
+  @@index([campaignId])
+  @@index([ownerId])
+}
+
+// One combat encounter.
+model Combat {
+  id               String       @id @default(uuid())
+  campaignId       String
+  name             String
+  status           CombatStatus @default(SETUP)
+  round            Int          @default(0) // 0 = not started yet, 1 = first round
+  currentTurnIndex Int          @default(0) // index into participants sorted by turnOrder
+  joinCode         String?      @unique // ← add this
+  isPublic         Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+
+  campaign     Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  participants CombatParticipant[]
+  logs         CombatLog[]
+
+  // Supports the "one SETUP/ACTIVE combat per campaign" rule, enforced at the
+  // application level (lib/actions/combat.ts, not yet updated in this pass).
+  @@index([campaignId, status])
+  @@index([joinCode])
+}
+
+// The live instance of a CharacterTemplate inside a specific Combat.
+// All mutable combat state lives here — never on the template.
+model CombatParticipant {
+  id               String  @id @default(uuid())
+  combatId         String
+  templateId       String
+  displayName      String // "Wolf #1", "Thora", etc.
   level            Int     @default(1)
   proficiencyBonus Int     @default(2)
   str              Int     @default(10)
@@ -60,51 +157,11 @@ model CharacterTemplate {
   int              Int     @default(10)
   wis              Int     @default(10)
   cha              Int     @default(10)
-  exhaustionLevel  Int     @default(0)
-  createdAt       DateTime @default(now())
-
-  participants CombatParticipant[]
-  groupMembers GroupMember[]
-}
-
-// One combat encounter.
-model Combat {
-  id               String       @id @default(uuid())
-  name             String
-  status           CombatStatus @default(SETUP)
-  round            Int          @default(0)   // 0 = not started yet, 1 = first round
-  currentTurnIndex Int          @default(0)   // index into participants sorted by turnOrder
-  joinCode         String?      @unique   // ← add this
-  isPublic         Boolean  @default(false)
-  createdAt        DateTime     @default(now())
-
-  participants CombatParticipant[]
-  logs         CombatLog[]
-
-  @@index([status])
-  @@index([joinCode])
-}
-
-// The live instance of a CharacterTemplate inside a specific Combat.
-// All mutable combat state lives here — never on the template.
-model CombatParticipant {
-  id          String  @id @default(uuid())
-  combatId    String
-  templateId  String
-  displayName String  // "Wolf #1", "Thora", etc.
-  level           Int     @default(1)
-  proficiencyBonus Int    @default(2)
-  str             Int     @default(10)
-  dex             Int     @default(10)
-  con             Int     @default(10)
-  int             Int     @default(10)
-  wis             Int     @default(10)
-  cha             Int     @default(10)
-  speed           Int     @default(30)
-  hitDice         String?
+  speed            Int     @default(30)
+  hitDice          String?
   // Initiative
-  initiative Int @default(0) // final value: d20 roll + initiativeBonus
-  turnOrder  Int @default(0) // 0 = goes first; sorted descending by initiative
+  initiative       Int     @default(0) // final value: d20 roll + initiativeBonus
+  turnOrder        Int     @default(0) // 0 = goes first; sorted descending by initiative
 
   // Hit points — snapshot from template at combat start, then live
   maxHp     Int
@@ -130,16 +187,16 @@ model CombatParticipant {
   actorLogs  CombatLog[] @relation("actor")
   targetLogs CombatLog[] @relation("target")
 
-  @@index([combatId])
-  @@index([combatId, turnOrder])
-
   actionUsed   Boolean @default(false)
   bonusUsed    Boolean @default(false)
   reactionUsed Boolean @default(false)
 
-  isStabilized     Boolean @default(false)
-  deathSaveSuccesses Int   @default(0)
-  deathSaveFailures  Int   @default(0)
+  isStabilized       Boolean @default(false)
+  deathSaveSuccesses Int     @default(0)
+  deathSaveFailures  Int     @default(0)
+
+  @@index([combatId])
+  @@index([combatId, turnOrder])
 }
 
 // Immutable record of everything that happens during combat.
@@ -147,7 +204,7 @@ model CombatParticipant {
 model CombatLog {
   id       String  @id @default(uuid())
   combatId String
-  round    Int     // which round this happened in
+  round    Int // which round this happened in
   type     LogType
 
   // Who did it and who received it (both optional — a NOTE has neither)
@@ -163,8 +220,8 @@ model CombatLog {
 
   createdAt DateTime @default(now())
 
-  combat Combat            @relation(fields: [combatId], references: [id], onDelete: Cascade)
-  actor  CombatParticipant? @relation("actor",  fields: [actorId],  references: [id], onDelete: SetNull)
+  combat Combat             @relation(fields: [combatId], references: [id], onDelete: Cascade)
+  actor  CombatParticipant? @relation("actor", fields: [actorId], references: [id], onDelete: SetNull)
   target CombatParticipant? @relation("target", fields: [targetId], references: [id], onDelete: SetNull)
 
   @@index([combatId])
@@ -173,22 +230,29 @@ model CombatLog {
 
 model Group {
   id          String   @id @default(uuid())
+  campaignId  String
   name        String
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members GroupMember[]
+  campaign Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  members  GroupMember[]
+
+  @@index([campaignId])
 }
 
 model GroupMember {
   id         String @id @default(uuid())
+  campaignId String
   groupId    String
   templateId String
   quantity   Int    @default(1)
 
+  campaign Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   group    Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
   template CharacterTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, templateId])
+  @@index([campaignId])
 }
