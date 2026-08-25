@@ -28,6 +28,21 @@ export function getActiveCombatDetail() {
   });
 }
 
+export function getActiveCombatForCampaign(campaignId: string) {
+  return prisma.combat.findFirst({
+    where:   { campaignId, status: { in: ["SETUP", "ACTIVE"] } },
+    include: COMBAT_DETAIL_INCLUDE,
+  });
+}
+
+export function getPreviousCombatsForCampaign(campaignId: string) {
+  return prisma.combat.findMany({
+    where:   { campaignId, status: "FINISHED" },
+    orderBy: { createdAt: "desc" },
+    select:  { id: true, name: true, status: true, round: true, createdAt: true },
+  });
+}
+
 export function getCombatByJoinCodeDetail(code: string) {
   return prisma.combat.findUnique({
     where:   { joinCode: code.toUpperCase().trim() },

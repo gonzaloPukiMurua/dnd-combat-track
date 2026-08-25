@@ -40,11 +40,13 @@ export async function createGroup(
 ): Promise<GroupFormState> {
   const name        = formData.get("name")?.toString().trim();
   const description = formData.get("description")?.toString().trim();
+  const campaignId  = formData.get("campaignId")?.toString();
 
+  if (!campaignId) return { error: "Missing campaignId" };
   if (!name) return { error: "Name is required" };
 
   await prisma.group.create({
-    data: { name, description },
+    data: { name, description, campaignId },
   });
 
   revalidatePath("/groups");
@@ -61,11 +63,14 @@ export async function addGroupMember(formData: FormData): Promise<GroupFormState
   if (!groupId || !templateId) return { error: "Missing required fields" };
   if (quantity < 1 || quantity > 20) return { error: "Quantity must be between 1 and 20" };
 
+  const group = await prisma.group.findUnique({ where: { id: groupId } });
+  if (!group) return { error: "Group not found" };
+
   // Upsert — if member already exists, update quantity
   await prisma.groupMember.upsert({
     where:  { groupId_templateId: { groupId, templateId } },
     update: { quantity },
-    create: { groupId, templateId, quantity },
+    create: { groupId, templateId, quantity, campaignId: group.campaignId },
   });
 
   revalidatePath(`/groups/${groupId}`);

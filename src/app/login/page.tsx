@@ -14,6 +14,12 @@ const STATUS_MESSAGES: Record<string, { text: string; tone: "success" | "error" 
   "error:invalid_credentials": { text: "Email o contraseña incorrectos.", tone: "error" },
 };
 
+const oauthButtonClass =
+  "w-full h-12 rounded-gothic-sm ring-1 ring-gothic-outline-variant bg-gothic-surface font-gothic-body text-sm font-semibold text-gothic-on-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-colors hover:bg-gothic-surface-high";
+
+const inputClass =
+  "w-full rounded-gothic-sm bg-gothic-surface-low px-4 h-12 font-gothic-body text-sm text-gothic-on-surface outline-none ring-1 ring-gothic-outline-variant shadow-[inset_0_1px_4px_rgba(0,0,0,0.5)] transition-all placeholder:text-gothic-outline focus:bg-gothic-surface focus:ring-gothic-primary";
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -29,21 +35,21 @@ export default async function LoginPage({
     .find(Boolean);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[75vh] px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-16 h-16 rounded-2xl bg-slate-900 flex items-center justify-center mx-auto shadow-lg">
+        <div className="space-y-2 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-gothic-md bg-gothic-surface ring-1 ring-gothic-outline shadow-[inset_0_1px_2px_rgba(255,255,255,0.05)]">
             <span className="text-3xl">⚔️</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Iniciar sesión</h1>
+          <h1 className="font-gothic-headline text-gothic-display text-gothic-primary tracking-tight">Iniciar sesión</h1>
         </div>
 
         {status && (
           <p
-            className={`text-sm rounded-xl px-4 py-2 text-center border ${
+            className={`rounded-gothic-sm px-4 py-2 text-center text-sm ${
               status.tone === "success"
-                ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                : "text-red-600 bg-red-50 border-red-200"
+                ? "bg-gothic-success-bg text-gothic-success-text"
+                : "bg-gothic-danger text-gothic-danger-bright"
             }`}
           >
             {status.text}
@@ -58,10 +64,7 @@ export default async function LoginPage({
               await signIn("google", { redirectTo: "/campaigns" });
             }}
           >
-            <button
-              type="submit"
-              className="w-full h-12 border-2 border-slate-200 rounded-2xl font-semibold text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-            >
+            <button type="submit" className={oauthButtonClass}>
               Continuar con Google
             </button>
           </form>
@@ -72,68 +75,75 @@ export default async function LoginPage({
               await signIn("discord", { redirectTo: "/campaigns" });
             }}
           >
-            <button
-              type="submit"
-              className="w-full h-12 border-2 border-slate-200 rounded-2xl font-semibold text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-            >
+            <button type="submit" className={oauthButtonClass}>
               Continuar con Discord
             </button>
           </form>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-slate-400">
-          <div className="flex-1 h-px bg-slate-200" />
+        <div className="flex items-center gap-3 text-xs text-gothic-outline">
+          <div className="h-px flex-1 bg-gothic-outline-variant" />
           o con email
-          <div className="flex-1 h-px bg-slate-200" />
+          <div className="h-px flex-1 bg-gothic-outline-variant" />
         </div>
 
         <form action={loginWithPassword} className="space-y-3">
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            required
-            className="w-full border-2 border-slate-200 rounded-2xl px-4 h-12 text-sm focus:outline-none focus:border-blue-500 transition-colors"
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Contraseña"
-            required
-            className="w-full border-2 border-slate-200 rounded-2xl px-4 h-12 text-sm focus:outline-none focus:border-blue-500 transition-colors"
-          />
+          <div className="space-y-1">
+            <label htmlFor="email" className="pl-1 text-xs font-medium uppercase tracking-widest text-gothic-on-surface-variant">
+              Correo electrónico
+            </label>
+            <input id="email" type="email" name="email" placeholder="lirael@orden.com" required className={inputClass} />
+          </div>
+
+          <div className="space-y-1">
+            <label htmlFor="password" className="pl-1 text-xs font-medium uppercase tracking-widest text-gothic-on-surface-variant">
+              Contraseña
+            </label>
+            <input
+              id="password"
+              type="password"
+              name="password"
+              placeholder="••••••••"
+              required
+              className={`${inputClass} font-mono tracking-widest`}
+            />
+          </div>
+
           <button
             type="submit"
-            className="w-full h-12 bg-slate-900 text-white rounded-2xl font-semibold text-sm hover:bg-slate-800 transition-colors"
+            className="mt-2 w-full h-12 rounded-gothic-sm bg-gothic-primary font-gothic-body text-sm font-semibold text-gothic-on-primary shadow-[inset_0_1px_0px_rgba(255,255,255,0.4),0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-gothic-brass-bright active:scale-[0.98]"
           >
             Iniciar sesión
           </button>
         </form>
 
         <details className="text-center">
-          <summary className="text-sm text-slate-400 hover:text-slate-600 cursor-pointer transition-colors">
+          <summary className="cursor-pointer text-sm text-gothic-on-surface-variant transition-colors hover:text-gothic-on-surface">
             ¿No te llegó el email de verificación?
           </summary>
-          <form action={resendVerificationEmail} className="flex gap-2 mt-3">
+          <form action={resendVerificationEmail} className="mt-3 flex gap-2">
             <input
               type="email"
               name="email"
               placeholder="Tu email"
               required
-              className="flex-1 border-2 border-slate-200 rounded-xl px-3 h-10 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+              className={`${inputClass} h-10 flex-1`}
             />
             <button
               type="submit"
-              className="px-4 h-10 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-colors"
+              className="h-10 shrink-0 rounded-gothic-sm bg-gothic-surface-high px-4 font-gothic-body text-sm font-semibold text-gothic-on-surface ring-1 ring-gothic-outline-variant transition-colors hover:bg-gothic-surface"
             >
               Reenviar
             </button>
           </form>
         </details>
 
-        <p className="text-center text-sm text-slate-400">
+        <p className="text-center text-sm text-gothic-on-surface-variant">
           ¿No tenés cuenta?{" "}
-          <Link href="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+          <Link
+            href="/register"
+            className="text-gothic-primary underline decoration-gothic-outline-variant underline-offset-4 transition-colors hover:text-gothic-brass-bright hover:decoration-gothic-primary"
+          >
             Registrate
           </Link>
         </p>

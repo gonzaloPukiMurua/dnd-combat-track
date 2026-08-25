@@ -1,28 +1,59 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ── Sistema visual Etapa 1 (docs/etapa-1/sistema-visual-etapa-1.md §2) ──────
+   Fantasía oscura, gótico tardío/renacentista temprano. This is now the
+   app's only theme — the create-next-app light default has been removed,
+   not layered underneath. Tokens stay namespaced (gothic-*) as the design
+   system's own vocabulary, distinct from Tailwind's built-in palette. */
+@theme {
+  /* Color — §2.1 */
+  --color-gothic-background: #131313;
+  --color-gothic-surface-low: #1c1b1b;
+  --color-gothic-surface: #201f1f;
+  --color-gothic-surface-high: #2a2a2a;
+  --color-gothic-on-surface: #e7e2dd;
+  --color-gothic-on-surface-variant: #cdc6b8;
+  --color-gothic-outline: #969084;
+  --color-gothic-outline-variant: #4b463c;
+  --color-gothic-danger: #93000a;
+  --color-gothic-danger-bright: #ffb4ab;
+  --color-gothic-success-bg: #2d4036;
+  --color-gothic-success-text: #b3e0c7;
+  --color-gothic-brass-bright: #f0e2ba;
+  --color-gothic-accent-brass: #d4c69f;
+  --color-gothic-primary: #f1e2b9;
+  --color-gothic-on-primary: #383014; /* dark ink for text on brass/primary backgrounds, per Stitch export */
+  --color-gothic-wine: #6d3b3b;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Tipografía — §2.2. JetBrains Mono is reserved for game-mechanic figures
+     (HP, AC, modifiers, initiative, invite code) — never labels/buttons/
+     microcopy, per the documented Login regression. */
+  --font-gothic-headline: "EB Garamond", serif;
+  --font-gothic-body: "Hanken Grotesk", sans-serif;
+  --font-gothic-data: "JetBrains Mono", monospace;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+  /* Tailwind's own default font-mono token, remapped to the same variable —
+     existing numeric readouts elsewhere in the app (HP/AC/init, already
+     using the built-in `font-mono` utility) pick up the loaded JetBrains
+     Mono instance instead of losing Geist Mono outright, with no changes
+     needed at those call sites. */
+  --font-mono: var(--font-gothic-data);
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  --text-gothic-display: 48px;
+  --text-gothic-display--line-height: 56px;
+  --text-gothic-headline: 32px;
+  --text-gothic-headline--line-height: 40px;
+  --text-gothic-headline-sm: 24px;
+  --text-gothic-headline-sm--line-height: 32px;
+  --text-gothic-body: 16px;
+  --text-gothic-body--line-height: 24px;
+  --text-gothic-data: 14px;
+  --text-gothic-data--line-height: 20px;
+  --text-gothic-data--letter-spacing: 0.05em;
+
+  /* Forma — §2.3: radios pequeños (2–4px) en toda la app */
+  --radius-gothic-sm: 2px;
+  --radius-gothic-md: 4px;
 }
 
 @keyframes shrink {

@@ -1,17 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { EB_Garamond, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Sistema visual Etapa 1 (docs/etapa-1/sistema-visual-etapa-1.md §2.2) —
+// loaded once here so the whole app shares the same three fonts.
+const ebGaramond = EB_Garamond({ variable: "--font-gothic-headline", weight: ["600", "700"], subsets: ["latin"] });
+const hankenGrotesk = Hanken_Grotesk({ variable: "--font-gothic-body", weight: ["400", "500"], subsets: ["latin"] });
+const jetBrainsMono = JetBrains_Mono({ variable: "--font-gothic-data", weight: ["500"], subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "D&D Combat Tracker",
@@ -24,19 +19,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-screen`}>
-
-        {/* ── Desktop: top bar ── */}
-        <Navbar />
-
-        {/* ── Page content ──
-            pb-20 on mobile leaves room for the bottom tab bar
-            pt-4 on desktop clears the top bar                   */}
-        <main className="pb-20 sm:pb-0 pt-4 sm:pt-6 max-w-3xl mx-auto px-4">
-          {children}
-        </main>
-
+    <html lang="es">
+      <body
+        className={`${ebGaramond.variable} ${hankenGrotesk.variable} ${jetBrainsMono.variable} min-h-screen bg-gothic-background font-gothic-body text-gothic-on-surface antialiased`}
+      >
+        <main>{children}</main>
       </body>
     </html>
   );

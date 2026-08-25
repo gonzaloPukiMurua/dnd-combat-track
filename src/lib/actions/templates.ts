@@ -36,7 +36,9 @@ export async function createTemplate(
   const maxHp           = Number(formData.get("maxHp"));
   const baseAc          = Number(formData.get("baseAc"));
   const initiativeBonus = Number(formData.get("initiativeBonus") ?? 0);
+  const campaignId      = formData.get("campaignId")?.toString();
 
+  if (!campaignId)           return { error: "Missing campaignId" };
   if (!name)                 return { error: "Name is required" };
   if (!Object.values(CharacterType).includes(type))
                              return { error: "Invalid character type" };
@@ -44,7 +46,7 @@ export async function createTemplate(
   if (!baseAc || baseAc < 1) return { error: "AC must be at least 1" };
 
   await prisma.characterTemplate.create({
-    data: { name, type, maxHp, baseAc, initiativeBonus },
+    data: { name, type, maxHp, baseAc, initiativeBonus, campaignId },
   });
 
   revalidatePath("/templates");

@@ -30,17 +30,19 @@ export async function getCombatById(id: string) {
 
 export async function createCombat(formData: FormData) {
   const name = formData.get("name")?.toString().trim() || "New Combat";
+  const campaignId = formData.get("campaignId")?.toString();
+  if (!campaignId) throw new Error("Missing campaignId");
 
-  // Enforce one combat at a time
+  // Enforce one combat at a time, per campaign (@@index([campaignId, status]))
   const existing = await prisma.combat.findFirst({
-    where: { status: { in: ["SETUP", "ACTIVE"] } },
+    where: { campaignId, status: { in: ["SETUP", "ACTIVE"] } },
   });
   if (existing) {
-    throw new Error("A combat is already in progress. End it before starting a new one.");
+    throw new Error("A combat is already in progress in this campaign. End it before starting a new one.");
   }
 
   const combat = await prisma.combat.create({
-    data: { name, status: "SETUP", round: 0, currentTurnIndex: 0 },
+    data: { name, campaignId, status: "SETUP", round: 0, currentTurnIndex: 0 },
   });
 
   redirect(`/combat/${combat.id}/setup`);

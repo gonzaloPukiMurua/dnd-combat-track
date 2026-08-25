@@ -101,6 +101,9 @@ Cada ticket = una ruta. Reutilizar componentes ya definidos en el brief visual (
 | D10. Ficha de personaje / detalle en combate | reutiliza lógica de `/combat/[id]` existente | A4, A5 |
 | D11. Vista de combate — DM | reutiliza `/combat/[id]` existente, re-scopeada | A4 |
 | D12. Vista de combate — Jugador (spectate) | reutiliza `/combat/[id]/spectate` existente, re-scopeada | A4 |
+| D13. Retokenizar Personajes y Grupos | `/templates`, `/templates/[id]/edit`, `/groups`, `/groups/new`, `/groups/[id]` | A5, A6, reescritura de shell global |
+
+**Nota sobre D13:** hueco real del plan original, no un olvido de ejecución — el backlog nunca contempló re-diseñar estas pantallas, solo reutilizar su lógica (sección 5 del spec técnico). Quedó expuesto recién al reescribir el shell global: estas rutas heredan ahora el fondo oscuro nuevo pero sus componentes internos siguen con clases claras viejas (slate/blue), sin ningún nav que las contenga. Alcance: aplicar los tokens de `sistema-visual-etapa-1.md` a estas 5 rutas — no rediseñar su estructura ni tocar la lógica de campaignId que Épica C ya conectó.
 
 **Nota de implementación para D8/D9:** una sola ruta, el layout se resuelve por el `role` del `CampaignMember` — no dos páginas separadas, para evitar el drift de estructura que tuvimos en las iteraciones de Stitch (hub DM y jugador divergiendo en contenido sin que fuera intencional).
 
@@ -125,7 +128,8 @@ Cada ticket = una ruta. Reutilizar componentes ya definidos en el brief visual (
 5. **D4–D7** (crear/unirse/elegir personaje) una vez cerrada C1–C3.
 6. **D8–D9** (hubs) una vez cerrada C4–C5.
 7. **D10–D12** (combate) en paralelo con D8–D9, dependen solo de A4/A5, no de C.
-8. **Épica E** al final, transversal — pero E5 se puede resolver en cuanto D10–D12 estén tocadas.
+8. **D13** puede correr en cualquier momento después de la reescritura del shell global — no bloquea ni depende de D4–D12, pero conviene no dejarla para el final: cuanto más tarde se haga, más pantallas nuevas van a estar linkeando hacia rutas visualmente rotas.
+9. **Épica E** al final, transversal — pero E5 se puede resolver en cuanto D10–D12 estén tocadas.
 
 ---
 
