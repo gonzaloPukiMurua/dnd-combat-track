@@ -13,20 +13,20 @@ export function CombatStatusBadges({
   return (
     <>
       {isDead && (
-        <span className="text-xs text-red-400 font-medium">
-          💀 Dead
+        <span className="text-xs text-gothic-danger-bright font-medium">
+          💀 Muerto
         </span>
       )}
 
       {!isDead && !isConscious && !isStabilized && (
-        <span className="text-xs text-amber-400 font-medium">
-          ⚠ Unconscious
+        <span className="text-xs text-gothic-brass-bright font-medium">
+          ⚠ Inconsciente
         </span>
       )}
 
       {isStabilized && (
-        <span className="text-xs text-green-400 font-medium">
-          💚 Stable
+        <span className="text-xs text-gothic-success-text font-medium">
+          💚 Estable
         </span>
       )}
     </>

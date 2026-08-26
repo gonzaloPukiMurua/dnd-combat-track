@@ -64,6 +64,7 @@ export async function addParticipant(formData: FormData) {
 
   if (!combat)    throw new Error("Combat not found");
   if (!template)  throw new Error("Template not found");
+  if (template.campaignId !== combat.campaignId) throw new Error("Template belongs to a different campaign");
   if (combat.status === "FINISHED") throw new Error("Cannot add participants after combat has started");
 
   // Count existing participants with this template to generate correct suffix
@@ -79,11 +80,19 @@ export async function addParticipant(formData: FormData) {
     return {
       combatId,
       templateId,
-      displayName: `${template.name}${suffix}`,
-      maxHp:       template.maxHp,
-      currentHp:   template.currentHp ?? template.maxHp,
-      tempHp:      0,
-      baseAc:      template.baseAc,
+      displayName:      `${template.name}${suffix}`,
+      maxHp:            template.maxHp,
+      currentHp:        template.currentHp ?? template.maxHp,
+      tempHp:           0,
+      baseAc:           template.baseAc,
+      level:            template.level,
+      proficiencyBonus: template.proficiencyBonus,
+      str:              template.str,
+      dex:              template.dex,
+      con:              template.con,
+      int:              template.int,
+      wis:              template.wis,
+      cha:              template.cha,
       initiative:  0,
       turnOrder:   0,
       acModifiers: [],
@@ -248,18 +257,17 @@ export async function advanceTurn(combatId: string) {
 
 // ─── End combat ──────────────────────────────────────────────────────────────
 
-export async function endCombat(combatId: string) {
+export async function endCombat(combatId: string, campaignId: string) {
   await prisma.combat.update({
     where: { id: combatId },
     data:  { status: "FINISHED" },
   });
 
-  // /combat is statically rendered — without this it keeps serving the
-  // stale cached page where this combat still shows as in progress,
-  // hiding the "start a new combat" form.
-  revalidatePath("/combat");
+  // Combat is scoped to its campaign (D14/D11) — the DM lands back on that
+  // campaign's hub, not the old global /combat list.
+  revalidatePath(`/campaigns/${campaignId}`);
 
-  redirect("/combat");
+  redirect(`/campaigns/${campaignId}`);
 }
 
 export async function addParticipantsFromGroup(formData: FormData) {
@@ -278,6 +286,7 @@ export async function addParticipantsFromGroup(formData: FormData) {
 
   if (!combat) throw new Error("Combat not found");
   if (!group)  throw new Error("Group not found");
+  if (group.campaignId !== combat.campaignId) throw new Error("Group belongs to a different campaign");
   if (combat.status === "FINISHED") throw new Error("Combat has already started");
 
   // For each member, create quantity participants
@@ -289,10 +298,18 @@ export async function addParticipantsFromGroup(formData: FormData) {
       displayName: m.quantity > 1
         ? `${m.template.name} #${i + 1}`
         : m.template.name,
-      maxHp:       m.template.maxHp,
-      currentHp:   m.template.currentHp ?? m.template.maxHp,
-      tempHp:      0,
-      baseAc:      m.template.baseAc,
+      maxHp:            m.template.maxHp,
+      currentHp:        m.template.currentHp ?? m.template.maxHp,
+      tempHp:           0,
+      baseAc:           m.template.baseAc,
+      level:            m.template.level,
+      proficiencyBonus: m.template.proficiencyBonus,
+      str:              m.template.str,
+      dex:              m.template.dex,
+      con:              m.template.con,
+      int:              m.template.int,
+      wis:              m.template.wis,
+      cha:              m.template.cha,
       initiative:  0,
       turnOrder:   0,
       acModifiers: [],

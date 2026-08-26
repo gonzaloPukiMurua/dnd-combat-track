@@ -19,6 +19,16 @@ export async function getTemplates() {
   });
 }
 
+// Used by the combat participant-picker (/combat/[id]/setup) — templates
+// aren't portable between campaigns (spec-tecnico-etapa-1.md §2), so the
+// picker must only offer templates that belong to the combat's own campaign.
+export async function getTemplatesForCampaign(campaignId: string) {
+  return prisma.characterTemplate.findMany({
+    where:   { campaignId },
+    orderBy: [{ type: "asc" }, { name: "asc" }],
+  });
+}
+
 export async function getTemplateById(id: string) {
   return prisma.characterTemplate.findUnique({
     where: { id },

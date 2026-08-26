@@ -13,9 +13,9 @@ type Props = {
 export function TempHpControls({
   value,
   disabled = false,
-  label = "Temp HP",
-  buttonLabel = "Set",
-  placeholder = "e.g. 10",
+  label = "PV temporales",
+  buttonLabel = "Fijar",
+  placeholder = "ej. 10",
   onChange,
   onSubmit,
 }: Props) {
@@ -31,7 +31,7 @@ export function TempHpControls({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+      <p className="text-xs font-medium text-gothic-on-surface-variant uppercase tracking-widest">
         {label}
       </p>
 
@@ -46,12 +46,12 @@ export function TempHpControls({
           onKeyDown={handleEnter}
           className="
             flex-1
-            border-2 border-slate-600
-            rounded-xl px-3 h-11
-            text-base
-            bg-slate-800 text-white
-            focus:outline-none
-            focus:border-blue-500
+            rounded-gothic-sm bg-gothic-surface-low px-3 h-11
+            text-base text-gothic-on-surface
+            ring-1 ring-gothic-outline-variant
+            shadow-[inset_0_1px_4px_rgba(0,0,0,0.5)]
+            focus:outline-none focus:ring-gothic-primary
+            transition-all
           "
         />
 
@@ -60,10 +60,10 @@ export function TempHpControls({
           disabled={!canSubmit}
           onClick={onSubmit}
           className="
-            bg-blue-500 text-white
-            rounded-xl px-4 h-11
+            bg-gothic-accent-brass text-gothic-on-primary
+            rounded-gothic-sm px-4 h-11
             font-bold text-sm
-            hover:bg-blue-400
+            hover:bg-gothic-brass-bright
             disabled:opacity-40
             transition-colors
           "

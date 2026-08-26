@@ -19,11 +19,12 @@ export function ActionBadges({
       {actionUsed && (
         <span
           className="
-            text-xs font-bold
-            bg-blue-800 text-blue-300
-            px-1.5 py-0.5 rounded-lg
+            text-xs font-mono font-bold
+            bg-gothic-surface-high text-gothic-on-surface-variant
+            ring-1 ring-gothic-outline-variant
+            px-1.5 py-0.5 rounded-gothic-sm
           "
-          title="Action used"
+          title="Acción usada"
         >
           A
         </span>
@@ -32,11 +33,12 @@ export function ActionBadges({
       {bonusUsed && (
         <span
           className="
-            text-xs font-bold
-            bg-purple-800 text-purple-300
-            px-1.5 py-0.5 rounded-lg
+            text-xs font-mono font-bold
+            bg-gothic-surface-high text-gothic-on-surface-variant
+            ring-1 ring-gothic-outline-variant
+            px-1.5 py-0.5 rounded-gothic-sm
           "
-          title="Bonus action used"
+          title="Acción adicional usada"
         >
           B
         </span>
@@ -45,11 +47,12 @@ export function ActionBadges({
       {reactionUsed && (
         <span
           className="
-            text-xs font-bold
-            bg-orange-800 text-orange-300
-            px-1.5 py-0.5 rounded-lg
+            text-xs font-mono font-bold
+            bg-gothic-surface-high text-gothic-on-surface-variant
+            ring-1 ring-gothic-outline-variant
+            px-1.5 py-0.5 rounded-gothic-sm
           "
-          title="Reaction used"
+          title="Reacción usada"
         >
           R
         </span>

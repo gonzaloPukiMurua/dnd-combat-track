@@ -14,9 +14,9 @@ type Props = {
 export function AmountControls({
   amount,
   disabled = false,
-  damageLabel = "DMG",
-  healLabel = "Heal",
-  placeholder = "e.g. 8",
+  damageLabel = "Daño",
+  healLabel = "Curar",
+  placeholder = "ej. 8",
   onAmountChange,
   onDamage,
   onHeal,
@@ -33,8 +33,8 @@ export function AmountControls({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-        Amount
+      <p className="text-xs font-medium text-gothic-on-surface-variant uppercase tracking-widest">
+        Cantidad
       </p>
 
       <div className="flex gap-2">
@@ -48,12 +48,12 @@ export function AmountControls({
           onKeyDown={handleEnter}
           className="
             flex-1
-            border-2 border-slate-600
-            rounded-xl px-3 h-11
-            text-base
-            bg-slate-800 text-white
-            focus:outline-none
-            focus:border-blue-500
+            rounded-gothic-sm bg-gothic-surface-low px-3 h-11
+            text-base text-gothic-on-surface
+            ring-1 ring-gothic-outline-variant
+            shadow-[inset_0_1px_4px_rgba(0,0,0,0.5)]
+            focus:outline-none focus:ring-gothic-primary
+            transition-all
           "
         />
 
@@ -62,10 +62,10 @@ export function AmountControls({
           disabled={!canSubmit}
           onClick={onDamage}
           className="
-            bg-red-600 text-white
-            rounded-xl px-4 h-11
+            bg-gothic-wine text-gothic-on-surface
+            rounded-gothic-sm px-4 h-11
             font-bold text-sm
-            hover:bg-red-500
+            hover:bg-gothic-danger
             disabled:opacity-40
             min-w-[64px]
             transition-colors
@@ -79,10 +79,10 @@ export function AmountControls({
           disabled={!canSubmit}
           onClick={onHeal}
           className="
-            bg-green-600 text-white
-            rounded-xl px-4 h-11
+            bg-gothic-success-bg text-gothic-success-text
+            rounded-gothic-sm px-4 h-11
             font-bold text-sm
-            hover:bg-green-500
+            hover:brightness-110
             disabled:opacity-40
             min-w-[64px]
             transition-colors

@@ -155,7 +155,7 @@ function PreviousCombats({ combats }: { combats: CombatSummary[] }) {
   );
 }
 
-function DmQuickAccess() {
+function DmQuickAccess({ campaignId, hasActiveCombat }: { campaignId: string; hasActiveCombat: boolean }) {
   return (
     <section className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
@@ -177,16 +177,17 @@ function DmQuickAccess() {
         </Link>
       </div>
 
-      {/* Destino final sin definir todavía (spec-tecnico-etapa-1.md §6) —
-          botón presente pero deshabilitado a propósito, no un link roto. */}
-      <button
-        type="button"
-        disabled
-        className="flex h-12 w-full cursor-not-allowed items-center justify-center gap-2 rounded-gothic-sm bg-gothic-surface-high font-gothic-body text-sm font-semibold uppercase tracking-widest text-gothic-on-surface-variant opacity-60 ring-1 ring-gothic-outline-variant"
-      >
-        Nuevo combate
-        <span className="text-[10px] normal-case tracking-normal">(Próximamente)</span>
-      </button>
+      {/* D14 — solo se ofrece si no hay ya un combate SETUP/ACTIVE en esta
+          campaña: la ActiveCombatCard de arriba ya cubre ese caso, y
+          createCombat rechaza un segundo combate simultáneo por campaña. */}
+      {!hasActiveCombat && (
+        <Link
+          href={`/campaigns/${campaignId}/combat/new`}
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-gothic-sm bg-gothic-primary font-gothic-body text-sm font-semibold uppercase tracking-widest text-gothic-on-primary shadow-[inset_0_1px_0px_rgba(255,255,255,0.4),0_2px_4px_rgba(0,0,0,0.2)] transition-all hover:bg-gothic-brass-bright active:scale-[0.98]"
+        >
+          Nuevo combate
+        </Link>
+      )}
     </section>
   );
 }
@@ -216,7 +217,9 @@ export default async function CampaignHubPage({ params }: { params: Promise<{ id
         </p>
       )}
 
-      {data.role === "DM" && <DmQuickAccess />}
+      {data.role === "DM" && (
+        <DmQuickAccess campaignId={data.campaign.id} hasActiveCombat={!!data.activeCombat} />
+      )}
 
       <PreviousCombats combats={data.previousCombats} />
     </div>

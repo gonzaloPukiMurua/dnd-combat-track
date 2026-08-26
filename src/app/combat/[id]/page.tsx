@@ -1,90 +1,96 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { endCombat, saveHpToTemplates } from "@/lib/actions/combat";
 import { getCombatDetail } from "@/lib/actions/queries/combat";
 import { mapCombatDetail } from "@/lib/actions/mappers/combat";
+import { getTemplatesForCampaign } from "@/lib/actions/templates";
 import { CombatStoreInitializer } from "@/components/combat/CombatStoreInitializer";
 import { ErrorToast } from "@/components/ErrorToast";
 import { CombatView } from "@/components/combat/CombatView";
-import Link from "next/link";
 
+// D11 — re-scoped panel DM. Session + membership are enforced here (this
+// route isn't under proxy.ts's protected prefixes) — a non-member gets a
+// masked 404 (same pattern as the campaign hub), a player-member is bounced
+// to /combat/[id]/spectate rather than the management panel.
 export default async function CombatPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [combatRow, templates] = await Promise.all([
-    getCombatDetail(id),
-    prisma.characterTemplate.findMany({
-      orderBy: [{ type: "asc" }, { name: "asc" }],
-      select:  { id: true, name: true, type: true, maxHp: true, baseAc: true },
-    }),
-  ]);
 
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) redirect("/login");
+
+  const combatRow = await getCombatDetail(id);
   if (!combatRow) notFound();
+
+  const membership = await prisma.campaignMember.findUnique({
+    where: { userId_campaignId: { userId, campaignId: combatRow.campaignId } },
+  });
+  if (!membership) notFound();
+  if (membership.role !== "DM") redirect(`/combat/${id}/spectate`);
+
+  const templates = await getTemplatesForCampaign(combatRow.campaignId);
 
   const combat = mapCombatDetail(combatRow);
   const isFinished = combat.status === "FINISHED";
+  const campaignId = combatRow.campaignId;
 
   return (
-    <>
+    <div className="mx-auto max-w-lg px-6 py-10">
       {/* Hydrate store once — after this the server is write-only */}
       <CombatStoreInitializer combat={combat} />
 
       {/* Error toast — appears on any mutation failure */}
       <ErrorToast />
-      {/* Join code — shown when combat is active */}
-      {!isFinished && combatRow.joinCode && (
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 flex items-center justify-between gap-4 mb-4">
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-              Player join code
-            </p>
 
-            <p className="text-2xl font-bold font-mono tracking-widest text-white mt-0.5">
-              {combatRow.joinCode}
-            </p>
-          </div>
+      <Link
+        href={`/campaigns/${campaignId}`}
+        className="text-sm text-gothic-on-surface-variant hover:text-gothic-on-surface transition-colors"
+      >
+        ← Campaña
+      </Link>
 
-          <div className="text-right space-y-1">
-            <p className="text-xs text-slate-500">
-              Players go to <strong className="text-slate-300">/join</strong>
-            </p>
-
-            <Link
-              href={`/combat/${combat.id}/spectate`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-400 hover:text-blue-300 underline transition-colors"
-            >
-              Preview player view →
-            </Link>
-          </div>
+      {/* Player preview link — shown while the encounter is live */}
+      {!isFinished && (
+        <div className="flex justify-end mt-2 mb-2">
+          <Link
+            href={`/combat/${combat.id}/spectate`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-gothic-brass-bright hover:text-gothic-primary underline transition-colors"
+          >
+            Vista previa de jugador →
+          </Link>
         </div>
       )}
+
       {/* CombatView reads entirely from Zustand store */}
-      <CombatView 
-        combatId={combat.id} 
-        isFinished={isFinished} 
+      <CombatView
+        combatId={combat.id}
+        isFinished={isFinished}
         templates={templates}
-        />
+      />
 
       {/* End combat buttons — positioned above the sticky panel */}
       {!isFinished && (
         <div className="space-y-2 mb-52 sm:mb-40">
-          <form action={async () => { "use server"; await saveHpToTemplates(combat.id); await endCombat(combat.id); }}>
-            <button type="submit" className="w-full border-2 border-green-200 text-green-700 rounded-2xl py-3 text-sm font-medium hover:bg-green-50 transition-colors">
-              End combat + save HP to templates
+          <form action={async () => { "use server"; await saveHpToTemplates(combat.id); await endCombat(combat.id, campaignId); }}>
+            <button type="submit" className="w-full rounded-gothic-sm ring-1 ring-gothic-success-text text-gothic-success-text py-3 text-sm font-medium hover:bg-gothic-success-bg/40 transition-colors">
+              Terminar combate + guardar PV en personajes
             </button>
           </form>
-          <form action={async () => { "use server"; await endCombat(combat.id); }}>
-            <button type="submit" className="w-full border-2 border-slate-200 rounded-2xl py-3 text-sm text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors">
-              End combat (reset HP to full next time)
+          <form action={async () => { "use server"; await endCombat(combat.id, campaignId); }}>
+            <button type="submit" className="w-full rounded-gothic-sm ring-1 ring-gothic-outline-variant py-3 text-sm text-gothic-on-surface-variant hover:text-gothic-danger-bright hover:ring-gothic-danger-bright transition-colors">
+              Terminar combate (los PV vuelven al máximo la próxima vez)
             </button>
           </form>
         </div>
       )}
-    </>
+    </div>
   );
 }

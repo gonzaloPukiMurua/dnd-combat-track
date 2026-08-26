@@ -14,24 +14,9 @@ type Props = {
 };
 
 const ACTIONS = [
-  {
-    field: "actionUsed" as const,
-    label: "Action",
-    active: "bg-blue-600 border-blue-500",
-    hover: "hover:border-blue-600",
-  },
-  {
-    field: "bonusUsed" as const,
-    label: "Bonus",
-    active: "bg-purple-600 border-purple-500",
-    hover: "hover:border-purple-600",
-  },
-  {
-    field: "reactionUsed" as const,
-    label: "Reaction",
-    active: "bg-orange-600 border-orange-500",
-    hover: "hover:border-orange-600",
-  },
+  { field: "actionUsed" as const, label: "Acción" },
+  { field: "bonusUsed" as const, label: "Adicional" },
+  { field: "reactionUsed" as const, label: "Reacción" },
 ];
 
 export function ActionTracker({
@@ -49,12 +34,12 @@ export function ActionTracker({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-        Turn actions
+      <p className="text-xs font-medium text-gothic-on-surface-variant uppercase tracking-widest">
+        Economía de turno
       </p>
 
       <div className="grid grid-cols-3 gap-2">
-        {ACTIONS.map(({ field, label, active, hover }) => {
+        {ACTIONS.map(({ field, label }) => {
           const used = state[field];
 
           return (
@@ -64,12 +49,12 @@ export function ActionTracker({
               disabled={disabled}
               onClick={() => onToggle(field)}
               className={`
-                h-11 rounded-xl text-sm font-bold
-                border-2 transition-all
+                h-11 rounded-gothic-sm text-sm font-semibold
+                ring-1 transition-all
                 ${
                   used
-                    ? `${active} text-white`
-                    : `border-slate-600 text-slate-400 ${hover}`
+                    ? "bg-gothic-primary ring-gothic-primary text-gothic-on-primary shadow-[inset_0_1px_0px_rgba(255,255,255,0.4)]"
+                    : "ring-gothic-outline-variant text-gothic-on-surface-variant hover:ring-gothic-outline"
                 }
               `}
             >

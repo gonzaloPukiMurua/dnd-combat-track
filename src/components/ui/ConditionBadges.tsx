@@ -28,14 +28,13 @@ export function ConditionBadges({
             type="button"
             disabled={disabled}
             onClick={() => onRemove?.(c.name)}
-            title="Tap to remove"
+            title="Tocá para quitar"
             className="
-              text-xs bg-purple-900/60 text-purple-300
-              border border-purple-700
-              px-2.5 py-1 rounded-lg
-              hover:bg-red-900/60
-              hover:text-red-300
-              hover:border-red-700
+              text-xs font-mono uppercase bg-gothic-danger/20 text-gothic-danger-bright
+              border border-gothic-danger
+              px-2.5 py-1 rounded-gothic-sm
+              hover:bg-gothic-danger
+              hover:text-gothic-on-surface
               transition-colors
               min-h-[32px]
             "
@@ -46,9 +45,9 @@ export function ConditionBadges({
           <span
             key={c.name}
             className="
-              text-xs bg-purple-900/60 text-purple-300
-              border border-purple-700
-              px-1.5 py-0.5 rounded-lg
+              text-xs font-mono uppercase bg-gothic-danger/20 text-gothic-danger-bright
+              border border-gothic-danger
+              px-1.5 py-0.5 rounded-gothic-sm
             "
           >
             {c.name}

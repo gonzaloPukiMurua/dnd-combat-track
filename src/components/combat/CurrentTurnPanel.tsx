@@ -143,7 +143,7 @@ export function CurrentTurnPanel({
       `}
     >
       <div className="max-w-2xl mx-auto px-2 pb-2">
-        <div className="bg-slate-900 border border-blue-500/40 rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-gothic-surface/95 backdrop-blur-md ring-1 ring-gothic-primary rounded-gothic-md shadow-[0_-4px_20px_rgba(0,0,0,0.5)] overflow-hidden">
 
           {/* Header */}
           <button
@@ -151,39 +151,39 @@ export function CurrentTurnPanel({
             onClick={() => setExpanded((e) => !e)}
             className="
               w-full px-4 py-2.5 flex items-center gap-3
-              bg-blue-950/40 border-b border-blue-900/40
-              active:bg-blue-900/40 transition-colors
+              bg-gothic-surface-low border-b border-gothic-outline-variant
+              active:bg-gothic-surface-high transition-colors
             "
           >
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse flex-shrink-0" />
+            <div className="w-2.5 h-2.5 rounded-full bg-gothic-primary animate-pulse flex-shrink-0" />
 
             <div className="flex-1 text-left min-w-0">
-              <p className="font-semibold text-blue-100 truncate text-sm leading-tight">
+              <p className="font-semibold text-gothic-primary truncate text-sm leading-tight">
                 {actor.displayName}
               </p>
 
-              <p className="text-xs text-blue-400">
-                Round {round}
+              <p className="text-xs text-gothic-on-surface-variant">
+                Ronda {round}
               </p>
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="w-16 bg-slate-700 rounded-full h-1.5 hidden sm:block">
+              <div className="w-16 bg-gothic-surface-high rounded-full h-1.5 hidden sm:block">
                 <div
                   className={`h-1.5 rounded-full transition-all ${barColor}`}
                   style={{ width: `${hpPct}%` }}
                 />
               </div>
 
-              <span className="text-xs font-mono text-blue-100 whitespace-nowrap">
+              <span className="text-xs font-mono text-gothic-on-surface whitespace-nowrap">
                 <strong>{actor.currentHp}</strong>
 
-                <span className="text-blue-400">
+                <span className="text-gothic-on-surface-variant">
                   /{actor.maxHp}
                 </span>
 
                 {actor.tempHp > 0 && (
-                  <span className="text-cyan-400">
+                  <span className="text-gothic-brass-bright">
                     {" "}
                     +{actor.tempHp}
                   </span>
@@ -191,7 +191,7 @@ export function CurrentTurnPanel({
               </span>
             </div>
 
-            <span className="text-blue-400 text-xs flex-shrink-0 ml-1">
+            <span className="text-gothic-on-surface-variant text-xs flex-shrink-0 ml-1">
               {expanded ? "▼" : "▲"}
             </span>
           </button>
@@ -207,10 +207,10 @@ export function CurrentTurnPanel({
                   onChange={(e) => setTargetId(e.target.value)}
                   disabled={disabled}
                   className="
-                    flex-1 min-w-0 border border-slate-700
-                    rounded-xl px-2 h-11 text-sm
-                    focus:outline-none focus:border-blue-500
-                    bg-slate-800 text-white
+                    flex-1 min-w-0 rounded-gothic-sm px-2 h-11 text-sm
+                    ring-1 ring-gothic-outline-variant
+                    focus:outline-none focus:ring-gothic-primary
+                    bg-gothic-surface-low text-gothic-on-surface
                   "
                 >
                   {allParticipants.map((p) => (
@@ -219,7 +219,7 @@ export function CurrentTurnPanel({
                       value={p.id}
                       disabled={!p.isConscious && p.id !== actor.id}
                     >
-                      {p.id === actor.id ? "Self" : p.displayName}
+                      {p.id === actor.id ? "Uno mismo" : p.displayName}
                       {" "}({p.currentHp}/{p.maxHp})
                       {!p.isConscious ? " 💀" : ""}
                     </option>
@@ -234,13 +234,14 @@ export function CurrentTurnPanel({
                   onKeyDown={(e) =>
                     e.key === "Enter" && handleDamage()
                   }
-                  placeholder="Amt"
+                  placeholder="Cant."
                   disabled={disabled}
                   className="
-                    w-16 border border-slate-700 rounded-xl
+                    w-16 rounded-gothic-sm
                     px-2 h-11 text-base text-center
-                    focus:outline-none focus:border-blue-500
-                    bg-slate-800 text-white
+                    ring-1 ring-gothic-outline-variant
+                    focus:outline-none focus:ring-gothic-primary
+                    bg-gothic-surface-low text-gothic-on-surface
                   "
                 />
 
@@ -249,13 +250,13 @@ export function CurrentTurnPanel({
                   onClick={handleDamage}
                   disabled={!amount || disabled}
                   className="
-                    bg-red-600 text-white rounded-xl px-3 h-11
-                    text-sm font-bold hover:bg-red-500
+                    bg-gothic-wine text-gothic-on-surface rounded-gothic-sm px-3 h-11
+                    text-sm font-bold hover:bg-gothic-danger
                     disabled:opacity-40 transition-colors
                     flex-shrink-0
                   "
                 >
-                  DMG
+                  Daño
                 </button>
 
                 <button
@@ -263,24 +264,24 @@ export function CurrentTurnPanel({
                   onClick={handleHeal}
                   disabled={!amount || disabled}
                   className="
-                    bg-green-600 text-white rounded-xl px-3 h-11
-                    text-sm font-bold hover:bg-green-500
+                    bg-gothic-success-bg text-gothic-success-text rounded-gothic-sm px-3 h-11
+                    text-sm font-bold hover:brightness-110
                     disabled:opacity-40 transition-colors
                     flex-shrink-0
                   "
                 >
-                  Heal
+                  Curar
                 </button>
               </div>
 
               {/* Target preview */}
               {selectedTarget && selectedTarget.id !== actor.id && (
                 <div className="flex items-center gap-2 px-1">
-                  <span className="text-xs text-slate-400 whitespace-nowrap">
+                  <span className="text-xs text-gothic-on-surface-variant whitespace-nowrap">
                     {selectedTarget.displayName}
                   </span>
 
-                  <div className="flex-1 bg-slate-700 rounded-full h-1.5">
+                  <div className="flex-1 bg-gothic-surface-high rounded-full h-1.5">
                     <div
                       className={`h-1.5 rounded-full transition-all ${
                         hpBarColor(computeHpPct(selectedTarget.currentHp, selectedTarget.maxHp), true)
@@ -291,12 +292,12 @@ export function CurrentTurnPanel({
                     />
                   </div>
 
-                  <span className="text-xs font-mono text-slate-400 whitespace-nowrap">
+                  <span className="text-xs font-mono text-gothic-on-surface-variant whitespace-nowrap">
                     {selectedTarget.currentHp}/
                     {selectedTarget.maxHp}
 
                     {selectedTarget.tempHp > 0 && (
-                      <span className="text-cyan-400">
+                      <span className="text-gothic-brass-bright">
                         {" "}
                         +{selectedTarget.tempHp}
                       </span>
@@ -312,16 +313,16 @@ export function CurrentTurnPanel({
                   onClick={() => handleToggle("actionUsed")}
                   disabled={disabled}
                   className={`
-                    flex-1 h-10 rounded-xl text-xs font-semibold
-                    border transition-all
+                    flex-1 h-10 rounded-gothic-sm text-xs font-semibold
+                    ring-1 transition-all
                     ${
                       actor.actionUsed
-                        ? "bg-blue-600 border-blue-500 text-white"
-                        : "border-slate-700 text-slate-400 hover:border-blue-500"
+                        ? "bg-gothic-primary ring-gothic-primary text-gothic-on-primary"
+                        : "ring-gothic-outline-variant text-gothic-on-surface-variant hover:ring-gothic-outline"
                     }
                   `}
                 >
-                  {actor.actionUsed ? "✓ Action" : "Action"}
+                  {actor.actionUsed ? "✓ Acción" : "Acción"}
                 </button>
 
                 <button
@@ -329,16 +330,16 @@ export function CurrentTurnPanel({
                   onClick={() => handleToggle("bonusUsed")}
                   disabled={disabled}
                   className={`
-                    flex-1 h-10 rounded-xl text-xs font-semibold
-                    border transition-all
+                    flex-1 h-10 rounded-gothic-sm text-xs font-semibold
+                    ring-1 transition-all
                     ${
                       actor.bonusUsed
-                        ? "bg-purple-600 border-purple-500 text-white"
-                        : "border-slate-700 text-slate-400 hover:border-purple-500"
+                        ? "bg-gothic-primary ring-gothic-primary text-gothic-on-primary"
+                        : "ring-gothic-outline-variant text-gothic-on-surface-variant hover:ring-gothic-outline"
                     }
                   `}
                 >
-                  {actor.bonusUsed ? "✓ Bonus" : "Bonus"}
+                  {actor.bonusUsed ? "✓ Adic." : "Adic."}
                 </button>
 
                 <button
@@ -346,16 +347,16 @@ export function CurrentTurnPanel({
                   onClick={() => handleToggle("reactionUsed")}
                   disabled={disabled}
                   className={`
-                    flex-1 h-10 rounded-xl text-xs font-semibold
-                    border transition-all
+                    flex-1 h-10 rounded-gothic-sm text-xs font-semibold
+                    ring-1 transition-all
                     ${
                       actor.reactionUsed
-                        ? "bg-orange-600 border-orange-500 text-white"
-                        : "border-slate-700 text-slate-400 hover:border-orange-500"
+                        ? "bg-gothic-primary ring-gothic-primary text-gothic-on-primary"
+                        : "ring-gothic-outline-variant text-gothic-on-surface-variant hover:ring-gothic-outline"
                     }
                   `}
                 >
-                  {actor.reactionUsed ? "✓ React" : "React"}
+                  {actor.reactionUsed ? "✓ React." : "React."}
                 </button>
 
                 <button
@@ -363,19 +364,19 @@ export function CurrentTurnPanel({
                   onClick={handleEndTurn}
                   disabled={disabled}
                   className="
-                    flex-1 h-10 rounded-xl text-xs font-semibold
-                    bg-blue-600 text-white hover:bg-blue-500
+                    flex-1 h-10 rounded-gothic-sm text-xs font-semibold
+                    bg-gothic-primary text-gothic-on-primary hover:bg-gothic-brass-bright
                     disabled:opacity-40 transition-colors
                   "
                 >
-                  End Turn →
+                  Sig. turno →
                 </button>
               </div>
-              
+
 
               {isMutating && (
-                <p className="text-xs text-slate-500 text-center animate-pulse">
-                  Saving…
+                <p className="text-xs text-gothic-on-surface-variant text-center animate-pulse">
+                  Guardando…
                 </p>
               )}
             </div>

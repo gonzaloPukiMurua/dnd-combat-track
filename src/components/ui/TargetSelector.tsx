@@ -30,8 +30,8 @@ export function TargetSelector({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-        Target
+      <p className="text-xs font-medium text-gothic-on-surface-variant uppercase tracking-widest">
+        Objetivo
       </p>
 
       <select
@@ -40,12 +40,12 @@ export function TargetSelector({
         onChange={(e) => onChange(e.target.value)}
         className="
           w-full
-          border-2 border-slate-600
-          rounded-xl px-3 h-11
-          text-sm
-          bg-slate-800 text-white
-          focus:outline-none
-          focus:border-blue-500
+          rounded-gothic-sm bg-gothic-surface-low px-3 h-11
+          text-sm text-gothic-on-surface
+          ring-1 ring-gothic-outline-variant
+          shadow-[inset_0_1px_4px_rgba(0,0,0,0.5)]
+          focus:outline-none focus:ring-gothic-primary
+          transition-all
         "
       >
         {participants.map((p) => (
@@ -53,7 +53,7 @@ export function TargetSelector({
             key={p.id}
             value={p.id}
           >
-            {p.id === currentParticipantId ? "Self — " : ""}
+            {p.id === currentParticipantId ? "Uno mismo — " : ""}
             {p.displayName}
             {" "}
             ({p.currentHp}/{p.maxHp} HP)
@@ -75,11 +75,11 @@ export function TargetSelector({
             />
 
             <div className="flex justify-end">
-              <span className="text-xs font-mono text-slate-400 whitespace-nowrap">
+              <span className="text-xs font-mono text-gothic-on-surface-variant whitespace-nowrap">
                 {selectedTarget.currentHp}/{selectedTarget.maxHp}
 
                 {selectedTarget.tempHp > 0 && (
-                  <span className="text-blue-400">
+                  <span className="text-gothic-brass-bright">
                     {" "}
                     +{selectedTarget.tempHp}
                   </span>

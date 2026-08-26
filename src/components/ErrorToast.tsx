@@ -31,7 +31,7 @@ export function ErrorToast() {
       aria-live="assertive"
       className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md"
     >
-      <div className="flex items-start gap-3 bg-red-600 text-white px-4 py-3 rounded-2xl shadow-xl">
+      <div className="flex items-start gap-3 bg-gothic-wine text-gothic-on-surface px-4 py-3 rounded-gothic-md shadow-xl ring-1 ring-gothic-danger-bright">
         {/* Icon */}
         <span className="text-lg flex-shrink-0 mt-0.5">⚠️</span>
 
@@ -42,16 +42,16 @@ export function ErrorToast() {
         <button
           type="button"
           onClick={clearError}
-          aria-label="Dismiss error"
-          className="flex-shrink-0 text-red-200 hover:text-white transition-colors text-lg leading-none"
+          aria-label="Cerrar aviso"
+          className="flex-shrink-0 text-gothic-on-surface-variant hover:text-gothic-on-surface transition-colors text-lg leading-none"
         >
           ✕
         </button>
       </div>
 
       {/* Progress bar showing time until auto-dismiss */}
-      <div className="h-1 bg-red-800 rounded-full mt-1 mx-1 overflow-hidden">
-        <div className="h-full bg-red-300 rounded-full animate-[shrink_4s_linear_forwards]" />
+      <div className="h-1 bg-gothic-background rounded-full mt-1 mx-1 overflow-hidden">
+        <div className="h-full bg-gothic-danger-bright rounded-full animate-[shrink_4s_linear_forwards]" />
       </div>
     </div>
   );

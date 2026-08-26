@@ -98,12 +98,16 @@ Cada ticket = una ruta. Reutilizar componentes ya definidos en el brief visual (
 | D7. Elegir o crear personaje | `/join/character` | C3 |
 | D8. Hub de campaña — DM | `/campaigns/[id]` (vista DM) | C5 |
 | D9. Hub de campaña — Jugador | `/campaigns/[id]` (vista jugador) | C5 |
+| D14. Nuevo combate | `/campaigns/[id]/combat/new` (crea) → reutiliza `/combat/[id]/setup` (agregar participantes) | A4, D8. Reemplaza a `/combat` como punto de entrada — ver nota abajo |
+| D15. Cierre de loose ends D10-D12 | `/combat/[id]/setup` (links muertos), `addParticipant` (stats no copiados) | D10-D12 |
 | D10. Ficha de personaje / detalle en combate | reutiliza lógica de `/combat/[id]` existente | A4, A5 |
 | D11. Vista de combate — DM | reutiliza `/combat/[id]` existente, re-scopeada | A4 |
 | D12. Vista de combate — Jugador (spectate) | reutiliza `/combat/[id]/spectate` existente, re-scopeada | A4 |
 | D13. Retokenizar Personajes y Grupos | `/templates`, `/templates/[id]/edit`, `/groups`, `/groups/new`, `/groups/[id]` | A5, A6, reescritura de shell global |
 
 **Nota sobre D13:** hueco real del plan original, no un olvido de ejecución — el backlog nunca contempló re-diseñar estas pantallas, solo reutilizar su lógica (sección 5 del spec técnico). Quedó expuesto recién al reescribir el shell global: estas rutas heredan ahora el fondo oscuro nuevo pero sus componentes internos siguen con clases claras viejas (slate/blue), sin ningún nav que las contenga. Alcance: aplicar los tokens de `sistema-visual-etapa-1.md` a estas 5 rutas — no rediseñar su estructura ni tocar la lógica de campaignId que Épica C ya conectó.
+
+**Nota sobre D14:** `/combat/[id]/setup` (agregar participantes, tipear iniciativa) ya funciona y no se reescribe. Lo que falta es el punto de entrada: hoy la única forma de crear un combate es `/combat` — una lista+formulario global, previa a campañas, que contradice la decisión 8 (combate no es ruta de nivel superior) de la misma forma que `/join` contradecía D6 antes de reemplazarlo. `/combat` debería dejar de ser accesible como entry point una vez que exista `/campaigns/[id]/combat/new`, o como mínimo confirmar que su listado no mezcla combates de distintas campañas si se decide dejarlo vivo por ahora.
 
 **Nota de implementación para D8/D9:** una sola ruta, el layout se resuelve por el `role` del `CampaignMember` — no dos páginas separadas, para evitar el drift de estructura que tuvimos en las iteraciones de Stitch (hub DM y jugador divergiendo en contenido sin que fuera intencional).
 

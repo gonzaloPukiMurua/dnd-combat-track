@@ -4,6 +4,7 @@ import { useState, memo, type DragEvent } from "react";
 import { useCombatStore, type Participant } from "@/stores/combatStore";
 import { useCombatMutation } from "@/hooks/useCombatMutation";
 import { DeathSaveTracker } from "@/components/combat/DeathSaveTracker";
+import { CombatantSheet } from "@/components/combat/CombatantSheet";
 import { HpBar } from "@/components/ui/HpBar";
 import { ConditionsPanel } from "@/components/ui/ConditionsPanel";
 import { ActionTracker } from "@/components/ui/ActionTracker";
@@ -11,6 +12,7 @@ import { TargetSelector } from "@/components/ui/TargetSelector";
 import { AmountControls } from "@/components/ui/AmountControls";
 import { TempHpControls } from "@/components/ui/TempHpControls";
 import { CombatantNameRow } from "./CombatNameRow";
+import type { LogEntry } from "@/domain/combat/types";
 import {
   dealDamage, 
   healParticipant, 
@@ -25,12 +27,13 @@ import { ParticipantSummary } from "@/domain/combat/types";
 
 function CombatantRowBase({
   participant: p, combatId, isCurrentTurn, isFinished,
-  round, allParticipants, globalMutating, canDrag, onDropParticipant,
+  round, allParticipants, globalMutating, canDrag, onDropParticipant, logs,
 }: {
   participant: Participant; combatId: string;
   isCurrentTurn: boolean; isFinished: boolean; round: number;
   allParticipants: ParticipantSummary[]; globalMutating: boolean;
   canDrag?: boolean; onDropParticipant?: (draggedId: string, targetId: string) => void;
+  logs: LogEntry[];
 }) {
 
   const { mutate, isMutating } = useCombatMutation();
@@ -122,9 +125,9 @@ function CombatantRowBase({
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       className={`
-      rounded-2xl border-l-4 overflow-hidden transition-all
-      bg-slate-800 border border-slate-700
-      ${isCurrentTurn ? "border-l-blue-400 shadow-lg shadow-blue-900/30" : TYPE_ACCENT[p.template.type] ?? "border-l-slate-600"}
+      rounded-gothic-md border-l-4 overflow-hidden transition-all
+      bg-gothic-surface ring-1 ring-gothic-outline-variant
+      ${isCurrentTurn ? "border-l-gothic-primary shadow-[0_2px_8px_rgba(0,0,0,0.4)] ring-gothic-primary" : TYPE_ACCENT[p.template.type] ?? "border-l-gothic-outline-variant"}
       ${!p.isConscious ? "opacity-70" : ""}
     `}>
 
@@ -132,7 +135,7 @@ function CombatantRowBase({
       <div
         onClick={() => !isFinished && setExpanded((e) => !e)}
         className={`px-4 py-3 cursor-pointer select-none space-y-2 transition-colors
-          ${isCurrentTurn ? "bg-blue-900/20" : "hover:bg-slate-700/40"}`}
+          ${isCurrentTurn ? "bg-gothic-surface-high" : "hover:bg-gothic-surface-high/40"}`}
       >
         {/* Name row */}
         <div className="flex items-center gap-2">
@@ -145,7 +148,7 @@ function CombatantRowBase({
                 e.dataTransfer.effectAllowed = "move";
               }}
               onClick={(e) => e.stopPropagation()}
-              className="cursor-grab active:cursor-grabbing text-slate-500 hover:text-slate-300 select-none flex-shrink-0 px-1"
+              className="cursor-grab active:cursor-grabbing text-gothic-on-surface-variant hover:text-gothic-on-surface select-none flex-shrink-0 px-1"
               aria-label={`Drag to reorder ${p.displayName}`}
             >
               ⠿
@@ -192,8 +195,11 @@ function CombatantRowBase({
 
       {/* ── Expanded panel ───────────────────────────────────────── */}
       {expanded && !isFinished && (
-        <div className={`border-t border-slate-700 bg-slate-900/50 px-4 py-4 space-y-4
+        <div className={`border-t border-gothic-outline-variant bg-gothic-background/60 px-4 py-4 space-y-4
           ${disabled ? "opacity-60 pointer-events-none" : ""}`}>
+
+          {/* D10 — ficha de combatiente */}
+          <CombatantSheet participant={p} acTotal={acTotal} logs={logs} />
 
           {/* Action trackers */}
           <ActionTracker
@@ -225,7 +231,7 @@ function CombatantRowBase({
           <TempHpControls
             value={tempAmount}
             disabled={disabled}
-            label="Temp HP (self)"
+            label="PV temporales (propio)"
             onChange={setTempAmount}
             onSubmit={handleSetTempHp}
           />
@@ -240,7 +246,7 @@ function CombatantRowBase({
           />
 
           {isMutating && (
-            <p className="text-xs text-slate-500 text-center animate-pulse">Saving…</p>
+            <p className="text-xs text-gothic-on-surface-variant text-center animate-pulse">Guardando…</p>
           )}
         </div>
       )}

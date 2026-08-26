@@ -34,16 +34,16 @@ export function CombatantNameRow({
       <div className="flex items-center gap-3 min-w-0">
 
         {/* Initiative badge */}
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center
-          text-sm font-bold font-mono flex-shrink-0
-          ${isCurrentTurn ? "bg-blue-500 text-white" : "bg-slate-700 text-slate-300"}`}>
+        <div className={`w-9 h-9 rounded-gothic-sm flex items-center justify-center
+          text-sm font-bold font-mono flex-shrink-0 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]
+          ${isCurrentTurn ? "bg-gothic-surface-low ring-1 ring-gothic-primary text-gothic-primary" : "bg-gothic-surface-low ring-1 ring-gothic-outline-variant text-gothic-on-surface-variant"}`}>
           {initiative}
         </div>
 
         {/* Name + statuses + conditions */}
         <div className="min-w-0">
           <p className={`font-bold leading-tight truncate
-            ${!isConscious ? "line-through text-slate-500" : "text-white"}`}>
+            ${!isConscious ? "line-through text-gothic-on-surface-variant" : "text-gothic-on-surface"}`}>
             {displayName}
           </p>
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
@@ -68,11 +68,11 @@ export function CombatantNameRow({
           bonusUsed={bonusUsed}
           reactionUsed={reactionUsed}
         />
-        <span className="text-sm text-slate-400">
-          AC <strong className="text-white font-mono">{acTotal}</strong>
+        <span className="text-sm text-gothic-outline">
+          AC <strong className="text-gothic-on-surface font-mono">{acTotal}</strong>
         </span>
         {!isFinished && expanded !== undefined && (
-          <span className="text-slate-600 text-xs">
+          <span className="text-gothic-outline text-xs">
             {expanded ? "▲" : "▼"}
           </span>
         )}

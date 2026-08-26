@@ -94,6 +94,14 @@ Mis campañas (home post-login)
 
 ---
 
+**D8/D9 (hub de campaña):** el mockup de Stitch mostraba varios campos sin respaldo en el schema — estamina, condición persistente del personaje, y un resultado de combate de tres vías (Victoria/Retirada/Resuelto). Se descartaron todos por el mismo principio: `CombatStatus` real es solo `SETUP | ACTIVE | FINISHED`, y no existe ningún campo de condición persistente en `CharacterTemplate` (`CombatParticipant.conditions` solo existe durante un combate activo). El hub muestra únicamente datos reales. C5 (`GET /api/campaigns/[id]`) se extendió — no se creó endpoint nuevo — para devolver `partyStatus` (DM: HP promedio y cantidad de jugadores, calculado sobre `CharacterTemplate` reclamados, no sobre `Group`) y `ownCharacter` (Jugador: su propio template). Distinción de modelo importante: `Group` es la herramienta de composición de encuentros del DM (NPCs/monstruos), no representa "quién está jugando realmente" — por eso el agregado de grupo usa templates reclamados, no `Group`.
+
+**Botón "Nuevo combate":** se envió deshabilitado con etiqueta "(Próximamente)", sin destino — el flujo de creación de combate scopeado a campaña sigue siendo el pendiente de la sección 6, todavía sin ticket propio.
+
+**D14 (Nuevo combate):** `/campaigns/[id]/combat/new` crea el Combat scopeado y redirige a `/combat/[id]/setup` (sin reescribir esa pantalla). `/combat` (lista global vieja, contradecía decisión 8) redirige ahora a `/campaigns`, mismo patrón que D6 con `/join`. Verificado en vivo que el participant-picker de `/combat/[id]/setup` ya filtraba correctamente por campaña (heredado de A5/A6) — no fue necesario tocar esa lógica. Gap conocido y explícitamente no resuelto acá, para no pisar D10-D12: dentro de `/combat/[id]/setup`, `/combat/[id]` y `/spectate` quedan links y redirects internos que todavía apuntan a `/combat` (ej. "← Back to combat") — rebotan a `/campaigns` sin contexto útil hasta que D10-D12 re-scopeen esas pantallas.
+
+---
+
 ## 7. Explícitamente fuera de alcance de esta etapa
 
 - Sincronización en tiempo real entre dispositivos.
@@ -101,32 +109,3 @@ Mis campañas (home post-login)
 - Efectos mecánicos de condiciones y agotamiento.
 - Aprobación del DM sobre cambios que hace un jugador a su propio personaje en combate.
 - Modo offline / cola de reintentos.
-
----
-
-## 8. Bitácora de ejecución — Épica A
-
-Las 6 migraciones de la Épica A están aplicadas y la DB está en sync:
-
-1. `add_user_table_with_email_verified` (A1)
-2. `add_campaign` (A2)
-3. `add_campaign_member` (A3)
-4. `add_campaign_id_to_combat` (A4)
-5. `add_campaign_and_owner_to_character_template` (A5)
-6. `add_campaign_id_to_group_and_group_member` (A6)
-
-El modelo `User` estaba en el schema desde antes pero nunca se había migrado — la tabla no existía en la DB. La migración de A1 la creó junto con `emailVerified`.
-
-Se encontraron datos de desarrollo huérfanos sin `campaignId` antes de aplicar A4/A5/A6: 13 `Combat`, 30 `CharacterTemplate`, 3 `Group` (17 `GroupMember`). Se borraron — fue una decisión explícita, no una migración de esos datos a una campaña placeholder.
-
-`generateUniqueInviteCode()` (reintento ante colisión, no confía solo en el `@unique` de la DB) quedó implementado en `src/lib/utils/campaign.ts`.
-
-**Gap abierto para Épica C:** el schema y el índice (`@@index([campaignId, status])`) ya soportan la restricción de "un solo combate activo por campaña", pero la lógica en `combat.ts` todavía la aplica de forma **GLOBAL**, no por campaña. A4 cerró el modelo de datos, no el comportamiento.
-
-`src/lib/actions/combat.ts`, `groups.ts` y `templates.ts` quedaron sin tipar (`tsc --noEmit` falla) porque sus `prisma.*.create()` no pasan `campaignId` todavía. Es esperado hasta que Épica C los conecte, no es una regresión a arreglar ahora.
-
-**Decisión D6 — `/join` reemplaza una ruta existente:** `src/app/join/page.tsx` ya tenía código antes de D6, para una funcionalidad distinta y previa a Épica A (espectador se une a un `Combat` activo por su `joinCode`, sin cuenta). D6 lo sobrescribió con el flujo nuevo de invitación de campaña, tal como lo reserva el mapa de pantallas de este documento. `combat/[id]/spectate` sigue redirigiendo a `/join` cuando faltan las cookies de espectador, y `combat/[id]` todavía le dice a los jugadores "go to /join" en su copy — ambos quedaron rotos **a propósito**, no es una regresión no vista. Se resuelve en D12 (`Vista de combate — Jugador`, re-scopeada a campaña), que es cuando corresponde decidir el reemplazo real del flujo de espectador.
-
-**GET para el roster de D7 — gap de C3 en el backlog:** el ticket C3 (`sprint-1-backlog.md`) solo definía `POST /api/campaigns/[id]/join/character`. D7 necesita además un `GET` que liste los `CharacterTemplate` sin dueño de esa campaña — se agregó al mismo archivo de ruta en vez de crear un endpoint separado, ya que es el mismo recurso (roster de personajes disponibles para unirse) con el mismo set de validaciones que el POST (sesión, campaña existe, email verificado, todavía no ser miembro). El backlog sigue mostrando C3 como solo-POST; falta reflejar ahí que ahora también expone GET.
-
-**Bug de sesión detectado al verificar D6 en vivo:** el JWT de next-auth solo se refresca en el sign-in inicial (ver comentario en `src/auth.ts`, callback `jwt`), así que un `emailVerified` expuesto en `session.user` queda desactualizado si el usuario verifica su email sin volver a loguearse — el banner de bloqueo en `/join` no desaparecía hasta un login nuevo. Se descartó tocar el ciclo de vida del token: refrescarlo desde el propio endpoint de verificación no cubre el caso común (normalmente no hay sesión activa todavía en ese punto del flujo), y `session.update()` client-side hubiera requerido agregar un `SessionProvider`, inexistente en esta app puramente server-rendered. Se optó por la opción más simple dado que `/join/page.tsx` ya es un Server Component: lee `emailVerified` con una query directa a `prisma.user` en el momento de renderizar la página, en vez de confiar en un claim de sesión que puede estar viejo. `auth.ts` y `next-auth.d.ts` quedaron sin cambios respecto a antes de D6 — no se agregó ningún campo `emailVerified` a la sesión.

@@ -81,19 +81,19 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
       {/* ── Header ──────────────────────────────────────────────── */}
       <div className="pt-2 flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">{combatName}</h1>
-          <p className="text-sm text-slate-400 mt-0.5">
+          <h1 className="font-gothic-headline text-gothic-headline-sm text-gothic-primary uppercase tracking-wide">{combatName}</h1>
+          <p className="text-sm text-gothic-on-surface-variant mt-0.5">
             {isFinished
-              ? "Combat finished"
-              : `Round ${round} · ${consciousCount} active`}
+              ? "Combate finalizado"
+              : `Ronda ${round} · ${consciousCount} en pie`}
           </p>
         </div>
       </div>
 
       {/* ── Initiative list ─────────────────────────────────────── */}
       <section className="space-y-2">
-        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-          Initiative order
+        <h2 className="text-xs font-medium text-gothic-on-surface-variant uppercase tracking-widest">
+          Orden de iniciativa
         </h2>
 
         {participants.map((p) => {
@@ -110,13 +110,14 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
               globalMutating={isMutating}
               canDrag={status === "ACTIVE"}
               onDropParticipant={handleDropParticipant}
+              logs={logs}
             />
           );
         })}
 
         {participants.length === 0 && (
-          <p className="text-center text-slate-400 text-sm py-8">
-            No participants in this combat.
+          <p className="text-center text-gothic-on-surface-variant text-sm py-8">
+            Todavía no hay participantes en este combate.
           </p>
         )}
       </section>
@@ -125,12 +126,12 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
           combatId={combatId}
           templates={templates}
         />
-      )}  
+      )}
       {/* ── Combat log ──────────────────────────────────────────── */}
       {logs.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            Log
+          <h2 className="text-xs font-medium text-gothic-on-surface-variant uppercase tracking-widest">
+            Bitácora
           </h2>
           <CombatLog logs={logs} />
         </section>

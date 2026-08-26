@@ -21,6 +21,18 @@ export type Participant = {
   actionUsed:         boolean;
   bonusUsed:          boolean;
   reactionUsed:       boolean;
+  // D10 — ficha de combatiente (stat cards). Read-only display data, not
+  // used by any mutation.
+  level:              number;
+  proficiencyBonus:   number;
+  str:                number;
+  dex:                number;
+  con:                number;
+  int:                number;
+  wis:                number;
+  cha:                number;
+  speed:              number;
+  hitDice:            string | null;
   template: {
     id:              string;
     name:            string;

@@ -54,8 +54,8 @@ export function ConditionsPanel({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-        Conditions
+      <p className="text-xs font-medium text-gothic-on-surface-variant uppercase tracking-widest">
+        Condiciones
       </p>
 
       {/* Active conditions */}
@@ -73,7 +73,7 @@ export function ConditionsPanel({
             type="text"
             value={concentrationSpell}
             disabled={disabled}
-            placeholder="Concentrating on…"
+            placeholder="Concentrando en…"
             onChange={(e) => setConcentrationSpell(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -82,12 +82,13 @@ export function ConditionsPanel({
             }}
             className="
               flex-1
-              border-2 border-slate-600
-              rounded-xl px-3 h-11
-              text-sm
-              bg-slate-800 text-white
-              focus:outline-none
-              focus:border-purple-500
+              rounded-gothic-sm bg-gothic-surface-low px-3 h-11
+              text-sm text-gothic-on-surface
+              ring-1 ring-gothic-outline-variant
+              shadow-[inset_0_1px_4px_rgba(0,0,0,0.5)]
+              placeholder:text-gothic-outline
+              focus:outline-none focus:ring-gothic-primary
+              transition-all
             "
           />
 
@@ -96,17 +97,17 @@ export function ConditionsPanel({
             disabled={disabled || !concentrationSpell.trim()}
             onClick={submitConcentration}
             className="
-              border-2 border-purple-600
-              text-purple-400
-              rounded-xl px-3 h-11
+              rounded-gothic-sm ring-1 ring-gothic-brass-bright
+              text-gothic-brass-bright
+              px-3 h-11
               text-xs font-bold
-              hover:bg-purple-900/40
+              hover:bg-gothic-surface-high
               disabled:opacity-40
               transition-colors
               whitespace-nowrap
             "
           >
-            + Conc
+            + Conc.
           </button>
         </div>
       )}
@@ -121,13 +122,13 @@ export function ConditionsPanel({
             onClick={() => onAddCondition(cn)}
             className="
               text-xs
-              border border-slate-600
-              text-slate-400
+              ring-1 ring-gothic-outline-variant
+              text-gothic-on-surface-variant
               px-2.5 py-1
-              rounded-lg
-              hover:bg-purple-900/40
-              hover:text-purple-300
-              hover:border-purple-700
+              rounded-gothic-sm
+              hover:bg-gothic-surface-high
+              hover:text-gothic-on-surface
+              hover:ring-gothic-outline
               transition-colors
               min-h-[32px]
               disabled:opacity-40
@@ -144,7 +145,7 @@ export function ConditionsPanel({
           type="text"
           value={customCondition}
           disabled={disabled}
-          placeholder="Custom condition…"
+          placeholder="Condición personalizada…"
           onChange={(e) => setCustomCondition(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -153,12 +154,13 @@ export function ConditionsPanel({
           }}
           className="
             flex-1
-            border-2 border-slate-600
-            rounded-xl px-3 h-11
-            text-sm
-            bg-slate-800 text-white
-            focus:outline-none
-            focus:border-blue-500
+            rounded-gothic-sm bg-gothic-surface-low px-3 h-11
+            text-sm text-gothic-on-surface
+            ring-1 ring-gothic-outline-variant
+            shadow-[inset_0_1px_4px_rgba(0,0,0,0.5)]
+            placeholder:text-gothic-outline
+            focus:outline-none focus:ring-gothic-primary
+            transition-all
           "
         />
 
@@ -167,16 +169,16 @@ export function ConditionsPanel({
           disabled={disabled || !customCondition.trim()}
           onClick={submitCustomCondition}
           className="
-            border-2 border-slate-600
-            text-slate-400
-            rounded-xl px-4 h-11
+            rounded-gothic-sm ring-1 ring-gothic-outline-variant
+            text-gothic-on-surface-variant
+            px-4 h-11
             text-sm
-            hover:bg-slate-700
+            hover:bg-gothic-surface-high
             disabled:opacity-40
             transition-colors
           "
         >
-          Add
+          Agregar
         </button>
       </div>
     </div>

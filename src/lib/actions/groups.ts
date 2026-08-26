@@ -21,6 +21,21 @@ export async function getGroups() {
   });
 }
 
+// Used by the combat participant-picker (/combat/[id]/setup) — groups aren't
+// portable between campaigns, so "Load a group" must only offer groups that
+// belong to the combat's own campaign.
+export async function getGroupsForCampaign(campaignId: string) {
+  return prisma.group.findMany({
+    where:   { campaignId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      members: {
+        include: { template: true },
+      },
+    },
+  });
+}
+
 export async function getGroupById(id: string) {
   return prisma.group.findUnique({
     where: { id },

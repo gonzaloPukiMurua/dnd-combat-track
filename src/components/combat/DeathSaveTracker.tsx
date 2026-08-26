@@ -95,13 +95,13 @@ export function DeathSaveTracker({
   return (
     <div
       className={`
-        rounded-xl border-2 px-4 py-3 space-y-3 transition-all
+        rounded-gothic-md ring-1 px-4 py-3 space-y-3 transition-all
         ${
           isDead
-            ? "border-red-300 bg-red-50"
+            ? "ring-gothic-danger-bright bg-gothic-danger/20"
             : isStabilized
-            ? "border-green-300 bg-green-50"
-            : "border-yellow-300 bg-yellow-50"
+            ? "ring-gothic-success-text bg-gothic-success-bg/40"
+            : "ring-gothic-brass-bright bg-gothic-surface-low"
         }
         ${isMutating ? "opacity-60 pointer-events-none" : ""}
       `}
@@ -114,17 +114,17 @@ export function DeathSaveTracker({
           </span>
 
           <div>
-            <p className="text-sm font-semibold text-gray-800">
+            <p className="text-sm font-semibold text-gothic-on-surface">
               {isDead
-                ? `${displayName} is dead`
+                ? `${displayName} está muerto`
                 : isStabilized
-                ? `${displayName} is stable`
-                : `${displayName} — Death Saves`}
+                ? `${displayName} está estable`
+                : `${displayName} — Salvaciones de muerte`}
             </p>
 
             {!isDead && !isStabilized && (
-              <p className="text-xs text-gray-500">
-                Roll d20 at start of turn · 10+ success
+              <p className="text-xs text-gothic-on-surface-variant">
+                Tirá d20 al inicio del turno · 10+ es éxito
               </p>
             )}
           </div>
@@ -136,37 +136,37 @@ export function DeathSaveTracker({
           onClick={handleReset}
           disabled={isMutating}
           className="
-            text-xs text-gray-400 hover:text-gray-600
+            text-xs text-gothic-on-surface-variant hover:text-gothic-on-surface
             underline disabled:opacity-40
           "
         >
-          Reset
+          Reiniciar
         </button>
       </div>
 
       {/* Pips */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <p className="text-xs font-medium text-green-700 uppercase tracking-wide">
-            Successes
+          <p className="text-xs font-medium text-gothic-success-text uppercase tracking-wide">
+            Éxitos
           </p>
 
           <Pips
             count={deathSaveSuccesses}
-            filled="bg-green-500 border-green-500"
-            empty="border-green-300 bg-white"
+            filled="bg-gothic-success-text border-gothic-success-text"
+            empty="border-gothic-outline-variant bg-gothic-surface-low"
           />
         </div>
 
         <div className="space-y-1 text-right">
-          <p className="text-xs font-medium text-red-700 uppercase tracking-wide">
-            Failures
+          <p className="text-xs font-medium text-gothic-danger-bright uppercase tracking-wide">
+            Fallos
           </p>
 
           <Pips
             count={deathSaveFailures}
-            filled="bg-red-500 border-red-500"
-            empty="border-red-300 bg-white"
+            filled="bg-gothic-danger-bright border-gothic-danger-bright"
+            empty="border-gothic-outline-variant bg-gothic-surface-low"
           />
         </div>
       </div>
@@ -179,12 +179,12 @@ export function DeathSaveTracker({
             onClick={() => handleSave("success")}
             disabled={isMutating}
             className="
-              h-11 rounded-xl bg-green-500 text-white
-              text-sm font-semibold hover:bg-green-600
+              h-11 rounded-gothic-sm bg-gothic-success-bg text-gothic-success-text
+              text-sm font-semibold hover:brightness-110
               disabled:opacity-40 transition-colors
             "
           >
-            ✓ Success
+            ✓ Éxito
           </button>
 
           <button
@@ -192,27 +192,27 @@ export function DeathSaveTracker({
             onClick={() => handleSave("failure")}
             disabled={isMutating}
             className="
-              h-11 rounded-xl bg-red-500 text-white
-              text-sm font-semibold hover:bg-red-600
+              h-11 rounded-gothic-sm bg-gothic-wine text-gothic-on-surface
+              text-sm font-semibold hover:bg-gothic-danger
               disabled:opacity-40 transition-colors
             "
           >
-            ✕ Failure
+            ✕ Fallo
           </button>
         </div>
       )}
 
       {/* Stable */}
       {isStabilized && (
-        <p className="text-sm text-green-700 text-center font-medium">
-          Stable — no more saves needed
+        <p className="text-sm text-gothic-success-text text-center font-medium">
+          Estable — no necesita más tiradas
         </p>
       )}
 
       {/* Dead */}
       {isDead && (
-        <p className="text-sm text-red-700 text-center font-medium">
-          3 failed saves — character is dead
+        <p className="text-sm text-gothic-danger-bright text-center font-medium">
+          3 fallos — el personaje murió
         </p>
       )}
     </div>

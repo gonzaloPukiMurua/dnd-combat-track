@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getTemplates } from "@/lib/actions/templates";
-import { getGroups } from "@/lib/actions/groups";
+import { getTemplatesForCampaign } from "@/lib/actions/templates";
+import { getGroupsForCampaign } from "@/lib/actions/groups";
 import {
   addParticipant,
   removeParticipant,
@@ -16,22 +16,25 @@ export default async function CombatSetupPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [combat, templates, groups] = await Promise.all([
-    getCombatSetupDetail(id),
-    getTemplates(),
-    getGroups(),
-  ]);
+  const combat = await getCombatSetupDetail(id);
 
   if (!combat) notFound();
   if (combat.status === "ACTIVE") redirect(`/combat/${id}`);
-  if (combat.status === "FINISHED") redirect('/combat')
+  if (combat.status === "FINISHED") redirect(`/campaigns/${combat.campaignId}`);
+
+  // Templates/groups aren't portable between campaigns — only offer the
+  // combat's own campaign as candidates for the participant-picker.
+  const [templates, groups] = await Promise.all([
+    getTemplatesForCampaign(combat.campaignId),
+    getGroupsForCampaign(combat.campaignId),
+  ]);
   return (
     <div className="py-6 space-y-6">
 
       {/* Header */}
       <div>
-        <Link href="/combat" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">
-          ← Back to combat
+        <Link href={`/campaigns/${combat.campaignId}`} className="text-sm text-slate-400 hover:text-slate-600 transition-colors">
+          ← Back to campaign
         </Link>
         <h1 className="text-2xl font-bold text-slate-900 mt-1">{combat.name}</h1>
         <p className="text-sm text-slate-400 mt-0.5">

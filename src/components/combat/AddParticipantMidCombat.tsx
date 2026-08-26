@@ -30,9 +30,9 @@ export function AddParticipantMidCombat({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full border-2 border-dashed border-slate-600 text-slate-500 rounded-2xl py-3 text-sm hover:border-slate-400 hover:text-slate-300 transition-colors"
+        className="w-full ring-1 ring-dashed ring-gothic-outline-variant text-gothic-on-surface-variant rounded-gothic-md py-3 text-sm hover:ring-gothic-outline hover:text-gothic-on-surface transition-colors"
       >
-        + Add participant to combat
+        + Agregar participante al combate
       </button>
     );
   }
@@ -48,17 +48,17 @@ export function AddParticipantMidCombat({
           router.refresh();
         });
       }}
-      className="border-2 border-slate-600 rounded-2xl p-3 space-y-2 bg-slate-800"
+      className="ring-1 ring-gothic-outline-variant rounded-gothic-md p-3 space-y-2 bg-gothic-surface-low"
     >
       <input type="hidden" name="combatId" value={combatId} />
       <div className="flex gap-2">
         <select
           name="templateId"
-          className="flex-1 border-2 border-slate-600 rounded-xl px-2 h-10 text-sm bg-slate-700 text-white focus:outline-none focus:border-blue-500"
+          className="flex-1 rounded-gothic-sm px-2 h-10 text-sm bg-gothic-surface-high text-gothic-on-surface ring-1 ring-gothic-outline-variant focus:outline-none focus:ring-gothic-primary"
         >
           {templates.map((t) => (
             <option key={t.id} value={t.id}>
-              {t.name} · HP {t.maxHp} · AC {t.baseAc}
+              {t.name} · HP {t.maxHp} · CA {t.baseAc}
             </option>
           ))}
         </select>
@@ -68,23 +68,23 @@ export function AddParticipantMidCombat({
           min={1}
           max={10}
           defaultValue={1}
-          className="w-14 border-2 border-slate-600 rounded-xl px-2 h-10 text-center bg-slate-700 text-white focus:outline-none focus:border-blue-500"
+          className="w-14 rounded-gothic-sm px-2 h-10 text-center bg-gothic-surface-high text-gothic-on-surface ring-1 ring-gothic-outline-variant focus:outline-none focus:ring-gothic-primary"
         />
       </div>
       <div className="flex gap-2">
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="flex-1 h-9 border-2 border-slate-600 text-slate-400 rounded-xl text-sm hover:bg-slate-700 transition-colors"
+          className="flex-1 h-9 ring-1 ring-gothic-outline-variant text-gothic-on-surface-variant rounded-gothic-sm text-sm hover:bg-gothic-surface-high transition-colors"
         >
-          Cancel
+          Cancelar
         </button>
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 h-9 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-500 disabled:opacity-40 transition-colors"
+          className="flex-1 h-9 bg-gothic-primary text-gothic-on-primary rounded-gothic-sm text-sm font-semibold hover:bg-gothic-brass-bright disabled:opacity-40 transition-colors"
         >
-          {isPending ? "Adding…" : "Add →"}
+          {isPending ? "Agregando…" : "Agregar →"}
         </button>
       </div>
     </form>

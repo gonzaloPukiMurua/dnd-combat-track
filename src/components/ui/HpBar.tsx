@@ -31,39 +31,41 @@ export function HpBar({
       : 0;
 
   const barColor = hpBarColor(hpPct, isConscious);
+  const isCritical = isConscious && hpPct <= 25;
+  const numberColor = !isConscious
+    ? "text-gothic-on-surface-variant"
+    : isCritical
+    ? "text-gothic-danger-bright"
+    : "text-gothic-success-text";
 
   return (
     <div className={`space-y-1 ${className}`}>
       {/* Bar */}
       <div
-        className={`w-full bg-slate-700 rounded-full overflow-hidden ${heightClassName}`}
+        className={`w-full bg-gothic-background rounded-full overflow-hidden border border-gothic-outline-variant shadow-[inset_0_1px_3px_rgba(0,0,0,0.8)] ${heightClassName}`}
       >
         <div
-          className={`${heightClassName} rounded-full transition-all duration-300 ${barColor}`}
+          className={`${heightClassName} rounded-full transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] ${barColor} ${isCritical ? "animate-pulse" : ""}`}
           style={{ width: `${hpPct}%` }}
         />
       </div>
 
       {/* Numbers */}
       <div className="flex justify-between">
-        <span className="text-sm font-mono text-slate-300">
-          <strong
-            className={currentHp === 0 ? "text-red-400" : "text-white"}
-          >
-            {currentHp}
-          </strong>
+        <span className={`font-mono text-sm ${numberColor}`}>
+          <strong>{currentHp}</strong>
 
-          <span className="text-slate-500">/{maxHp}</span>
+          <span className="text-gothic-on-surface-variant">/{maxHp}</span>
 
           {tempHp > 0 && (
-            <span className="text-blue-400 ml-1">
+            <span className="text-gothic-brass-bright ml-1">
               +{tempHp}
             </span>
           )}
         </span>
 
         {showPercentage && (
-          <span className="text-xs text-slate-500 font-mono">
+          <span className="text-xs font-mono text-gothic-on-surface-variant">
             {hpPct}%
           </span>
         )}
