@@ -21,7 +21,7 @@ type Group = {
   members:     Member[];
 };
 
-export function GroupListFilter({ groups }: { groups: Group[] }) {
+export function GroupListFilter({ groups, campaignId }: { groups: Group[]; campaignId: string }) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -37,28 +37,20 @@ export function GroupListFilter({ groups }: { groups: Group[] }) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search groups by name…"
-          className="w-full h-10 px-3 rounded-xl border-2 border-slate-100 text-sm focus:outline-none focus:border-slate-300"
+          placeholder="Buscar grupos por nombre…"
+          className="w-full h-10 px-3 rounded-gothic-sm bg-gothic-surface-low ring-1 ring-gothic-outline-variant text-sm text-gothic-on-surface outline-none placeholder:text-gothic-outline transition-all focus:bg-gothic-surface focus:ring-gothic-primary"
         />
       )}
 
-      {groups.length === 0 && (
-        <div className="text-center py-12 text-slate-400 space-y-2">
-          <p className="text-4xl">👥</p>
-          <p className="font-medium">No groups yet</p>
-          <p className="text-sm">Save your party or a common encounter for quick combat setup.</p>
-        </div>
-      )}
-
       {groups.length > 0 && filtered.length === 0 && (
-        <p className="text-gray-400 text-sm text-center py-8">
-          No groups match your search.
+        <p className="text-sm text-gothic-on-surface-variant text-center py-8">
+          Ningún grupo coincide con la búsqueda.
         </p>
       )}
 
       <div className="space-y-3">
         {filtered.map((g) => (
-          <GroupCard key={g.id} group={g} />
+          <GroupCard key={g.id} group={g} campaignId={campaignId} />
         ))}
       </div>
     </div>

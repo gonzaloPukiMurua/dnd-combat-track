@@ -10,20 +10,9 @@ export type GroupFormState = {
 
 // ── Queries ──────────────────────────────────────────────────────────────────
 
-export async function getGroups() {
-  return prisma.group.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      members: {
-        include: { template: true },
-      },
-    },
-  });
-}
-
-// Used by the combat participant-picker (/combat/[id]/setup) — groups aren't
-// portable between campaigns, so "Load a group" must only offer groups that
-// belong to the combat's own campaign.
+// Groups aren't portable between campaigns, so every caller must go through
+// the scoped query below. There is deliberately no unscoped getGroups();
+// that was D16's bug (mixed every campaign's groups together on /groups).
 export async function getGroupsForCampaign(campaignId: string) {
   return prisma.group.findMany({
     where:   { campaignId },
@@ -64,7 +53,7 @@ export async function createGroup(
     data: { name, description, campaignId },
   });
 
-  revalidatePath("/groups");
+  revalidatePath(`/campaigns/${campaignId}/groups`);
   return { success: true };
 }
 
@@ -78,8 +67,15 @@ export async function addGroupMember(formData: FormData): Promise<GroupFormState
   if (!groupId || !templateId) return { error: "Missing required fields" };
   if (quantity < 1 || quantity > 20) return { error: "Quantity must be between 1 and 20" };
 
-  const group = await prisma.group.findUnique({ where: { id: groupId } });
+  const [group, template] = await Promise.all([
+    prisma.group.findUnique({ where: { id: groupId } }),
+    prisma.characterTemplate.findUnique({ where: { id: templateId } }),
+  ]);
   if (!group) return { error: "Group not found" };
+  if (!template) return { error: "Template not found" };
+  // Same cross-campaign check as addParticipant (lib/actions/combat.ts) —
+  // templates aren't portable between campaigns.
+  if (template.campaignId !== group.campaignId) return { error: "Template belongs to a different campaign" };
 
   // Upsert — if member already exists, update quantity
   await prisma.groupMember.upsert({
@@ -88,22 +84,22 @@ export async function addGroupMember(formData: FormData): Promise<GroupFormState
     create: { groupId, templateId, quantity, campaignId: group.campaignId },
   });
 
-  revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/campaigns/${group.campaignId}/groups/${groupId}`);
   return { success: true };
 }
 
 // ── Remove member from group ──────────────────────────────────────────────────
 
 export async function removeGroupMember(memberId: string, groupId: string): Promise<GroupFormState> {
-  await prisma.groupMember.delete({ where: { id: memberId } });
-  revalidatePath(`/groups/${groupId}`);
+  const deleted = await prisma.groupMember.delete({ where: { id: memberId } });
+  revalidatePath(`/campaigns/${deleted.campaignId}/groups/${groupId}`);
   return { success: true };
 }
 
 // ── Delete group ──────────────────────────────────────────────────────────────
 
 export async function deleteGroup(id: string): Promise<GroupFormState> {
-  await prisma.group.delete({ where: { id } });
-  revalidatePath("/groups");
+  const deleted = await prisma.group.delete({ where: { id } });
+  revalidatePath(`/campaigns/${deleted.campaignId}/groups`);
   return { success: true };
 }

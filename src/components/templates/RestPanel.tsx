@@ -60,15 +60,15 @@ export function RestPanel({ templates }: { templates: Template[] }) {
   }
 
   return (
-    <div className="bg-white border-2 border-amber-100 rounded-2xl p-4 space-y-3">
+    <div className="rounded-gothic-md bg-gothic-surface-low ring-1 ring-gothic-outline-variant p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-bold text-slate-700">Rest</h2>
+        <h2 className="font-gothic-headline text-lg text-gothic-primary">Descanso</h2>
         <button
           type="button"
           onClick={toggleAll}
-          className="text-xs text-slate-400 hover:text-slate-600 underline"
+          className="text-xs text-gothic-on-surface-variant hover:text-gothic-primary underline decoration-gothic-outline-variant underline-offset-4"
         >
-          {selected.length === restCandidates.length ? "Deselect all" : "Select all"}
+          {selected.length === restCandidates.length ? "Deseleccionar todos" : "Seleccionar todos"}
         </button>
       </div>
 
@@ -81,21 +81,21 @@ export function RestPanel({ templates }: { templates: Template[] }) {
           return (
             <label
               key={t.id}
-              className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-colors ${
-                selected.includes(t.id) ? "bg-amber-50" : "hover:bg-slate-50"
+              className={`flex items-center gap-3 p-2 rounded-gothic-sm cursor-pointer transition-colors ${
+                selected.includes(t.id) ? "bg-gothic-surface-high" : "hover:bg-gothic-surface-high/60"
               }`}
             >
               <input
                 type="checkbox"
                 checked={selected.includes(t.id)}
                 onChange={() => toggle(t.id)}
-                className="w-4 h-4 accent-amber-500"
+                className="w-4 h-4 accent-gothic-primary"
               />
-              <span className="flex-1 font-medium text-slate-700 text-sm truncate">
+              <span className="flex-1 font-medium text-gothic-on-surface text-sm truncate">
                 {t.name}
               </span>
 
-              <div className="w-16 bg-slate-200 rounded-full h-1.5 hidden sm:block">
+              <div className="w-16 bg-gothic-background rounded-full h-1.5 hidden sm:block ring-1 ring-gothic-outline-variant">
                 <div
                   className={`h-1.5 rounded-full ${hpBarColor(pct, true)}`}
                   style={{ width: `${pct}%` }}
@@ -103,12 +103,12 @@ export function RestPanel({ templates }: { templates: Template[] }) {
               </div>
 
               {isWounded ? (
-                <span className="text-xs font-mono text-red-500">
+                <span className="text-xs font-mono text-gothic-danger-bright">
                   {hp}/{t.maxHp}
                 </span>
               ) : (
-                <span className="text-xs font-mono text-green-500">
-                  Full
+                <span className="text-xs font-mono text-gothic-success-text">
+                  Máx.
                 </span>
               )}
             </label>
@@ -117,7 +117,7 @@ export function RestPanel({ templates }: { templates: Template[] }) {
       </div>
 
       {error && (
-        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <p className="text-xs rounded-gothic-sm bg-gothic-danger px-3 py-2 text-gothic-danger-bright">
           {error}
         </p>
       )}
@@ -127,9 +127,9 @@ export function RestPanel({ templates }: { templates: Template[] }) {
           type="button"
           onClick={handleLongRest}
           disabled={selected.length === 0 || isPending}
-          className="flex-1 h-11 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 disabled:opacity-40 transition-colors"
+          className="flex-1 h-11 rounded-gothic-sm bg-gothic-primary text-gothic-on-primary text-sm font-semibold shadow-[inset_0_1px_0px_rgba(255,255,255,0.4),0_2px_4px_rgba(0,0,0,0.2)] hover:bg-gothic-brass-bright disabled:opacity-40 transition-all"
         >
-          {isPending ? "Resting…" : `Long rest (${selected.length})`}
+          {isPending ? "Descansando…" : `Descanso largo (${selected.length})`}
         </button>
       </div>
       <div className="flex gap-2">
@@ -138,8 +138,8 @@ export function RestPanel({ templates }: { templates: Template[] }) {
           min={1}
           value={shortHeal}
           onChange={(e) => setShortHeal(e.target.value)}
-          placeholder="HP to restore"
-          className="flex-1 border-2 border-slate-200 rounded-xl px-3 h-11 text-sm focus:outline-none focus:border-amber-400"
+          placeholder="PV a restaurar"
+          className="flex-1 rounded-gothic-sm bg-gothic-surface px-3 h-11 text-sm font-mono text-gothic-on-surface outline-none ring-1 ring-gothic-outline-variant placeholder:text-gothic-outline placeholder:font-gothic-body transition-all focus:ring-gothic-primary"
         />
         <button
           type="button"
@@ -155,13 +155,13 @@ export function RestPanel({ templates }: { templates: Template[] }) {
               else { setShortHeal(""); router.refresh(); }
             });
           }}
-          className="h-11 px-4 border-2 border-amber-300 text-amber-700 rounded-xl text-sm font-semibold hover:bg-amber-50 disabled:opacity-40 transition-colors whitespace-nowrap"
+          className="h-11 px-4 rounded-gothic-sm ring-1 ring-gothic-outline-variant text-gothic-on-surface-variant text-sm font-semibold hover:bg-gothic-surface-high disabled:opacity-40 transition-colors whitespace-nowrap"
         >
-          Short rest
+          Descanso corto
         </button>
       </div>
-      <p className="text-xs text-slate-400 text-center">
-        Long rest restores selected characters to full HP on next combat start.
+      <p className="text-xs text-gothic-on-surface-variant text-center">
+        El descanso largo restaura a los personajes seleccionados a PV máximos al iniciar el próximo combate.
       </p>
     </div>
   );

@@ -28,12 +28,9 @@ export async function getCombatById(id: string) {
 
 // ─── Create combat ───────────────────────────────────────────────────────────
 
-export async function createCombat(formData: FormData) {
-  const name = formData.get("name")?.toString().trim() || "New Combat";
-  const campaignId = formData.get("campaignId")?.toString();
-  if (!campaignId) throw new Error("Missing campaignId");
-
-  // Enforce one combat at a time, per campaign (@@index([campaignId, status]))
+// Shared by createCombat (form action) and startCombatFromGroup (E5) — keeps
+// the one-SETUP/ACTIVE-combat-per-campaign rule in a single place.
+async function createCombatRecord(campaignId: string, name?: string) {
   const existing = await prisma.combat.findFirst({
     where: { campaignId, status: { in: ["SETUP", "ACTIVE"] } },
   });
@@ -41,9 +38,37 @@ export async function createCombat(formData: FormData) {
     throw new Error("A combat is already in progress in this campaign. End it before starting a new one.");
   }
 
-  const combat = await prisma.combat.create({
-    data: { name, campaignId, status: "SETUP", round: 0, currentTurnIndex: 0 },
+  return prisma.combat.create({
+    data: { name: name?.trim() || "New Combat", campaignId, status: "SETUP", round: 0, currentTurnIndex: 0 },
   });
+}
+
+export async function createCombat(formData: FormData) {
+  const campaignId = formData.get("campaignId")?.toString();
+  if (!campaignId) throw new Error("Missing campaignId");
+
+  const combat = await createCombatRecord(campaignId, formData.get("name")?.toString());
+  redirect(`/combat/${combat.id}/setup`);
+}
+
+// ─── E5 — "Start combat with this group" ─────────────────────────────────────
+// Creates a Combat scoped to the group's own campaign (reusing
+// createCombatRecord — same rule as D14a's createCombat, not duplicated),
+// copies the group's members in as participants via addParticipantsFromGroup
+// (already copies real stats, not defaults — D15), then redirects to setup.
+// DM-only is enforced by the caller (src/app/groups/[id]/start-combat/route.ts),
+// same pattern as D14a's route.
+
+export async function startCombatFromGroup(groupId: string) {
+  const group = await prisma.group.findUnique({ where: { id: groupId } });
+  if (!group) throw new Error("Group not found");
+
+  const combat = await createCombatRecord(group.campaignId);
+
+  const formData = new FormData();
+  formData.set("combatId", combat.id);
+  formData.set("groupId", groupId);
+  await addParticipantsFromGroup(formData);
 
   redirect(`/combat/${combat.id}/setup`);
 }

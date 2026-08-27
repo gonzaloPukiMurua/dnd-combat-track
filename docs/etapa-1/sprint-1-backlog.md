@@ -100,12 +100,15 @@ Cada ticket = una ruta. Reutilizar componentes ya definidos en el brief visual (
 | D9. Hub de campaña — Jugador | `/campaigns/[id]` (vista jugador) | C5 |
 | D14. Nuevo combate | `/campaigns/[id]/combat/new` (crea) → reutiliza `/combat/[id]/setup` (agregar participantes) | A4, D8. Reemplaza a `/combat` como punto de entrada — ver nota abajo |
 | D15. Cierre de loose ends D10-D12 | `/combat/[id]/setup` (links muertos), `addParticipant` (stats no copiados) | D10-D12 |
+| D16. 🔴 Anidar Personajes/Grupos bajo campaña (crítico) | `/templates`→`/campaigns/[id]/templates`, `/templates/[id]/edit`→`/campaigns/[id]/templates/[templateId]/edit`, `/groups`→`/campaigns/[id]/groups`, `/groups/new`→`/campaigns/[id]/groups/new`, `/groups/[id]`→`/campaigns/[id]/groups/[groupId]` | D13 (retokenizado ya hecho, se mueve el archivo, no se rehace) |
+
+**Nota sobre D16 — hallazgo durante D13, no un ticket planeado:** hoy, en producción, **crear un personaje o un grupo falla siempre** — `createTemplate`/`createGroup` devuelven `{ error: "Missing campaignId" }` y las páginas lo muestran tal cual al usuario, porque `/templates` y `/groups` son rutas planas que nunca reciben un `campaignId`. Además `getTemplates()`/`getGroups()` (sin scope, usadas por estas páginas) mezclan datos de todas las campañas — a diferencia de `getTemplatesForCampaign`/`getGroupsForCampaign`, que ya existen y ya se usan correctamente en `/combat/[id]/setup` desde D13. Fix: anidar estas 5 rutas bajo `/campaigns/[id]/...`, igual que `/campaigns/[id]/combat/new` (D14a) — el `campaignId` sale gratis del segmento de ruta, hereda el guard de sesión de `proxy.ts` (ya matchea por prefijo `/campaigns`), y permite reemplazar `getTemplates()`/`getGroups()` por sus versiones scopeadas ya existentes. El retokenizado visual de D13 no se rehace, los archivos se mueven de ubicación conservando su contenido. Actualizar también los links del hub de campaña (D8/D9) que hoy apuntan a `/templates`/`/groups` planos.
 | D10. Ficha de personaje / detalle en combate | reutiliza lógica de `/combat/[id]` existente | A4, A5 |
 | D11. Vista de combate — DM | reutiliza `/combat/[id]` existente, re-scopeada | A4 |
 | D12. Vista de combate — Jugador (spectate) | reutiliza `/combat/[id]/spectate` existente, re-scopeada | A4 |
-| D13. Retokenizar Personajes y Grupos | `/templates`, `/templates/[id]/edit`, `/groups`, `/groups/new`, `/groups/[id]` | A5, A6, reescritura de shell global |
+| D13. Retokenizar Personajes, Grupos y Setup de combate | `/templates`, `/templates/[id]/edit`, `/groups`, `/groups/new`, `/groups/[id]`, `/combat/[id]/setup` | A5, A6, reescritura de shell global |
 
-**Nota sobre D13:** hueco real del plan original, no un olvido de ejecución — el backlog nunca contempló re-diseñar estas pantallas, solo reutilizar su lógica (sección 5 del spec técnico). Quedó expuesto recién al reescribir el shell global: estas rutas heredan ahora el fondo oscuro nuevo pero sus componentes internos siguen con clases claras viejas (slate/blue), sin ningún nav que las contenga. Alcance: aplicar los tokens de `sistema-visual-etapa-1.md` a estas 5 rutas — no rediseñar su estructura ni tocar la lógica de campaignId que Épica C ya conectó.
+**Nota sobre D13:** hueco real del plan original, no un olvido de ejecución — el backlog nunca contempló re-diseñar estas pantallas, solo reutilizar su lógica (sección 5 del spec técnico). Quedó expuesto recién al reescribir el shell global: estas rutas heredan ahora el fondo oscuro nuevo pero sus componentes internos siguen con clases claras viejas (slate/blue), sin ningún nav que las contenga. `/combat/[id]/setup` se sumó después de D15: quedó como el único paso del flujo de combate (creación → setup → panel/spectate) sin retokenizar, ya que D10-D12 cubrieron panel y spectate pero no setup. Alcance: aplicar los tokens de `sistema-visual-etapa-1.md` a estas 6 rutas — no rediseñar su estructura ni tocar la lógica de campaignId que Épica C/D15 ya conectaron.
 
 **Nota sobre D14:** `/combat/[id]/setup` (agregar participantes, tipear iniciativa) ya funciona y no se reescribe. Lo que falta es el punto de entrada: hoy la única forma de crear un combate es `/combat` — una lista+formulario global, previa a campañas, que contradice la decisión 8 (combate no es ruta de nivel superior) de la misma forma que `/join` contradecía D6 antes de reemplazarlo. `/combat` debería dejar de ser accesible como entry point una vez que exista `/campaigns/[id]/combat/new`, o como mínimo confirmar que su listado no mezcla combates de distintas campañas si se decide dejarlo vivo por ahora.
 
@@ -115,11 +118,11 @@ Cada ticket = una ruta. Reutilizar componentes ya definidos en el brief visual (
 
 ## Épica E — QA y casos borde
 
-- **E1.** Roster vacío al unirse a campaña → confirmar que "Crear mi personaje" está siempre disponible, no solo cuando el roster está vacío (decisión ya cerrada en el diseño).
-- **E2.** Colisión de `inviteCode` al generar — probar que el reintento server-side funciona.
-- **E3.** Combatiente derrotado permanece visible y atenuado en la lista de combate, no se elimina.
-- **E4.** Verificar en el navegador real (no solo el export estático) que ningún elemento `position: fixed` (como el FAB del hub DM) tape contenido interactivo al hacer scroll.
-- **E5.** Confirmar bug conocido de `project-spec.md`: "Start combat with this group" — aprovechar que se está tocando `/combat/[id]/setup` en A4 para arreglarlo en el mismo sprint.
+- **E1.** Roster vacío al unirse a campaña → confirmar que "Crear mi personaje" está siempre disponible, no solo cuando el roster está vacío (decisión ya cerrada en el diseño). — ✅ cerrado, ver bitácora
+- **E2.** Colisión de `inviteCode` al generar — probar que el reintento server-side funciona. — ✅ cerrado, ver bitácora
+- **E3.** Combatiente derrotado permanece visible y atenuado en la lista de combate, no se elimina. — ✅ cerrado, ver bitácora
+- **E4.** Verificar en el navegador real (no solo el export estático) que ningún elemento `position: fixed` (como el FAB del hub DM) tape contenido interactivo al hacer scroll. — ⏳ **sin verificar en vivo**, ver bitácora (requiere navegador real; sin acceso a la extensión de Chrome en esta sesión)
+- **E5.** Confirmar bug conocido de `project-spec.md`: "Start combat with this group" — aprovechar que se está tocando `/combat/[id]/setup` en A4 para arreglarlo en el mismo sprint. — ✅ cerrado, ver bitácora
 
 ---
 

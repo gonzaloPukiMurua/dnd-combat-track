@@ -160,7 +160,7 @@ function DmQuickAccess({ campaignId, hasActiveCombat }: { campaignId: string; ha
     <section className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
         <Link
-          href="/templates"
+          href={`/campaigns/${campaignId}/templates`}
           className="flex flex-col items-center justify-center gap-2 rounded-gothic-sm bg-gothic-surface-low p-4 text-center ring-1 ring-gothic-outline-variant transition-colors hover:bg-gothic-surface-high"
         >
           <span className="font-gothic-body text-sm font-semibold uppercase tracking-widest text-gothic-on-surface">
@@ -168,7 +168,7 @@ function DmQuickAccess({ campaignId, hasActiveCombat }: { campaignId: string; ha
           </span>
         </Link>
         <Link
-          href="/groups"
+          href={`/campaigns/${campaignId}/groups`}
           className="flex flex-col items-center justify-center gap-2 rounded-gothic-sm bg-gothic-surface-low p-4 text-center ring-1 ring-gothic-outline-variant transition-colors hover:bg-gothic-surface-high"
         >
           <span className="font-gothic-body text-sm font-semibold uppercase tracking-widest text-gothic-on-surface">

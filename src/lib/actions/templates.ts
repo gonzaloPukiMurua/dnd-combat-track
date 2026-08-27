@@ -13,15 +13,10 @@ export type TemplateFormState = {
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-export async function getTemplates() {
-  return prisma.characterTemplate.findMany({
-    orderBy: [{ type: "asc" }, { name: "asc" }],
-  });
-}
-
-// Used by the combat participant-picker (/combat/[id]/setup) — templates
-// aren't portable between campaigns (spec-tecnico-etapa-1.md §2), so the
-// picker must only offer templates that belong to the combat's own campaign.
+// Templates aren't portable between campaigns (spec-tecnico-etapa-1.md §2) —
+// every caller must go through the scoped query below. There is
+// deliberately no unscoped getTemplates(); that was D16's bug (mixed every
+// campaign's roster together on /templates).
 export async function getTemplatesForCampaign(campaignId: string) {
   return prisma.characterTemplate.findMany({
     where:   { campaignId },
@@ -59,7 +54,7 @@ export async function createTemplate(
     data: { name, type, maxHp, baseAc, initiativeBonus, campaignId },
   });
 
-  revalidatePath("/templates");
+  revalidatePath(`/campaigns/${campaignId}/templates`);
   return { success: true };
 }
 
@@ -90,8 +85,8 @@ export async function updateTemplate(
     // mid-campaign causes confusion. Create a new template instead.
   });
 
-  revalidatePath("/templates");
-  revalidatePath(`/templates/${id}/edit`);
+  revalidatePath(`/campaigns/${existing.campaignId}/templates`);
+  revalidatePath(`/campaigns/${existing.campaignId}/templates/${id}/edit`);
   return { success: true };
 }
 
@@ -112,37 +107,27 @@ export async function deleteTemplate(id: string): Promise<TemplateFormState> {
 
   // Check if used in finished combats — warn but allow deletion
   // (finished combat logs still reference displayName as text, so history is preserved)
+  let deleted;
   try {
-    await prisma.characterTemplate.delete({ where: { id } });
+    deleted = await prisma.characterTemplate.delete({ where: { id } });
   } catch {
     return { error: "Cannot delete — this template has combat history. Archive it instead." };
   }
 
-  revalidatePath("/templates");
-  return { success: true };
-}
-
-// ─── Delete combat ────────────────────────────────────────────────────────────
-
-export async function deleteCombat(id: string): Promise<TemplateFormState> {
-  const combat = await prisma.combat.findUnique({ where: { id } });
-
-  if (!combat) return { error: "Combat not found" };
-
-  if (combat.status === "ACTIVE") {
-    return { error: "Cannot delete an active combat. End it first." };
-  }
-
-  // Cascade deletes participants and logs (set in schema)
-  await prisma.combat.delete({ where: { id } });
-
-  revalidatePath("/combat");
+  revalidatePath(`/campaigns/${deleted.campaignId}/templates`);
   return { success: true };
 }
 
 // Long rest — restore all characters to maxHp
 export async function longRest(templateIds: string[]): Promise<TemplateFormState> {
   try {
+    // RestPanel only ever passes templates from a single campaign's list —
+    // any one of them gives us the campaignId to revalidate.
+    const first = await prisma.characterTemplate.findFirst({
+      where:  { id: { in: templateIds } },
+      select: { campaignId: true },
+    });
+
     await prisma.$transaction(
       templateIds.map((id) =>
         prisma.characterTemplate.update({
@@ -151,7 +136,7 @@ export async function longRest(templateIds: string[]): Promise<TemplateFormState
         })
       )
     );
-    revalidatePath("/templates");
+    if (first) revalidatePath(`/campaigns/${first.campaignId}/templates`);
     return { success: true };
   } catch {
     return { error: "Failed to apply long rest" };
@@ -179,7 +164,7 @@ export async function shortRest(
         });
       })
     );
-    revalidatePath("/templates");
+    if (templates[0]) revalidatePath(`/campaigns/${templates[0].campaignId}/templates`);
     return { success: true };
   } catch {
     return { error: "Failed to apply short rest" };
