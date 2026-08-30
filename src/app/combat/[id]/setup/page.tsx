@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import { getTemplatesForCampaign } from "@/lib/actions/templates";
 import { getGroupsForCampaign } from "@/lib/actions/groups";
 import {
@@ -16,9 +18,24 @@ export default async function CombatSetupPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // S2-0 / 7.10 — same session + membership gate that /combat/[id] and
+  // /combat/[id]/spectate got in D11/D12, which this screen was missing:
+  // non-member → masked 404, player-member → bounced to the spectate view.
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) redirect("/login");
+
   const combat = await getCombatSetupDetail(id);
 
   if (!combat) notFound();
+
+  const membership = await prisma.campaignMember.findUnique({
+    where: { userId_campaignId: { userId, campaignId: combat.campaignId } },
+  });
+  if (!membership) notFound();
+  if (membership.role !== "DM") redirect(`/combat/${id}/spectate`);
+
   if (combat.status === "ACTIVE") redirect(`/combat/${id}`);
   if (combat.status === "FINISHED") redirect(`/campaigns/${combat.campaignId}`);
 

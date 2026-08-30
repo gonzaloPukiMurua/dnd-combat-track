@@ -2,11 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireCampaignDmAction, UnauthorizedError } from "@/lib/auth/action-guards";
 
 export type GroupFormState = {
   error?:   string;
   success?: boolean;
 };
+
+// S2-0 — group management is DM-only, on the group's own campaign. The
+// action-guards throw; this file answers with form-state { error }, so the
+// throw is adapted here. A non-auth error still propagates.
+async function requireDm(campaignId: string): Promise<GroupFormState | null> {
+  try {
+    await requireCampaignDmAction(campaignId);
+    return null;
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { error: err.message };
+    throw err;
+  }
+}
 
 // ── Queries ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +61,10 @@ export async function createGroup(
   const campaignId  = formData.get("campaignId")?.toString();
 
   if (!campaignId) return { error: "Missing campaignId" };
+
+  const denied = await requireDm(campaignId);
+  if (denied) return denied;
+
   if (!name) return { error: "Name is required" };
 
   await prisma.group.create({
@@ -72,6 +90,10 @@ export async function addGroupMember(formData: FormData): Promise<GroupFormState
     prisma.characterTemplate.findUnique({ where: { id: templateId } }),
   ]);
   if (!group) return { error: "Group not found" };
+
+  const denied = await requireDm(group.campaignId);
+  if (denied) return denied;
+
   if (!template) return { error: "Template not found" };
   // Same cross-campaign check as addParticipant (lib/actions/combat.ts) —
   // templates aren't portable between campaigns.
@@ -91,14 +113,42 @@ export async function addGroupMember(formData: FormData): Promise<GroupFormState
 // ── Remove member from group ──────────────────────────────────────────────────
 
 export async function removeGroupMember(memberId: string, groupId: string): Promise<GroupFormState> {
-  const deleted = await prisma.groupMember.delete({ where: { id: memberId } });
-  revalidatePath(`/campaigns/${deleted.campaignId}/groups/${groupId}`);
+  const group = await prisma.group.findUnique({
+    where:  { id: groupId },
+    select: { campaignId: true },
+  });
+  if (!group) return { error: "Group not found" };
+
+  const denied = await requireDm(group.campaignId);
+  if (denied) return denied;
+
+  // memberId arrives from the client next to groupId — confirm it's actually
+  // a member of this (authorized) group before deleting (S2-0).
+  const member = await prisma.groupMember.findUnique({
+    where:  { id: memberId },
+    select: { groupId: true },
+  });
+  if (!member || member.groupId !== groupId) {
+    return { error: "Member not found in this group" };
+  }
+
+  await prisma.groupMember.delete({ where: { id: memberId } });
+  revalidatePath(`/campaigns/${group.campaignId}/groups/${groupId}`);
   return { success: true };
 }
 
 // ── Delete group ──────────────────────────────────────────────────────────────
 
 export async function deleteGroup(id: string): Promise<GroupFormState> {
+  const group = await prisma.group.findUnique({
+    where:  { id },
+    select: { campaignId: true },
+  });
+  if (!group) return { error: "Group not found" };
+
+  const denied = await requireDm(group.campaignId);
+  if (denied) return denied;
+
   const deleted = await prisma.group.delete({ where: { id } });
   revalidatePath(`/campaigns/${deleted.campaignId}/groups`);
   return { success: true };

@@ -6,6 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { generateJoinCode } from "@/lib/utils/combat";
 import { computeAdvanceTurn } from "@/domain/combat/rules";
 import {
+  requireCampaignDmAction,
+  requireCombatDm,
+  UnauthorizedError,
+} from "@/lib/auth/action-guards";
+import {
   getActiveCombatDetail,
   getCombatDetail,
   getCombatByJoinCodeDetail,
@@ -47,6 +52,8 @@ export async function createCombat(formData: FormData) {
   const campaignId = formData.get("campaignId")?.toString();
   if (!campaignId) throw new Error("Missing campaignId");
 
+  await requireCampaignDmAction(campaignId);
+
   const combat = await createCombatRecord(campaignId, formData.get("name")?.toString());
   redirect(`/combat/${combat.id}/setup`);
 }
@@ -62,6 +69,8 @@ export async function createCombat(formData: FormData) {
 export async function startCombatFromGroup(groupId: string) {
   const group = await prisma.group.findUnique({ where: { id: groupId } });
   if (!group) throw new Error("Group not found");
+
+  await requireCampaignDmAction(group.campaignId);
 
   const combat = await createCombatRecord(group.campaignId);
 
@@ -81,6 +90,8 @@ export async function addParticipant(formData: FormData) {
   const quantity   = Number(formData.get("quantity") ?? 1);
 
   if (!combatId || !templateId) throw new Error("Missing combatId or templateId");
+
+  await requireCombatDm(combatId);
 
   const [combat, template] = await Promise.all([
     prisma.combat.findUnique({ where: { id: combatId } }),
@@ -134,8 +145,21 @@ export async function addParticipant(formData: FormData) {
 // ─── Remove participant from SETUP combat ────────────────────────────────────
 
 export async function removeParticipant(participantId: string, combatId: string) {
+  await requireCombatDm(combatId);
+
   const combat = await prisma.combat.findUnique({ where: { id: combatId } });
   if (combat?.status === "FINISHED") throw new Error("Cannot modify a finished combat");
+
+  // The participant id comes from the client alongside combatId — make sure
+  // it actually belongs to this (already authorized) combat before deleting.
+  const participant = await prisma.combatParticipant.findUnique({
+    where:  { id: participantId },
+    select: { combatId: true },
+  });
+  if (!participant || participant.combatId !== combatId) {
+    throw new Error("Participant not found in this combat");
+  }
+
   await prisma.combatParticipant.delete({ where: { id: participantId } });
 
   revalidatePath(`/combat/${combatId}/setup`);
@@ -150,6 +174,8 @@ export async function removeParticipant(participantId: string, combatId: string)
 export async function startCombat(formData: FormData) {
   const combatId = formData.get("combatId")?.toString();
   if (!combatId) throw new Error("Missing combatId");
+
+  await requireCombatDm(combatId);
 
   const combat = await prisma.combat.findUnique({
     where: { id: combatId },
@@ -203,6 +229,8 @@ export async function startCombat(formData: FormData) {
 
 export async function advanceTurn(combatId: string) {
   try {
+    await requireCombatDm(combatId);
+
     const combat = await prisma.combat.findUnique({
       where: { id: combatId },
       include: {
@@ -271,6 +299,10 @@ export async function advanceTurn(combatId: string) {
       ok: true,
     };
   } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return { ok: false, error: error.message };
+    }
+
     console.error("advanceTurn failed", error);
 
     return {
@@ -283,6 +315,9 @@ export async function advanceTurn(combatId: string) {
 // ─── End combat ──────────────────────────────────────────────────────────────
 
 export async function endCombat(combatId: string, campaignId: string) {
+  const { campaignId: ownerCampaignId } = await requireCombatDm(combatId);
+  if (campaignId !== ownerCampaignId) throw new UnauthorizedError();
+
   await prisma.combat.update({
     where: { id: combatId },
     data:  { status: "FINISHED" },
@@ -300,6 +335,8 @@ export async function addParticipantsFromGroup(formData: FormData) {
   const groupId  = formData.get("groupId")?.toString();
 
   if (!combatId || !groupId) throw new Error("Missing required fields");
+
+  await requireCombatDm(combatId);
 
   const [combat, group] = await Promise.all([
     prisma.combat.findUnique({ where: { id: combatId } }),
@@ -354,6 +391,8 @@ export async function addParticipantsFromGroup(formData: FormData) {
 
 export async function saveHpToTemplates(combatId: string): Promise<{ ok: boolean; error?: string }> {
   try {
+    await requireCombatDm(combatId);
+
     const participants = await prisma.combatParticipant.findMany({
       where: { combatId },
     });
@@ -369,6 +408,9 @@ export async function saveHpToTemplates(combatId: string): Promise<{ ok: boolean
 
     return { ok: true };
   } catch (err) {
+    if (err instanceof UnauthorizedError) {
+      return { ok: false, error: err.message };
+    }
     console.error("[saveHpToTemplates]", err);
     return { ok: false, error: "Failed to save HP to templates" };
   }

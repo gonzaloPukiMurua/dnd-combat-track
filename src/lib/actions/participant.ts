@@ -11,6 +11,12 @@ import {
   applyDeathSave,
   relocateCurrentActor,
 } from "@/domain/combat/rules";
+import {
+  requireParticipantAccess,
+  requireParticipantDmAccess,
+  requireCombatDm,
+  UnauthorizedError,
+} from "@/lib/auth/action-guards";
 
 // ─── Return type ──────────────────────────────────────────────────────────────
 // Every action returns this — never throws to the client.
@@ -21,6 +27,23 @@ type ActionResult = { ok: true } | { ok: false; error: string };
 
 function fd(formData: FormData, key: string) {
   return formData.get(key)?.toString() ?? "";
+}
+
+// S2-0 — the action-guards throw UnauthorizedError, but this file's contract
+// is to always return ActionResult and never throw. This adapts a guard call
+// into that shape: on success the resolved context comes back for the action
+// to use (e.g. the verified combatId for a CombatLog row), on an auth failure
+// a { ok: false } result. Any other error still propagates to the caller's
+// own try/catch.
+type GuardOutcome<T> = { ok: true; ctx: T } | { ok: false; error: string };
+
+async function guard<T>(check: () => Promise<T>): Promise<GuardOutcome<T>> {
+  try {
+    return { ok: true, ctx: await check() };
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { ok: false, error: err.message };
+    throw err;
+  }
 }
 
 // ─── Deal damage ──────────────────────────────────────────────────────────────
@@ -35,6 +58,9 @@ export async function dealDamage(formData: FormData): Promise<ActionResult> {
     if (!combatId || !targetId) return { ok: false, error: "Missing combatId or targetId" };
     if (isNaN(rawAmount) || rawAmount < 1) return { ok: false, error: "Amount must be at least 1" };
 
+    const g = await guard(() => requireParticipantAccess(targetId));
+    if (!g.ok) return g;
+
     const target = await getParticipantWithRound(targetId);
 
     if (!target) return { ok: false, error: "Target not found" };
@@ -48,7 +74,9 @@ export async function dealDamage(formData: FormData): Promise<ActionResult> {
       }),
       prisma.combatLog.create({
         data: {
-          combatId,
+          // Derived from the verified participant, not the client's combatId
+          // field — the two could be mismatched on purpose (S2-0).
+          combatId: g.ctx.combatId,
           round: target.combat.round,
           type:     "DAMAGE",
           actorId,
@@ -78,6 +106,9 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
     if (!combatId || !targetId) return { ok: false, error: "Missing combatId or targetId" };
     if (isNaN(rawAmount) || rawAmount < 1) return { ok: false, error: "Amount must be at least 1" };
 
+    const g = await guard(() => requireParticipantAccess(targetId));
+    if (!g.ok) return g;
+
     const target = await getParticipantWithRound(targetId);
 
     if (!target) return { ok: false, error: "Target not found" };
@@ -99,7 +130,7 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
       }),
       prisma.combatLog.create({
         data: {
-          combatId,
+          combatId: g.ctx.combatId,
           round: target.combat.round,
           type:     "HEAL",
           actorId,
@@ -130,6 +161,9 @@ export async function setTempHp(formData: FormData): Promise<ActionResult> {
     if (!combatId || !targetId) return { ok: false, error: "Missing required fields" };
     if (isNaN(rawAmount) || rawAmount < 0) return { ok: false, error: "Temp HP must be 0 or greater" };
 
+    const g = await guard(() => requireParticipantDmAccess(targetId));
+    if (!g.ok) return g;
+
     const target = await getParticipantWithRound(targetId);
     if (!target) return { ok: false, error: "Target not found" };
 
@@ -157,6 +191,9 @@ export async function addCondition(formData: FormData): Promise<ActionResult> {
       return { ok: false, error: "Missing required fields" };
     }
 
+    const g = await guard(() => requireParticipantAccess(targetId));
+    if (!g.ok) return g;
+
     const target = await getParticipantWithRound(targetId);
 
     if (!target) return { ok: false, error: "Target not found" };
@@ -174,7 +211,7 @@ export async function addCondition(formData: FormData): Promise<ActionResult> {
       }),
       prisma.combatLog.create({
         data: {
-          combatId,
+          combatId: g.ctx.combatId,
           round:    target.combat.round,
           type:     "CONDITION_ADDED",
           targetId,
@@ -202,6 +239,9 @@ export async function removeCondition(formData: FormData): Promise<ActionResult>
       return { ok: false, error: "Missing required fields" };
     }
 
+    const g = await guard(() => requireParticipantAccess(targetId));
+    if (!g.ok) return g;
+
     const target = await getParticipantWithRound(targetId);
 
     if (!target) return { ok: false, error: "Target not found" };
@@ -215,7 +255,7 @@ export async function removeCondition(formData: FormData): Promise<ActionResult>
       }),
       prisma.combatLog.create({
         data: {
-          combatId,
+          combatId: g.ctx.combatId,
           round:    target.combat.round,
           type:     "CONDITION_REMOVED",
           targetId,
@@ -243,6 +283,9 @@ export async function addAcModifier(formData: FormData): Promise<ActionResult> {
     if (!combatId || !targetId || !source) return { ok: false, error: "Missing required fields" };
     if (isNaN(value) || value === 0) return { ok: false, error: "AC modifier value must be non-zero" };
 
+    const g = await guard(() => requireParticipantDmAccess(targetId));
+    if (!g.ok) return g;
+
     const target = await getParticipantWithRound(targetId);
     if (!target) return { ok: false, error: "Target not found" };
 
@@ -269,6 +312,9 @@ export async function removeAcModifier(formData: FormData): Promise<ActionResult
     const source   = fd(formData, "source");
 
     if (!combatId || !targetId || !source) return { ok: false, error: "Missing required fields" };
+
+    const g = await guard(() => requireParticipantDmAccess(targetId));
+    if (!g.ok) return g;
 
     const target = await prisma.combatParticipant.findUnique({ where: { id: targetId } });
     if (!target) return { ok: false, error: "Target not found" };
@@ -304,6 +350,9 @@ export async function toggleActionState(formData: FormData): Promise<ActionResul
       return { ok: false, error: "Invalid field" };
     }
 
+    const g = await guard(() => requireParticipantDmAccess(targetId));
+    if (!g.ok) return g;
+
     const target = await prisma.combatParticipant.findUnique({ where: { id: targetId } });
     if (!target) return { ok: false, error: "Target not found" };
 
@@ -330,6 +379,9 @@ export async function recordDeathSave(formData: FormData): Promise<ActionResult>
     if (!combatId || !targetId || !result) return { ok: false, error: "Missing required fields" };
     if (result !== "success" && result !== "failure") return { ok: false, error: "Invalid result" };
 
+    const g = await guard(() => requireParticipantAccess(targetId));
+    if (!g.ok) return g;
+
     const target = await getParticipantWithRound(targetId);
 
     if (!target) return { ok: false, error: "Target not found" };
@@ -351,7 +403,7 @@ export async function recordDeathSave(formData: FormData): Promise<ActionResult>
         data:  { deathSaveSuccesses, deathSaveFailures, isStabilized },
       }),
       prisma.combatLog.create({
-        data: { combatId, round: target.combat.round, type: "NOTE", targetId, note },
+        data: { combatId: g.ctx.combatId, round: target.combat.round, type: "NOTE", targetId, note },
       }),
     ]);
 
@@ -368,6 +420,9 @@ export async function resetDeathSaves(formData: FormData): Promise<ActionResult>
   try {
     const targetId = fd(formData, "targetId");
     if (!targetId) return { ok: false, error: "Missing targetId" };
+
+    const g = await guard(() => requireParticipantAccess(targetId));
+    if (!g.ok) return g;
 
     await prisma.combatParticipant.update({
       where: { id: targetId },
@@ -390,6 +445,9 @@ export async function reorderParticipants(formData: FormData): Promise<ActionRes
     const currentActorId = fd(formData, "currentActorId") || null;
 
     if (!combatId || !orderedIdsRaw) return { ok: false, error: "Missing required fields" };
+
+    const g = await guard(() => requireCombatDm(combatId));
+    if (!g.ok) return g;
 
     let orderedIds: unknown;
     try {

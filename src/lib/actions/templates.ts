@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { CharacterType } from "@prisma/client";
+import { requireCampaignDmAction, UnauthorizedError } from "@/lib/auth/action-guards";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -10,6 +11,20 @@ export type TemplateFormState = {
   error?:   string;
   success?: boolean;
 };
+
+// S2-0 — every mutation here is DM-only, on the campaign that owns the
+// template(s) being touched. The action-guards throw; this file answers with
+// form-state { error }, so the throw is adapted to that shape. A non-auth
+// error still propagates.
+async function requireDm(campaignId: string): Promise<TemplateFormState | null> {
+  try {
+    await requireCampaignDmAction(campaignId);
+    return null;
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { error: err.message };
+    throw err;
+  }
+}
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -44,6 +59,10 @@ export async function createTemplate(
   const campaignId      = formData.get("campaignId")?.toString();
 
   if (!campaignId)           return { error: "Missing campaignId" };
+
+  const denied = await requireDm(campaignId);
+  if (denied) return denied;
+
   if (!name)                 return { error: "Name is required" };
   if (!Object.values(CharacterType).includes(type))
                              return { error: "Invalid character type" };
@@ -78,6 +97,9 @@ export async function updateTemplate(
   const existing = await prisma.characterTemplate.findUnique({ where: { id } });
   if (!existing) return { error: "Template not found" };
 
+  const denied = await requireDm(existing.campaignId);
+  if (denied) return denied;
+
   await prisma.characterTemplate.update({
     where: { id },
     data:  { name, maxHp, baseAc, initiativeBonus },
@@ -93,6 +115,15 @@ export async function updateTemplate(
 // ─── Delete ───────────────────────────────────────────────────────────────────
 
 export async function deleteTemplate(id: string): Promise<TemplateFormState> {
+  const template = await prisma.characterTemplate.findUnique({
+    where:  { id },
+    select: { campaignId: true },
+  });
+  if (!template) return { error: "Template not found" };
+
+  const denied = await requireDm(template.campaignId);
+  if (denied) return denied;
+
   // Block deletion if template is in any active or setup combat
   const activeParticipant = await prisma.combatParticipant.findFirst({
     where: {
@@ -121,12 +152,21 @@ export async function deleteTemplate(id: string): Promise<TemplateFormState> {
 // Long rest — restore all characters to maxHp
 export async function longRest(templateIds: string[]): Promise<TemplateFormState> {
   try {
-    // RestPanel only ever passes templates from a single campaign's list —
-    // any one of them gives us the campaignId to revalidate.
-    const first = await prisma.characterTemplate.findFirst({
+    // RestPanel sends a raw id list from a single campaign's roster, but the
+    // action can't trust that — every id must exist and resolve to one same
+    // campaign before we touch anything (S2-0).
+    const templates = await prisma.characterTemplate.findMany({
       where:  { id: { in: templateIds } },
-      select: { campaignId: true },
+      select: { id: true, campaignId: true },
     });
+    const campaignIds = new Set(templates.map((t) => t.campaignId));
+    if (templates.length !== templateIds.length || campaignIds.size !== 1) {
+      return { error: "Invalid template selection" };
+    }
+    const [campaignId] = [...campaignIds];
+
+    const denied = await requireDm(campaignId);
+    if (denied) return denied;
 
     await prisma.$transaction(
       templateIds.map((id) =>
@@ -136,7 +176,7 @@ export async function longRest(templateIds: string[]): Promise<TemplateFormState
         })
       )
     );
-    if (first) revalidatePath(`/campaigns/${first.campaignId}/templates`);
+    revalidatePath(`/campaigns/${campaignId}/templates`);
     return { success: true };
   } catch {
     return { error: "Failed to apply long rest" };
@@ -148,9 +188,18 @@ export async function shortRest(
   updates: { id: string; healAmount: number }[]
 ): Promise<TemplateFormState> {
   try {
+    const ids = updates.map((u) => u.id);
     const templates = await prisma.characterTemplate.findMany({
-      where: { id: { in: updates.map((u) => u.id) } },
+      where: { id: { in: ids } },
     });
+    const campaignIds = new Set(templates.map((t) => t.campaignId));
+    if (templates.length !== ids.length || campaignIds.size !== 1) {
+      return { error: "Invalid template selection" };
+    }
+    const [campaignId] = [...campaignIds];
+
+    const denied = await requireDm(campaignId);
+    if (denied) return denied;
 
     await prisma.$transaction(
       updates.map((u) => {
@@ -164,7 +213,7 @@ export async function shortRest(
         });
       })
     );
-    if (templates[0]) revalidatePath(`/campaigns/${templates[0].campaignId}/templates`);
+    revalidatePath(`/campaigns/${campaignId}/templates`);
     return { success: true };
   } catch {
     return { error: "Failed to apply short rest" };
