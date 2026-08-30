@@ -31,8 +31,7 @@ type CombatState = {
 
 type CombatActions = {
   // Derived
-  currentActor:          () => Participant | null;
-  consciousParticipants: () => Participant[];
+  currentActor: () => Participant | null;
 
   // Hydration — called once on page load
   hydrate: (data: {
@@ -79,9 +78,6 @@ export const useCombatStore = create<CombatState>((set, get) => ({
   _snapshot:        null,
 
   // ── Derived ───────────────────────────────────────────────────────────────
-
-  consciousParticipants: () =>
-    get().participants.filter((p) => p.isConscious),
 
   currentActor: () => {
     const { participants, currentTurnIndex } = get();

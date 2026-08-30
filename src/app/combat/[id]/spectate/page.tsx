@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getCombatDetail } from "@/lib/actions/queries/combat";
 import { mapCombatDetail } from "@/lib/actions/mappers/combat";
+import { computeCurrentActor } from "@/domain/combat/rules";
 import { SpectateView } from "@/components/combat/SpectateView";
 
 // D12 — authorization no longer depends on the player_participant_id /
@@ -50,10 +51,14 @@ export default async function SpectatePage({
   const combat = mapCombatDetail(combatRow);
   const isFinished = combat.status === "FINISHED";
 
-  // NOTE: intentionally indexes by isConscious rather than the canonical
-  // domain.combat.rules turn order (pre-existing behavior, kept as-is).
-  const conscious = combat.participants.filter((p) => p.isConscious);
-  const current   = conscious[combat.currentTurnIndex] ?? null;
+  // S2-12 — single source of truth for "whose turn is it": the same
+  // computeCurrentActor the DM panel (CombatView) and the store use.
+  // currentTurnIndex is an index into the death-save-active order
+  // (deathSaveFailures < 3), not a conscious-only list — an unconscious-but-
+  // not-dead combatant keeps its slot (that turn is when its death save is
+  // rolled). This screen used to filter by isConscious, which drifted from
+  // the panel whenever someone was down but not dead.
+  const current = computeCurrentActor(combat.participants, combat.currentTurnIndex);
 
   return (
     <div className="mx-auto max-w-lg px-6 py-10">

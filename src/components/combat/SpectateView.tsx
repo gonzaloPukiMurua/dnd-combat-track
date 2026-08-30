@@ -56,6 +56,11 @@ export function SpectateView({
 }: Props) {
   const router = useRouter();
   const isMyTurn = !isFinished && currentActorId !== null && currentActorId === playerParticipantId;
+  // S2-12 — the turn order keeps unconscious-but-not-dead combatants in their
+  // slot; their turn is the cue to roll a death save, not to act. Say so
+  // instead of a bare "Es tu turno".
+  const myParticipant = combat.participants.find((p) => p.id === playerParticipantId) ?? null;
+  const myTurnIsDeathSave = isMyTurn && myParticipant !== null && !myParticipant.isConscious;
 
   return (
     <div className="space-y-4 pb-8">
@@ -75,7 +80,9 @@ export function SpectateView({
       {/* Turn banner — only when it's this viewer's own character's turn */}
       {isMyTurn && (
         <div className="w-full bg-gothic-success-bg text-gothic-success-text px-4 py-2.5 rounded-gothic-sm flex items-center justify-center gap-2 shadow-[inset_0_-1px_0_rgba(255,255,255,0.1)]">
-          <span className="font-gothic-headline text-sm uppercase tracking-widest font-semibold">Es tu turno</span>
+          <span className="font-gothic-headline text-sm uppercase tracking-widest font-semibold">
+            {myTurnIsDeathSave ? "Es tu turno — tirá tu salvación de muerte" : "Es tu turno"}
+          </span>
         </div>
       )}
 

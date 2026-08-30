@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getBaseUrl } from "@/lib/utils/url";
+import { computeCurrentActor } from "@/domain/combat/rules";
 
 // Session is enforced by src/proxy.ts (matcher covers "/campaigns/:path*").
 // Membership is enforced by the API itself (403 NOT_A_MEMBER) — mapped to a
@@ -10,7 +11,11 @@ import { getBaseUrl } from "@/lib/utils/url";
 type CombatSummary = { id: string; name: string; status: "SETUP" | "ACTIVE" | "FINISHED"; round: number };
 type ActiveCombat = CombatSummary & {
   currentTurnIndex: number;
-  participants: { id: string; displayName: string }[];
+  // turnOrder + deathSaveFailures are needed to resolve the current actor the
+  // same way the combat screens do (computeCurrentActor). The API already
+  // returns the full participant rows (COMBAT_DETAIL_INCLUDE) — this type was
+  // just under-declaring them.
+  participants: { id: string; displayName: string; turnOrder: number; deathSaveFailures: number }[];
 };
 
 type HubData = {
@@ -85,7 +90,10 @@ function StatusBlock({ data }: { data: HubData }) {
 }
 
 function ActiveCombatCard({ combat, role }: { combat: ActiveCombat; role: "DM" | "PLAYER" }) {
-  const currentTurn = combat.participants[combat.currentTurnIndex] ?? null;
+  // S2-12 — resolve the actor through the shared rule, not a raw index:
+  // currentTurnIndex counts positions in the death-save-active order, so a
+  // dead combatant earlier in the list would otherwise shift this by one.
+  const currentTurn = computeCurrentActor(combat.participants, combat.currentTurnIndex);
   const isSetup = combat.status === "SETUP";
 
   const href =
