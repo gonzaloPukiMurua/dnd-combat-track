@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import Link from "next/link";
 import { createCampaign, type CreateCampaignState } from "@/lib/actions/campaigns";
+import { InviteCodeChip } from "@/components/campaigns/InviteCodeChip";
 
 const INITIAL: CreateCampaignState = {};
 
@@ -73,19 +74,6 @@ export default function NewCampaignPage() {
 }
 
 function CampaignCreated({ campaign }: { campaign: { id: string; name: string; inviteCode: string } }) {
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(campaign.inviteCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard API unavailable (e.g. insecure context) — the code is
-      // still fully visible and select-all'able, nothing else to fall back to.
-    }
-  }
-
   return (
     <div className="flex flex-col items-center gap-6 text-center">
       <div className="flex flex-col items-center gap-2">
@@ -97,37 +85,14 @@ function CampaignCreated({ campaign }: { campaign: { id: string; name: string; i
         </p>
       </div>
 
-      <div className="w-full space-y-1">
-        <p className="pl-1 text-left text-xs font-medium uppercase tracking-widest text-gothic-on-surface-variant">
-          Código de invitación
-        </p>
-        <div className="flex w-full items-center justify-center rounded-gothic-sm bg-gothic-surface-low p-6 ring-1 ring-gothic-outline-variant shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]">
-          <span className="select-all font-gothic-data text-4xl tracking-[0.3em] text-gothic-primary">
-            {campaign.inviteCode}
-          </span>
-        </div>
-      </div>
+      <InviteCodeChip code={campaign.inviteCode} size="lg" label="Código de invitación" />
 
-      <div className="flex w-full flex-col gap-3">
-        <button
-          type="button"
-          onClick={handleCopy}
-          className={`h-12 w-full rounded-gothic-sm font-gothic-body text-sm font-semibold shadow-[inset_0_1px_0px_rgba(255,255,255,0.4),0_2px_4px_rgba(0,0,0,0.2)] transition-all active:scale-[0.98] ${
-            copied
-              ? "bg-gothic-success-bg text-gothic-success-text"
-              : "bg-gothic-primary text-gothic-on-primary hover:bg-gothic-brass-bright"
-          }`}
-        >
-          {copied ? "¡Copiado!" : "Copiar código"}
-        </button>
-
-        <Link
-          href={`/campaigns/${campaign.id}`}
-          className="text-sm text-gothic-on-surface-variant underline decoration-gothic-outline-variant underline-offset-4 transition-colors hover:text-gothic-primary hover:decoration-gothic-primary"
-        >
-          Continuar a mi campaña →
-        </Link>
-      </div>
+      <Link
+        href={`/campaigns/${campaign.id}`}
+        className="text-sm text-gothic-on-surface-variant underline decoration-gothic-outline-variant underline-offset-4 transition-colors hover:text-gothic-primary hover:decoration-gothic-primary"
+      >
+        Continuar a mi campaña →
+      </Link>
     </div>
   );
 }

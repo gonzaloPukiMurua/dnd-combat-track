@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getBaseUrl } from "@/lib/utils/url";
 import { computeCurrentActor } from "@/domain/combat/rules";
+import { InviteCodeChip } from "@/components/campaigns/InviteCodeChip";
 
 // Session is enforced by src/proxy.ts (matcher covers "/campaigns/:path*").
 // Membership is enforced by the API itself (403 NOT_A_MEMBER) — mapped to a
@@ -209,13 +210,39 @@ export default async function CampaignHubPage({ params }: { params: Promise<{ id
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="font-gothic-headline text-gothic-headline-sm text-gothic-primary">{data.campaign.name}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-gothic-headline text-gothic-headline-sm text-gothic-primary">{data.campaign.name}</h1>
+          {/* S2-3 — edit is DM-only; kept by the title, separate from
+              DmQuickAccess (that section is Personajes/Grupos/Nuevo combate). */}
+          {data.role === "DM" && (
+            <Link
+              href={`/campaigns/${data.campaign.id}/edit`}
+              className="mt-1 shrink-0 text-xs uppercase tracking-widest text-gothic-on-surface-variant underline decoration-gothic-outline-variant underline-offset-4 transition-colors hover:text-gothic-primary hover:decoration-gothic-primary"
+            >
+              Editar
+            </Link>
+          )}
+        </div>
         {data.campaign.description && (
           <p className="text-sm text-gothic-on-surface-variant">{data.campaign.description}</p>
         )}
       </div>
 
       <StatusBlock data={data} />
+
+      {/* S2-4 — invite code on the hub (DM only), not just the D5 post-creation
+          screen. Same DM gate as DmQuickAccess below. */}
+      {data.role === "DM" && data.campaign.inviteCode && (
+        <section className="flex flex-col gap-2 rounded-gothic-sm bg-gothic-surface-low p-4 ring-1 ring-gothic-outline-variant">
+          <span className="text-xs uppercase tracking-widest text-gothic-on-surface-variant">
+            Código de invitación
+          </span>
+          <InviteCodeChip code={data.campaign.inviteCode} size="sm" />
+          <p className="text-xs text-gothic-on-surface-variant/80">
+            Compartilo para sumar jugadores. No vence.
+          </p>
+        </section>
+      )}
 
       {data.activeCombat ? (
         <ActiveCombatCard combat={data.activeCombat} role={data.role} />

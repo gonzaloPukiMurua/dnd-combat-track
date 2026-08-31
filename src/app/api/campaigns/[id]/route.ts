@@ -87,3 +87,42 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     ...(isDM ? {} : { ownCharacter }),
   });
 }
+
+// ─── S2-3 — Edit campaign (DM-only) ─────────────────────────────────────────
+// Same inline guard shape as the GET above, plus a role check: a non-DM
+// member gets 403 NOT_DM (consistent with NOT_A_MEMBER). Only name and
+// description are editable.
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
+
+  const { id: campaignId } = await params;
+
+  const membership = await prisma.campaignMember.findUnique({
+    where: { userId_campaignId: { userId, campaignId } },
+  });
+  if (!membership) return NextResponse.json({ error: "NOT_A_MEMBER" }, { status: 403 });
+  if (membership.role !== "DM") return NextResponse.json({ error: "NOT_DM" }, { status: 403 });
+
+  const body = await request.json().catch(() => null);
+  const name = typeof body?.name === "string" ? body.name.trim() : "";
+  const description = typeof body?.description === "string" ? body.description.trim() : "";
+
+  if (!name) return NextResponse.json({ error: "NAME_REQUIRED" }, { status: 400 });
+
+  const campaign = await prisma.campaign.update({
+    where: { id: campaignId },
+    data: { name, description: description || null },
+  });
+
+  return NextResponse.json({
+    campaign: {
+      id: campaign.id,
+      name: campaign.name,
+      description: campaign.description,
+      createdAt: campaign.createdAt,
+      inviteCode: campaign.inviteCode,
+    },
+  });
+}

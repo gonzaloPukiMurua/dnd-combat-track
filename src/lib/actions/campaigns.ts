@@ -1,6 +1,9 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { requireCampaignDmAction, UnauthorizedError } from "@/lib/auth/action-guards";
 import { getBaseUrl } from "@/lib/utils/url";
 
 export type CreateCampaignState = {
@@ -37,6 +40,51 @@ export async function createCampaign(
 
   const data: { campaign: { id: string; name: string; inviteCode: string } } = await res.json();
   return { campaign: data.campaign };
+}
+
+export type UpdateCampaignState = {
+  error?: string;
+};
+
+// S2-3 — edit campaign (DM-only).
+//
+// Deviation from the plan (which asked for the createCampaign pattern: a thin
+// action that fetches its own API route). That pattern deadlocked the dev
+// server under the e2e run — a Server Action's fetch back to an own-origin
+// route handler competes for the same limited request workers, and stacking
+// it with the hub's and the edit page's self-fetches exhausted the pool.
+// This writes through Prisma with requireCampaignDmAction instead — exactly
+// what the templates.ts / groups.ts DM-only mutations already do (S2-0). The
+// PATCH route in api/campaigns/[id]/route.ts still exists as the documented
+// REST endpoint; the action just doesn't proxy through it. On success it
+// redirects to the hub from the server, the same way the templates edit
+// flow does, rather than returning a flag for the client to navigate on.
+export async function updateCampaign(
+  _prevState: UpdateCampaignState,
+  formData: FormData
+): Promise<UpdateCampaignState> {
+  const campaignId = formData.get("campaignId")?.toString();
+  const name = formData.get("name")?.toString().trim();
+  const description = formData.get("description")?.toString().trim();
+
+  if (!campaignId) return { error: "Falta el id de la campaña." };
+  if (!name) return { error: "El nombre es obligatorio" };
+
+  try {
+    await requireCampaignDmAction(campaignId);
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return { error: "No tenés permiso para editar esta campaña." };
+    }
+    throw error;
+  }
+
+  await prisma.campaign.update({
+    where: { id: campaignId },
+    data: { name, description: description || null },
+  });
+
+  redirect(`/campaigns/${campaignId}`);
 }
 
 export type JoinCampaignState = {
