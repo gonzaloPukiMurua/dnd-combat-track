@@ -30,6 +30,7 @@ type ParticipantContext = {
   campaignId: string;
   membership: CampaignMember;
 };
+type TemplateOwnerContext = { templateId: string; campaignId: string; ownerId: string };
 
 // ─── Primitives ──────────────────────────────────────────────────────────────
 
@@ -113,6 +114,24 @@ export async function requireParticipantAccess(participantId: string): Promise<P
   }
 
   return { participantId: participant.id, combatId: participant.combatId, campaignId, membership };
+}
+
+// ─── Template-owner-scoped ───────────────────────────────────────────────────
+
+// S2-6 — for data that belongs to the player who owns the character, not to
+// the DM who manages the campaign: the free-text `notes` field. Being DM of
+// the campaign is deliberately NOT enough — a player's notes are personal.
+// The only pass is CharacterTemplate.ownerId === current user.
+export async function requireTemplateOwner(templateId: string): Promise<TemplateOwnerContext> {
+  const userId = await requireUserId();
+
+  const template = await prisma.characterTemplate.findUnique({
+    where: { id: templateId },
+    select: { id: true, campaignId: true, ownerId: true },
+  });
+  if (!template || template.ownerId !== userId) throw new UnauthorizedError();
+
+  return { templateId: template.id, campaignId: template.campaignId, ownerId: userId };
 }
 
 // DM-only variant, for controls that share a component with the player view

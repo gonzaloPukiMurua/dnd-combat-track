@@ -108,6 +108,10 @@ model CharacterTemplate {
   wis              Int           @default(10)
   cha              Int           @default(10)
   exhaustionLevel  Int           @default(0)
+  // S2-6 — free text the player owner edits from /campaigns/[id]/character.
+  // NPC/monster templates (ownerId null) just leave this null. Length is
+  // capped in the Server Action, not the DB.
+  notes            String?
   createdAt        DateTime      @default(now())
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)

@@ -82,6 +82,13 @@ function StatusBlock({ data }: { data: HubData }) {
             <StatBox label="PV" value={`${character.currentHp ?? character.maxHp}/${character.maxHp}`} />
             <StatBox label="CA" value={String(character.baseAc)} />
           </div>
+          {/* S2-6 — full read-only sheet + editable notes for the owner. */}
+          <Link
+            href={`/campaigns/${data.campaign.id}/character`}
+            className="text-xs uppercase tracking-widest text-gothic-on-surface-variant underline decoration-gothic-outline-variant underline-offset-4 transition-colors hover:text-gothic-primary hover:decoration-gothic-primary"
+          >
+            Ver ficha completa →
+          </Link>
         </>
       ) : (
         <p className="text-sm text-gothic-on-surface-variant">No se encontró un personaje asignado.</p>
