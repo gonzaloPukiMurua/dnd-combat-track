@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { signIn } from "@/auth";
+import { redirect } from "next/navigation";
+import { auth, signIn } from "@/auth";
 import { registerWithPassword } from "@/lib/actions/auth";
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -19,6 +20,11 @@ export default async function RegisterPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // S2-10 — spec-tecnico §3: an already-authenticated user goes straight to
+  // /campaigns. proxy.ts only does this for "/", not /login|/register.
+  const session = await auth();
+  if (session?.user?.id) redirect("/campaigns");
+
   const params = await searchParams;
   const error = typeof params.error === "string" ? ERROR_MESSAGES[params.error] : undefined;
 
