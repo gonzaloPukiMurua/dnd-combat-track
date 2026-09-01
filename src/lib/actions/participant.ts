@@ -82,7 +82,7 @@ export async function dealDamage(formData: FormData): Promise<ActionResult> {
           actorId,
           targetId,
           amount:   rawAmount,
-          note:     !isConscious ? `${target.displayName} fell unconscious` : null,
+          note:     !isConscious ? `${target.displayName} cayó inconsciente` : null,
         },
       }),
     ]);
@@ -137,7 +137,7 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
           targetId,
           amount:   rawAmount,
           note:     healed.regainedConsciousness
-            ? `${target.displayName} regained consciousness`
+            ? `${target.displayName} recuperó la consciencia`
             : null,
         },
       }),
@@ -215,7 +215,7 @@ export async function addCondition(formData: FormData): Promise<ActionResult> {
           round:    target.combat.round,
           type:     "CONDITION_ADDED",
           targetId,
-          note:     `${target.displayName} gained condition: ${conditionName}`,
+          note:     `${target.displayName} recibió la condición: ${conditionName}`,
         },
       }),
     ]);
@@ -259,7 +259,7 @@ export async function removeCondition(formData: FormData): Promise<ActionResult>
           round:    target.combat.round,
           type:     "CONDITION_REMOVED",
           targetId,
-          note:     `${target.displayName} lost condition: ${conditionName}`,
+          note:     `${target.displayName} perdió la condición: ${conditionName}`,
         },
       }),
     ]);
@@ -391,11 +391,11 @@ export async function recordDeathSave(formData: FormData): Promise<ActionResult>
 
     const note = result === "success"
       ? isStabilized
-        ? `${target.displayName} is stabilized`
-        : `${target.displayName} death save success (${deathSaveSuccesses}/3)`
+        ? `${target.displayName} se estabilizó`
+        : `${target.displayName} superó una salvación de muerte (${deathSaveSuccesses}/3)`
       : deathSaveFailures >= 3
-        ? `${target.displayName} has died (3 failed death saves)`
-        : `${target.displayName} death save failure (${deathSaveFailures}/3)`;
+        ? `${target.displayName} murió (3 salvaciones de muerte fallidas)`
+        : `${target.displayName} falló una salvación de muerte (${deathSaveFailures}/3)`;
 
     await prisma.$transaction([
       prisma.combatParticipant.update({
