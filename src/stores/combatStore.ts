@@ -9,6 +9,7 @@ import {
   applyDeathSave as ruleApplyDeathSave,
   computeCurrentActor,
   computeAdvanceTurn,
+  computeTurnOrder,
   relocateCurrentActor,
 } from "@/domain/combat/rules";
 
@@ -50,6 +51,7 @@ type CombatActions = {
   toggleAction:              (targetId: string, field: "actionUsed" | "bonusUsed" | "reactionUsed") => void;
   advanceTurnOptimistic:     () => void;
   reorderParticipantsOptimistic: (orderedIds: string[]) => void;
+  setParticipantInitiativeOptimistic: (participantId: string, initiative: number) => void;
   applyDeathSave:            (targetId: string, result: "success" | "failure") => void;
   appendLog:                 (entry: LogEntry) => void;
 
@@ -187,6 +189,40 @@ export const useCombatStore = create<CombatState>((set, get) => ({
     const participants = [...reordered, ...missing];
 
     const currentTurnIndex = relocateCurrentActor(participants, currentActorId, state.currentTurnIndex);
+
+    return { participants, currentTurnIndex };
+  }),
+
+  // S2-9 — mirror of setParticipantInitiative: set one initiative, then rebuild
+  // turnOrder for everyone via the shared rule and rebuild the array in that
+  // order (the list renders in array order). Keeps the current actor's slot.
+  setParticipantInitiativeOptimistic: (participantId, initiative) => set((state) => {
+    const currentActorId =
+      computeCurrentActor(state.participants, state.currentTurnIndex)?.id ?? null;
+
+    const orderById = new Map(
+      computeTurnOrder(
+        state.participants.map((p) => ({
+          id:              p.id,
+          initiative:      p.id === participantId ? initiative : p.initiative,
+          initiativeBonus: p.template.initiativeBonus,
+        }))
+      ).map((t) => [t.id, t.turnOrder])
+    );
+
+    const participants = state.participants
+      .map((p) => ({
+        ...p,
+        initiative: p.id === participantId ? initiative : p.initiative,
+        turnOrder:  orderById.get(p.id) ?? p.turnOrder,
+      }))
+      .sort((a, b) => a.turnOrder - b.turnOrder);
+
+    const currentTurnIndex = relocateCurrentActor(
+      participants,
+      currentActorId,
+      state.currentTurnIndex
+    );
 
     return { participants, currentTurnIndex };
   }),

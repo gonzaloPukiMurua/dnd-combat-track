@@ -109,6 +109,7 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
               allParticipants={participantSummaries}
               globalMutating={isMutating}
               canDrag={status === "ACTIVE"}
+              isActive={status === "ACTIVE"}
               onDropParticipant={handleDropParticipant}
               logs={logs}
             />
@@ -125,6 +126,7 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
         <AddParticipantMidCombat
           combatId={combatId}
           templates={templates}
+          isActive={status === "ACTIVE"}
         />
       )}
       {/* ── Combat log ──────────────────────────────────────────── */}

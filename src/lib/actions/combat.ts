@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { generateJoinCode } from "@/lib/utils/combat";
-import { computeAdvanceTurn } from "@/domain/combat/rules";
+import {
+  computeAdvanceTurn,
+  computeCurrentActor,
+  computeTurnOrder,
+  relocateCurrentActor,
+} from "@/domain/combat/rules";
 import {
   requireCampaignDmAction,
   requireCombatDm,
@@ -82,9 +87,17 @@ export async function startCombatFromGroup(groupId: string) {
   redirect(`/combat/${combat.id}/setup`);
 }
 
-// ─── Add participant to a SETUP combat ───────────────────────────────────────
+// ─── Add participant ────────────────────────────────────────────────────────
+// Used both from /setup (pre-combat — initiative 0 is fine, startCombat rolls
+// it) and from AddParticipantMidCombat while ACTIVE. New rows are created at
+// initiative 0 and turnOrder = end-of-list (never 0 — a turnOrder collision
+// with the participant going first would corrupt the current-actor lookup
+// before setParticipantInitiative even runs). On /setup that turnOrder is
+// cosmetic (startCombat recomputes); mid-combat the caller follows up with
+// setParticipantInitiative (S2-9) to slot the newcomer in properly. Returns
+// the created participant ids for that follow-up call.
 
-export async function addParticipant(formData: FormData) {
+export async function addParticipant(formData: FormData): Promise<string[]> {
   const combatId   = formData.get("combatId")?.toString();
   const templateId = formData.get("templateId")?.toString();
   const quantity   = Number(formData.get("quantity") ?? 1);
@@ -103,10 +116,11 @@ export async function addParticipant(formData: FormData) {
   if (template.campaignId !== combat.campaignId) throw new Error("Template belongs to a different campaign");
   if (combat.status === "FINISHED") throw new Error("Cannot add participants after combat has started");
 
-  // Count existing participants with this template to generate correct suffix
-  const existing = await prisma.combatParticipant.count({
-    where: { combatId, templateId },
-  });
+  // Per-template count → suffix; total count → a non-colliding turnOrder base.
+  const [existing, totalExisting] = await Promise.all([
+    prisma.combatParticipant.count({ where: { combatId, templateId } }),
+    prisma.combatParticipant.count({ where: { combatId } }),
+  ]);
 
   // Create one participant per quantity
   const data = Array.from({ length: quantity }, (_, i) => {
@@ -130,16 +144,21 @@ export async function addParticipant(formData: FormData) {
       wis:              template.wis,
       cha:              template.cha,
       initiative:  0,
-      turnOrder:   0,
+      turnOrder:   totalExisting + i,
       acModifiers: [],
       conditions:  [],
       isConscious: true,
     };
   });
 
-  await prisma.combatParticipant.createMany({ data });
+  // create-per-row (not createMany) so we can hand the ids back to the
+  // mid-combat caller — createMany doesn't return the created records.
+  const created = await prisma.$transaction(
+    data.map((d) => prisma.combatParticipant.create({ data: d, select: { id: true } }))
+  );
 
   revalidatePath(`/combat/${combatId}/setup`);
+  return created.map((c) => c.id);
 }
 
 // ─── Remove participant from SETUP combat ────────────────────────────────────
@@ -189,25 +208,25 @@ export async function startCombat(formData: FormData) {
   if (combat.participants.length === 0) throw new Error("Add at least one participant before starting");
 
   // Read each die roll from formData — field names are "roll_<participantId>"
-  const withInitiative = combat.participants.map((p) => {
-    const dieRoll = Number(formData.get(`roll_${p.id}`) ?? 0);
-    const initiative = dieRoll + p.template.initiativeBonus;
-    return { participant: p, dieRoll, initiative };
-  });
+  const withInitiative = combat.participants.map((p) => ({
+    id:              p.id,
+    initiative:      Number(formData.get(`roll_${p.id}`) ?? 0) + p.template.initiativeBonus,
+    initiativeBonus: p.template.initiativeBonus,
+  }));
 
-  // Sort descending by initiative; ties broken by initiativeBonus (higher bonus wins)
-  withInitiative.sort((a, b) => {
-    if (b.initiative !== a.initiative) return b.initiative - a.initiative;
-    return b.participant.template.initiativeBonus - a.participant.template.initiativeBonus;
-  });
+  // Turn order via the shared rule (initiative desc, ties by initiativeBonus) —
+  // same function setParticipantInitiative uses for late edits.
+  const orderById = new Map(
+    computeTurnOrder(withInitiative).map((t) => [t.id, t.turnOrder])
+  );
 
   // Persist initiative values and turn order in a transaction
   await prisma.$transaction([
     // Update each participant
-    ...withInitiative.map(({ participant, initiative }, index) =>
+    ...withInitiative.map((p) =>
       prisma.combatParticipant.update({
-        where: { id: participant.id },
-        data:  { initiative, turnOrder: index },
+        where: { id: p.id },
+        data:  { initiative: p.initiative, turnOrder: orderById.get(p.id)! },
       })
     ),
     // Flip combat to ACTIVE, start at round 1, first participant's turn
@@ -223,6 +242,99 @@ export async function startCombat(formData: FormData) {
   ]);
 
   redirect(`/combat/${combatId}`);
+}
+
+// ─── S2-9 — set / correct a participant's initiative during ACTIVE combat ────
+//
+// The d20-roll inputs only live on /setup, so anyone added (or mistyped) after
+// combat started was stuck at initiative 0 with no way to fix it. This sets a
+// raw initiative for one participant and then recomputes turnOrder for the
+// WHOLE combat from scratch via computeTurnOrder (same criterion as
+// startCombat) — never a local insert/shift. currentTurnIndex is relocated to
+// keep pointing at whoever is actually acting, like reorderParticipants does.
+
+export async function setParticipantInitiative(
+  participantId: string,
+  initiative: number
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    if (!Number.isInteger(initiative)) {
+      return { ok: false, error: "Initiative must be a whole number" };
+    }
+
+    const participant = await prisma.combatParticipant.findUnique({
+      where:  { id: participantId },
+      select: { combatId: true },
+    });
+    if (!participant) return { ok: false, error: "Participant not found" };
+
+    await requireCombatDm(participant.combatId);
+
+    const combat = await prisma.combat.findUnique({
+      where:   { id: participant.combatId },
+      include: {
+        participants: { include: { template: { select: { initiativeBonus: true } } } },
+      },
+    });
+    if (!combat) return { ok: false, error: "Combat not found" };
+    if (combat.status !== "ACTIVE") {
+      return { ok: false, error: "Initiative can only be set while the combat is active" };
+    }
+
+    // Who is acting right now — resolved before the reshuffle so the turn
+    // index can follow them into the new order rather than a stale slot.
+    const currentActorId = computeCurrentActor(
+      combat.participants.map((p) => ({
+        id:                p.id,
+        turnOrder:         p.turnOrder,
+        deathSaveFailures: p.deathSaveFailures,
+      })),
+      combat.currentTurnIndex
+    )?.id ?? null;
+
+    const order = computeTurnOrder(
+      combat.participants.map((p) => ({
+        id:              p.id,
+        initiative:      p.id === participantId ? initiative : p.initiative,
+        initiativeBonus: p.template.initiativeBonus,
+      }))
+    );
+    const orderById = new Map(order.map((t) => [t.id, t.turnOrder]));
+
+    const currentTurnIndex = relocateCurrentActor(
+      combat.participants.map((p) => ({
+        id:                p.id,
+        turnOrder:         orderById.get(p.id)!,
+        deathSaveFailures: p.deathSaveFailures,
+      })),
+      currentActorId,
+      combat.currentTurnIndex
+    );
+
+    await prisma.$transaction([
+      ...order.map((t) =>
+        prisma.combatParticipant.update({
+          where: { id: t.id },
+          data:
+            t.id === participantId
+              ? { turnOrder: t.turnOrder, initiative }
+              : { turnOrder: t.turnOrder },
+        })
+      ),
+      prisma.combat.update({
+        where: { id: participant.combatId },
+        data:  { currentTurnIndex },
+      }),
+    ]);
+
+    revalidatePath(`/combat/${participant.combatId}`);
+    revalidatePath(`/combat/${participant.combatId}/spectate`);
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { ok: false, error: err.message };
+    console.error("[setParticipantInitiative]", err);
+    return { ok: false, error: "Failed to set initiative. Please try again." };
+  }
 }
 
 // ─── Advance to next turn ────────────────────────────────────────────────────

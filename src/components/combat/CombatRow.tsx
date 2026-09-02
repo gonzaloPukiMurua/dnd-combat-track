@@ -14,25 +14,27 @@ import { TempHpControls } from "@/components/ui/TempHpControls";
 import { CombatantNameRow } from "./CombatNameRow";
 import type { LogEntry } from "@/domain/combat/types";
 import {
-  dealDamage, 
-  healParticipant, 
+  dealDamage,
+  healParticipant,
   setTempHp,
-  addCondition, 
-  removeCondition, 
+  addCondition,
+  removeCondition,
   toggleActionState,
 } from "@/lib/actions/participant";
+import { setParticipantInitiative } from "@/lib/actions/combat";
 import { makeFormData } from "@/lib/utils/formData";
 import { TYPE_ACCENT, computeAcTotal } from "@/domain/combat/selectors";
 import { ParticipantSummary } from "@/domain/combat/types";
 
 function CombatantRowBase({
   participant: p, combatId, isCurrentTurn, isFinished,
-  round, allParticipants, globalMutating, canDrag, onDropParticipant, logs,
+  round, allParticipants, globalMutating, canDrag, isActive, onDropParticipant, logs,
 }: {
   participant: Participant; combatId: string;
   isCurrentTurn: boolean; isFinished: boolean; round: number;
   allParticipants: ParticipantSummary[]; globalMutating: boolean;
-  canDrag?: boolean; onDropParticipant?: (draggedId: string, targetId: string) => void;
+  canDrag?: boolean; isActive?: boolean;
+  onDropParticipant?: (draggedId: string, targetId: string) => void;
   logs: LogEntry[];
 }) {
 
@@ -43,6 +45,7 @@ function CombatantRowBase({
   const [tempAmount, setTempAmount] = useState("");
   const [condInput,  setCondInput]  = useState("");
   const [targetId,   setTargetId]   = useState(p.id);
+  const [initiativeDraft, setInitiativeDraft] = useState("");
   const acTotal  = computeAcTotal(p.baseAc, p.acModifiers);
   const isDead   = p.deathSaveFailures >= 3;
   const disabled = isMutating || globalMutating || isFinished;
@@ -105,6 +108,22 @@ function CombatantRowBase({
     mutate({
       optimistic: () => useCombatStore.getState().toggleAction(p.id, field),
       action: () => toggleActionState(makeFormData({ combatId, targetId: p.id, field })),
+    });
+  }
+
+  // S2-9 — DM can set/correct this participant's raw initiative at any point
+  // during ACTIVE combat (the d20 inputs only exist on /setup). The server
+  // recomputes turnOrder for the whole combat; the store mirrors it.
+  function handleSetInitiative() {
+    const n = parseInt(initiativeDraft, 10);
+    if (!Number.isInteger(n) || n === p.initiative) return;
+    mutate({
+      optimistic: () => useCombatStore.getState().setParticipantInitiativeOptimistic(p.id, n),
+      action: async () => {
+        const r = await setParticipantInitiative(p.id, n);
+        setInitiativeDraft("");
+        return r;
+      },
     });
   }
 
@@ -200,6 +219,34 @@ function CombatantRowBase({
 
           {/* D10 — ficha de combatiente */}
           <CombatantSheet participant={p} acTotal={acTotal} logs={logs} />
+
+          {/* S2-9 — initiative editor (DM, ACTIVE combat only) */}
+          {isActive && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs uppercase tracking-widest text-gothic-on-surface-variant">
+                Iniciativa
+              </span>
+              <span className="font-mono text-sm text-gothic-on-surface">{p.initiative}</span>
+              <input
+                type="number"
+                step={1}
+                value={initiativeDraft}
+                onChange={(e) => setInitiativeDraft(e.target.value)}
+                disabled={disabled}
+                placeholder="nueva"
+                aria-label={`Nueva iniciativa para ${p.displayName}`}
+                className="w-20 h-9 rounded-gothic-sm bg-gothic-surface ring-1 ring-gothic-outline-variant text-center text-sm font-mono text-gothic-on-surface outline-none focus:ring-gothic-primary transition-all"
+              />
+              <button
+                type="button"
+                onClick={handleSetInitiative}
+                disabled={disabled || initiativeDraft.trim() === ""}
+                className="h-9 px-3 rounded-gothic-sm bg-gothic-primary text-gothic-on-primary text-sm font-semibold hover:bg-gothic-brass-bright disabled:opacity-40 transition-colors"
+              >
+                Fijar
+              </button>
+            </div>
+          )}
 
           {/* Action trackers */}
           <ActionTracker

@@ -98,7 +98,16 @@ export default async function CombatSetupPage({
             </Link>
           </div>
         ) : (
-          <form action={addParticipant} className="flex gap-2">
+          <form
+            action={async (fd) => {
+              "use server";
+              // addParticipant returns the new ids (for the mid-combat flow);
+              // on /setup we don't need them — discard so the form action type
+              // stays () => Promise<void>.
+              await addParticipant(fd);
+            }}
+            className="flex gap-2"
+          >
             <input type="hidden" name="combatId" value={combat.id} />
             <select name="templateId" className={selectClass}>
               {templates.map((t) => (

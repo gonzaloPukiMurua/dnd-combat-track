@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { addParticipant } from "@/lib/actions/combat";
+import { addParticipant, setParticipantInitiative } from "@/lib/actions/combat";
 
 type Template = {
   id:    string;
@@ -15,11 +14,15 @@ type Template = {
 export function AddParticipantMidCombat({
   combatId,
   templates,
+  isActive,
 }: {
   combatId:  string;
   templates: Template[];
+  // S2-9 — true once the combat is ACTIVE. New participants are created at
+  // initiative 0, so while ACTIVE the DM must also give them an initiative
+  // here; startCombat handles the SETUP case on its own.
+  isActive:  boolean;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -42,10 +45,25 @@ export function AddParticipantMidCombat({
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
+        const rawInitiative = fd.get("initiative")?.toString().trim();
         startTransition(async () => {
-          await addParticipant(fd);
+          const newIds = await addParticipant(fd);
+          // While ACTIVE, slot every new participant into the turn order by
+          // the initiative the DM typed — the server recomputes turnOrder for
+          // the whole combat each call.
+          if (isActive && rawInitiative) {
+            const initiative = Number(rawInitiative);
+            if (Number.isInteger(initiative)) {
+              for (const id of newIds) {
+                await setParticipantInitiative(id, initiative);
+              }
+            }
+          }
           setOpen(false);
-          router.refresh();
+          // Full reload, not router.refresh(): the Zustand store hydrates once
+          // per combat id and won't pick up a new participant or the reshuffled
+          // turnOrder otherwise.
+          window.location.reload();
         });
       }}
       className="ring-1 ring-gothic-outline-variant rounded-gothic-md p-3 space-y-2 bg-gothic-surface-low"
@@ -71,6 +89,28 @@ export function AddParticipantMidCombat({
           className="w-14 rounded-gothic-sm px-2 h-10 text-center bg-gothic-surface-high text-gothic-on-surface ring-1 ring-gothic-outline-variant focus:outline-none focus:ring-gothic-primary"
         />
       </div>
+
+      {isActive && (
+        <div className="space-y-1">
+          <label className="flex items-center gap-2 text-xs text-gothic-on-surface-variant">
+            Iniciativa
+            <input
+              name="initiative"
+              type="number"
+              step={1}
+              required
+              placeholder="—"
+              aria-label="Iniciativa"
+              className="w-16 rounded-gothic-sm px-2 h-9 text-center bg-gothic-surface-high text-gothic-on-surface ring-1 ring-gothic-outline-variant focus:outline-none focus:ring-gothic-primary"
+            />
+          </label>
+          <p className="text-[11px] leading-tight text-gothic-on-surface-variant">
+            El combate ya empezó: esta iniciativa lo ubica en el orden de turnos (se
+            recalcula el orden de todos).
+          </p>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <button
           type="button"

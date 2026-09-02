@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/components/combat/CombatRow.tsx"
+        ],
+        "createdAt": "2026-09-02T01:14:56.772Z",
+        "reason": "pre-existing intentional design: border-l-4 on the combatant card encodes turn state (border-l-gothic-primary on current turn) and character type (TYPE_ACCENT); predates S2-9 and untouched by this change"
+      }
+    ]
+  }
+}

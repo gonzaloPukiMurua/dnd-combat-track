@@ -94,6 +94,31 @@ export function applyDeathSave(
   return { deathSaveSuccesses, deathSaveFailures, isStabilized };
 }
 
+// ─── Initiative → turn order ────────────────────────────────────────────────
+// Single source of truth for how an initiative list becomes a turn order:
+// sort by initiative descending, break ties by the template's initiativeBonus
+// (higher bonus goes first), then turnOrder = resulting index. Same-template
+// ties (equal bonus) fall back to JS's stable sort — no manual DM tiebreak.
+// Used by startCombat (initial d20 roll) and setParticipantInitiative (S2-9,
+// a late edit while ACTIVE) so both produce identical orderings.
+
+export type InitiativeParticipant = {
+  id: string;
+  initiative: number;
+  initiativeBonus: number;
+};
+
+export function computeTurnOrder<T extends InitiativeParticipant>(
+  participants: T[]
+): { id: string; turnOrder: number }[] {
+  return [...participants]
+    .sort((a, b) => {
+      if (b.initiative !== a.initiative) return b.initiative - a.initiative;
+      return b.initiativeBonus - a.initiativeBonus;
+    })
+    .map((p, index) => ({ id: p.id, turnOrder: index }));
+}
+
 // ─── Turn order ─────────────────────────────────────────────────────────────
 // Unconscious-but-not-dead participants stay in initiative; 3 failed death
 // saves removes them from the active rotation.
