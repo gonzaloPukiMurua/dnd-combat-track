@@ -48,3 +48,8 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Impeccable design detector — per-session hook cache.
+# .impeccable/config.json (persisted rule exceptions) stays tracked.
+.impeccable/*
+!.impeccable/config.json
