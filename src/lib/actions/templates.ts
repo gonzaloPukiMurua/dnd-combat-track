@@ -26,6 +26,54 @@ async function requireDm(campaignId: string): Promise<TemplateFormState | null> 
   }
 }
 
+// ─── Stat fields (S2-8) ───────────────────────────────────────────────────────
+
+// The character forms (CreateTemplateForm / the edit page) have always shown
+// inputs for these 8 fields, but createTemplate/updateTemplate used to drop
+// them silently — nothing else edits them, so the form was lying. Parse +
+// validate here, same shape as the maxHp/baseAc checks below: one specific
+// message per field, never a generic "invalid input".
+type StatFields = {
+  level:            number;
+  proficiencyBonus: number;
+  str:              number;
+  dex:              number;
+  con:              number;
+  int:              number;
+  wis:              number;
+  cha:              number;
+  exhaustionLevel:  number;
+};
+
+const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha"] as const;
+
+function parseStatFields(formData: FormData): StatFields | { error: string } {
+  const level            = Number(formData.get("level"));
+  const proficiencyBonus = Number(formData.get("proficiencyBonus"));
+  const exhaustionLevel  = Number(formData.get("exhaustionLevel"));
+
+  if (!Number.isInteger(level) || level < 1)
+    return { error: "Level must be a whole number of at least 1" };
+
+  // Homebrew rules can drive proficiency negative (a curse, an anti-magic
+  // field), so there's no minimum here — only the whole-number requirement.
+  if (!Number.isInteger(proficiencyBonus))
+    return { error: "Proficiency bonus must be a whole number" };
+
+  const abilities = {} as Record<(typeof ABILITY_KEYS)[number], number>;
+  for (const key of ABILITY_KEYS) {
+    const value = Number(formData.get(key));
+    if (!Number.isInteger(value) || value < 1 || value > 30)
+      return { error: `${key.toUpperCase()} must be a whole number between 1 and 30` };
+    abilities[key] = value;
+  }
+
+  if (!Number.isInteger(exhaustionLevel) || exhaustionLevel < 0 || exhaustionLevel > 6)
+    return { error: "Exhaustion level must be a whole number between 0 and 6" };
+
+  return { level, proficiencyBonus, exhaustionLevel, ...abilities };
+}
+
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 // Templates aren't portable between campaigns (spec-tecnico-etapa-1.md §2) —
@@ -69,8 +117,11 @@ export async function createTemplate(
   if (!maxHp || maxHp < 1)  return { error: "HP must be at least 1" };
   if (!baseAc || baseAc < 1) return { error: "AC must be at least 1" };
 
+  const stats = parseStatFields(formData);
+  if ("error" in stats) return stats;
+
   await prisma.characterTemplate.create({
-    data: { name, type, maxHp, baseAc, initiativeBonus, campaignId },
+    data: { name, type, maxHp, baseAc, initiativeBonus, campaignId, ...stats },
   });
 
   revalidatePath(`/campaigns/${campaignId}/templates`);
@@ -100,9 +151,12 @@ export async function updateTemplate(
   const denied = await requireDm(existing.campaignId);
   if (denied) return denied;
 
+  const stats = parseStatFields(formData);
+  if ("error" in stats) return stats;
+
   await prisma.characterTemplate.update({
     where: { id },
-    data:  { name, maxHp, baseAc, initiativeBonus },
+    data:  { name, maxHp, baseAc, initiativeBonus, ...stats },
     // Note: type is intentionally not updatable — changing a PC to a Monster
     // mid-campaign causes confusion. Create a new template instead.
   });
