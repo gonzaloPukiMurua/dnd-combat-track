@@ -31,3 +31,23 @@ export async function sendVerificationEmail(to: string, verificationUrl: string)
     throw new Error(`Resend: ${result.error.message}`);
   }
 }
+
+export async function sendPasswordResetEmail(to: string, resetUrl: string) {
+  const from = process.env.EMAIL_FROM;
+  if (!from) throw new Error("EMAIL_FROM is not set");
+
+  const result = await getClient().emails.send({
+    from,
+    to,
+    subject: "Recuperar contraseña — D&D Combat Tracker",
+    html: `
+      <p>Hacé click en el siguiente link para elegir una nueva contraseña:</p>
+      <p><a href="${resetUrl}">${resetUrl}</a></p>
+      <p>El link vence en 1 hora. Si no pediste este cambio, ignorá este email.</p>
+    `,
+  });
+
+  if (result.error) {
+    throw new Error(`Resend: ${result.error.message}`);
+  }
+}

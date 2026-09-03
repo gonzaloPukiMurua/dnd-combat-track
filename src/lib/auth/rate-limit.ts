@@ -11,3 +11,12 @@ export function canResendVerificationEmail(userId: string): boolean {
   lastSentAt.set(userId, Date.now());
   return true;
 }
+
+const lastResetRequestAt = new Map<string, number>();
+
+export function canRequestPasswordReset(userId: string): boolean {
+  const last = lastResetRequestAt.get(userId);
+  if (last !== undefined && Date.now() - last < COOLDOWN_MS) return false;
+  lastResetRequestAt.set(userId, Date.now());
+  return true;
+}

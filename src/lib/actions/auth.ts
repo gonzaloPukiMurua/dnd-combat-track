@@ -6,9 +6,14 @@ import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { signIn } from "@/auth";
-import { createEmailVerificationToken } from "@/lib/auth/tokens";
-import { canResendVerificationEmail } from "@/lib/auth/rate-limit";
-import { sendVerificationEmail } from "@/lib/email/resend";
+import {
+  createEmailVerificationToken,
+  createPasswordResetToken,
+  verifyPasswordResetToken,
+  unsafeDecodePasswordResetTokenUserId,
+} from "@/lib/auth/tokens";
+import { canResendVerificationEmail, canRequestPasswordReset } from "@/lib/auth/rate-limit";
+import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/email/resend";
 
 async function getBaseUrl(): Promise<string> {
   const h = await headers();
@@ -83,6 +88,72 @@ export async function resendVerificationEmail(formData: FormData) {
   }
 
   redirect("/login?resent=1");
+}
+
+// ─── Request password reset (rate-limited) ─────────────────────────────────
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = formData.get("email")?.toString().trim().toLowerCase();
+  if (!email) redirect("/forgot-password?error=missing");
+
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  // Don't reveal whether the account exists — same status either way.
+  if (!user) {
+    redirect("/forgot-password?sent=1");
+  }
+
+  if (!canRequestPasswordReset(user.id)) {
+    redirect("/forgot-password?sent=1");
+  }
+
+  try {
+    const baseUrl = await getBaseUrl();
+    const token = createPasswordResetToken(user.id, user.passwordHash);
+    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+    await sendPasswordResetEmail(user.email, resetUrl);
+  } catch (error) {
+    console.error("Failed to send password reset email:", error);
+    // Still don't reveal account existence via a different status.
+  }
+
+  redirect("/forgot-password?sent=1");
+}
+
+// ─── Reset password with token ──────────────────────────────────────────────
+
+export async function resetPassword(formData: FormData) {
+  const token = formData.get("token")?.toString();
+  const password = formData.get("password")?.toString();
+  const confirmPassword = formData.get("confirmPassword")?.toString();
+
+  if (!token) redirect("/forgot-password?error=invalid_token");
+  if (!password || !confirmPassword) {
+    redirect(`/reset-password?token=${token}&error=missing`);
+  }
+  if (password.length < 8) {
+    redirect(`/reset-password?token=${token}&error=weak_password`);
+  }
+  if (password !== confirmPassword) {
+    redirect(`/reset-password?token=${token}&error=mismatch`);
+  }
+
+  // The token is bound to userId + a fingerprint of the passwordHash active
+  // when it was issued, so we need the user's current passwordHash before we
+  // can verify it. unsafeDecodePasswordResetTokenUserId only reads the
+  // userId to find that candidate — verifyPasswordResetToken below still
+  // checks the signature before trusting anything about the token.
+  const candidateUserId = unsafeDecodePasswordResetTokenUserId(token);
+  const user = candidateUserId ? await prisma.user.findUnique({ where: { id: candidateUserId } }) : null;
+
+  if (!user || !verifyPasswordResetToken(token, user.passwordHash)) {
+    redirect("/forgot-password?error=invalid_token");
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+
+  redirect("/login?reset=success");
 }
 
 // ─── Login with email/password ─────────────────────────────────────────────

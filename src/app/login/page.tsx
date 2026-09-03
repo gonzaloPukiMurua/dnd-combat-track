@@ -13,6 +13,7 @@ const STATUS_MESSAGES: Record<string, { text: string; tone: "success" | "error" 
   "resent:failed":           { text: "No pudimos mandar el email. Probá de nuevo en un rato.", tone: "error" },
   "error:missing":           { text: "Completá email y contraseña.", tone: "error" },
   "error:invalid_credentials": { text: "Email o contraseña incorrectos.", tone: "error" },
+  "reset:success":           { text: "Contraseña actualizada. Iniciá sesión con la nueva.", tone: "success" },
 };
 
 const oauthButtonClass =
@@ -33,7 +34,7 @@ export default async function LoginPage({
 
   const params = await searchParams;
 
-  const status = ["registered", "verify", "resent", "error"]
+  const status = ["registered", "verify", "resent", "error", "reset"]
     .map((key) => {
       const value = params[key];
       return typeof value === "string" ? STATUS_MESSAGES[`${key}:${value}`] : undefined;
@@ -102,9 +103,17 @@ export default async function LoginPage({
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="password" className="pl-1 text-xs font-medium uppercase tracking-widest text-gothic-on-surface-variant">
-              Contraseña
-            </label>
+            <div className="flex items-center justify-between pl-1 pr-1">
+              <label htmlFor="password" className="text-xs font-medium uppercase tracking-widest text-gothic-on-surface-variant">
+                Contraseña
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-xs text-gothic-on-surface-variant underline decoration-gothic-outline-variant underline-offset-4 transition-colors hover:text-gothic-primary hover:decoration-gothic-primary"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"
