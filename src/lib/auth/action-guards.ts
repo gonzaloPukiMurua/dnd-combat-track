@@ -105,7 +105,12 @@ export async function requireParticipantAccess(participantId: string): Promise<P
   if (!membership) throw new UnauthorizedError();
 
   if (membership.role !== "DM") {
-    // Player — the participant must instantiate a template they own.
+    // Player — the participant must instantiate a template they own. A
+    // monster participant (templateId null, etapa-3-monstruos.md §5) has no
+    // player owner by construction, so it falls through to unauthorized here
+    // without a query — the same "only the DM can act on this" outcome NPCs
+    // without an ownerId already had.
+    if (!participant.templateId) throw new UnauthorizedError();
     const owned = await prisma.characterTemplate.findFirst({
       where: { id: participant.templateId, ownerId: userId },
       select: { id: true },

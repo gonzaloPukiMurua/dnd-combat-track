@@ -144,9 +144,13 @@ export default async function CombatSetupPage({
           {/* Participant rows — initiative inputs tied to start-form by id */}
           <div className="space-y-2">
             {combat.participants.map((p) => {
-              const bonus = p.template.initiativeBonus >= 0
-                ? `+${p.template.initiativeBonus}`
-                : `${p.template.initiativeBonus}`;
+              // etapa-3-monstruos.md: p.template is null for a monster-roster
+              // participant. addParticipant doesn't create those yet, so this
+              // fallback is unreachable today — just keeping the type honest.
+              const templateInitiativeBonus = p.template?.initiativeBonus ?? 0;
+              const bonus = templateInitiativeBonus >= 0
+                ? `+${templateInitiativeBonus}`
+                : `${templateInitiativeBonus}`;
 
               return (
                 <div

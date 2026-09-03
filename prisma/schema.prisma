@@ -35,6 +35,11 @@ enum CampaignRole {
   PLAYER
 }
 
+enum ActionKind {
+  ATTACK
+  HEAL
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 // Account used to log in. Campaign membership/roles are modeled separately
@@ -119,9 +124,47 @@ model CharacterTemplate {
 
   participants CombatParticipant[]
   groupMembers GroupMember[]
+  actions      TemplateAction[]
 
   @@index([campaignId])
   @@index([ownerId])
+}
+
+// A monster from the global roster — no campaign, no owner (etapa-3-monstruos.md §2/§5).
+// Deliberately separate from CharacterTemplate: monsters don't need level, proficiency
+// bonus or the 6 ability scores, and keeping them out of CharacterTemplate means no
+// campaign-scoped query can ever "forget" to exclude/include them (the D16 class of bug).
+model MonsterTemplate {
+  id              String   @id @default(uuid())
+  name            String
+  maxHp           Int
+  baseAc          Int
+  initiativeBonus Int      @default(0)
+  speed           Int      @default(30)
+  category        String? // e.g. "Bestia menor", "No-muerto" — for picker filtering
+  notes           String? // static text reference, same criterion as CharacterTemplate.notes
+  createdAt       DateTime @default(now())
+
+  participants CombatParticipant[]
+  actions      TemplateAction[]
+}
+
+// A saved attack/heal formula belonging to exactly one of CharacterTemplate or
+// MonsterTemplate (etapa-3-acciones-tiradas.md §2). Read live at roll time — never
+// snapshotted onto CombatParticipant, unlike HP/AC/ability scores.
+model TemplateAction {
+  id                  String     @id @default(uuid())
+  characterTemplateId String?
+  monsterTemplateId   String?
+  name                String // "Espada larga", "Mordisco", "Curar heridas"
+  kind                ActionKind
+  attackBonus         Int? // required if kind = ATTACK, null if kind = HEAL
+  formula             String // dice notation — damage if ATTACK, healing if HEAL
+  damageType          String? // flavor only ("cortante", "fuego") — not mechanical
+  order               Int        @default(0) // display order within the template
+
+  characterTemplate CharacterTemplate? @relation(fields: [characterTemplateId], references: [id], onDelete: Cascade)
+  monsterTemplate   MonsterTemplate?   @relation(fields: [monsterTemplateId], references: [id], onDelete: Cascade)
 }
 
 // One combat encounter.
@@ -149,23 +192,24 @@ model Combat {
 // The live instance of a CharacterTemplate inside a specific Combat.
 // All mutable combat state lives here — never on the template.
 model CombatParticipant {
-  id               String  @id @default(uuid())
-  combatId         String
-  templateId       String
-  displayName      String // "Wolf #1", "Thora", etc.
-  level            Int     @default(1)
-  proficiencyBonus Int     @default(2)
-  str              Int     @default(10)
-  dex              Int     @default(10)
-  con              Int     @default(10)
-  int              Int     @default(10)
-  wis              Int     @default(10)
-  cha              Int     @default(10)
-  speed            Int     @default(30)
-  hitDice          String?
+  id                String  @id @default(uuid())
+  combatId          String
+  templateId        String? // exactly one of templateId/monsterTemplateId is set — enforced in addParticipant, not a DB constraint
+  monsterTemplateId String?
+  displayName       String // "Wolf #1", "Thora", etc.
+  level             Int     @default(1)
+  proficiencyBonus  Int     @default(2)
+  str               Int     @default(10)
+  dex               Int     @default(10)
+  con               Int     @default(10)
+  int               Int     @default(10)
+  wis               Int     @default(10)
+  cha               Int     @default(10)
+  speed             Int     @default(30)
+  hitDice           String?
   // Initiative
-  initiative       Int     @default(0) // final value: d20 roll + initiativeBonus
-  turnOrder        Int     @default(0) // 0 = goes first; sorted descending by initiative
+  initiative        Int     @default(0) // final value: d20 roll + initiativeBonus
+  turnOrder         Int     @default(0) // 0 = goes first; sorted descending by initiative
 
   // Hit points — snapshot from template at combat start, then live
   maxHp     Int
@@ -185,8 +229,9 @@ model CombatParticipant {
 
   createdAt DateTime @default(now())
 
-  combat   Combat            @relation(fields: [combatId], references: [id], onDelete: Cascade)
-  template CharacterTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  combat          Combat             @relation(fields: [combatId], references: [id], onDelete: Cascade)
+  template        CharacterTemplate? @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  monsterTemplate MonsterTemplate?   @relation(fields: [monsterTemplateId], references: [id], onDelete: Restrict)
 
   actorLogs  CombatLog[] @relation("actor")
   targetLogs CombatLog[] @relation("target")

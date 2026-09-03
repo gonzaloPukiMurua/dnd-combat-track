@@ -208,10 +208,13 @@ export async function startCombat(formData: FormData) {
   if (combat.participants.length === 0) throw new Error("Add at least one participant before starting");
 
   // Read each die roll from formData — field names are "roll_<participantId>"
+  // etapa-3-monstruos.md: p.template is null for a monster-roster participant.
+  // addParticipant doesn't create those yet, so this fallback is unreachable
+  // today — just keeping the type honest.
   const withInitiative = combat.participants.map((p) => ({
     id:              p.id,
-    initiative:      Number(formData.get(`roll_${p.id}`) ?? 0) + p.template.initiativeBonus,
-    initiativeBonus: p.template.initiativeBonus,
+    initiative:      Number(formData.get(`roll_${p.id}`) ?? 0) + (p.template?.initiativeBonus ?? 0),
+    initiativeBonus: p.template?.initiativeBonus ?? 0,
   }));
 
   // Turn order via the shared rule (initiative desc, ties by initiativeBonus) —
@@ -296,7 +299,7 @@ export async function setParticipantInitiative(
       combat.participants.map((p) => ({
         id:              p.id,
         initiative:      p.id === participantId ? initiative : p.initiative,
-        initiativeBonus: p.template.initiativeBonus,
+        initiativeBonus: p.template?.initiativeBonus ?? 0, // monster-roster participant — see startCombat
       }))
     );
     const orderById = new Map(order.map((t) => [t.id, t.turnOrder]));
@@ -509,13 +512,18 @@ export async function saveHpToTemplates(combatId: string): Promise<{ ok: boolean
       where: { combatId },
     });
 
+    // MonsterTemplate has no currentHp field (etapa-3-monstruos.md §5 — the
+    // global roster isn't a mutable per-campaign resource) — only
+    // CharacterTemplate participants have somewhere to save HP back to.
     await prisma.$transaction(
-      participants.map((p) =>
-        prisma.characterTemplate.update({
-          where: { id: p.templateId },
-          data:  { currentHp: p.currentHp },
-        })
-      )
+      participants
+        .filter((p): p is typeof p & { templateId: string } => p.templateId !== null)
+        .map((p) =>
+          prisma.characterTemplate.update({
+            where: { id: p.templateId },
+            data:  { currentHp: p.currentHp },
+          })
+        )
     );
 
     return { ok: true };
