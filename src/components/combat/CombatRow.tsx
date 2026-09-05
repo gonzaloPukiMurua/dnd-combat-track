@@ -146,7 +146,7 @@ function CombatantRowBase({
       className={`
       rounded-gothic-md border-l-4 overflow-hidden transition-all
       bg-gothic-surface ring-1 ring-gothic-outline-variant
-      ${isCurrentTurn ? "border-l-gothic-primary shadow-[0_2px_8px_rgba(0,0,0,0.4)] ring-gothic-primary" : TYPE_ACCENT[p.template.type] ?? "border-l-gothic-outline-variant"}
+      ${isCurrentTurn ? "border-l-gothic-primary shadow-[0_2px_8px_rgba(0,0,0,0.4)] ring-gothic-primary" : TYPE_ACCENT[p.template?.type ?? ""] ?? "border-l-gothic-outline-variant"}
       ${!p.isConscious ? "opacity-70" : ""}
     `}>
 

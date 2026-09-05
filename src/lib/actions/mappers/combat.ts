@@ -52,14 +52,14 @@ export function mapCombatDetail(combat: CombatDetail): MappedCombat {
       cha:                p.cha,
       speed:              p.speed,
       hitDice:            p.hitDice,
-      template: {
+      template: p.template ? {
         id:              p.template.id,
         name:            p.template.name,
         type:            p.template.type,
         maxHp:           p.template.maxHp,
         baseAc:          p.template.baseAc,
         initiativeBonus: p.template.initiativeBonus,
-      },
+      } : null,
     })),
     logs: combat.logs.map((l) => ({
       id:        l.id,

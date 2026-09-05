@@ -205,7 +205,7 @@ export const useCombatStore = create<CombatState>((set, get) => ({
         state.participants.map((p) => ({
           id:              p.id,
           initiative:      p.id === participantId ? initiative : p.initiative,
-          initiativeBonus: p.template.initiativeBonus,
+          initiativeBonus: p.template?.initiativeBonus ?? 0,
         }))
       ).map((t) => [t.id, t.turnOrder])
     );

@@ -4,7 +4,7 @@ export type Condition  = { name: string };
 export type Participant = {
   id:                 string;
   combatId:           string;
-  templateId:         string;
+  templateId:         string | null;
   displayName:        string;
   initiative:         number;
   turnOrder:          number;
@@ -40,7 +40,7 @@ export type Participant = {
     maxHp:           number;
     baseAc:          number;
     initiativeBonus: number;
-  };
+  } | null;
 };
 
 // Slim projection of Participant used by target selectors / summaries.
