@@ -11,13 +11,25 @@ type Template = {
   baseAc: number;
 };
 
+type Monster = {
+  id:       string;
+  name:     string;
+  category: string | null;
+  maxHp:    number;
+  baseAc:   number;
+};
+
 export function AddParticipantMidCombat({
   combatId,
   templates,
+  monsters,
   isActive,
 }: {
   combatId:  string;
   templates: Template[];
+  // Global monster roster (etapa-3-monstruos.md §3) — a second, campaign-less
+  // source alongside the campaign templates.
+  monsters:  Monster[];
   // S2-9 — true once the combat is ACTIVE. New participants are created at
   // initiative 0, so while ACTIVE the DM must also give them an initiative
   // here; startCombat handles the SETUP case on its own.
@@ -26,7 +38,13 @@ export function AddParticipantMidCombat({
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  if (templates.length === 0) return null;
+  if (templates.length === 0 && monsters.length === 0) return null;
+
+  // Group the roster by category for the picker's <optgroup>s.
+  const monstersByCategory = monsters.reduce<Record<string, Monster[]>>((acc, m) => {
+    (acc[m.category ?? "Otros"] ??= []).push(m);
+    return acc;
+  }, {});
 
   if (!open) {
     return (
@@ -45,6 +63,10 @@ export function AddParticipantMidCombat({
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
+        // "pick" is tagged "t:<id>" (campaign template) or "m:<id>" (global
+        // monster roster) — split it into the field addParticipant expects.
+        const [kind, id] = (fd.get("pick")?.toString() ?? "").split(":");
+        fd.set(kind === "m" ? "monsterTemplateId" : "templateId", id ?? "");
         const rawInitiative = fd.get("initiative")?.toString().trim();
         startTransition(async () => {
           const newIds = await addParticipant(fd);
@@ -71,13 +93,26 @@ export function AddParticipantMidCombat({
       <input type="hidden" name="combatId" value={combatId} />
       <div className="flex gap-2">
         <select
-          name="templateId"
+          name="pick"
           className="flex-1 rounded-gothic-sm px-2 h-10 text-sm bg-gothic-surface-high text-gothic-on-surface ring-1 ring-gothic-outline-variant focus:outline-none focus:ring-gothic-primary"
         >
-          {templates.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name} · HP {t.maxHp} · CA {t.baseAc}
-            </option>
+          {templates.length > 0 && (
+            <optgroup label="Templates de campaña">
+              {templates.map((t) => (
+                <option key={t.id} value={`t:${t.id}`}>
+                  {t.name} · HP {t.maxHp} · CA {t.baseAc}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {Object.entries(monstersByCategory).map(([category, list]) => (
+            <optgroup key={category} label={`Roster global — ${category}`}>
+              {list.map((m) => (
+                <option key={m.id} value={`m:${m.id}`}>
+                  {m.name} · HP {m.maxHp} · CA {m.baseAc}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
         <input

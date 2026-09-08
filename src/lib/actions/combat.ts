@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateJoinCode } from "@/lib/utils/combat";
 import {
@@ -98,63 +99,99 @@ export async function startCombatFromGroup(groupId: string) {
 // the created participant ids for that follow-up call.
 
 export async function addParticipant(formData: FormData): Promise<string[]> {
-  const combatId   = formData.get("combatId")?.toString();
-  const templateId = formData.get("templateId")?.toString();
-  const quantity   = Number(formData.get("quantity") ?? 1);
+  const combatId         = formData.get("combatId")?.toString();
+  const templateId       = formData.get("templateId")?.toString() || undefined;
+  const monsterTemplateId = formData.get("monsterTemplateId")?.toString() || undefined;
+  const quantity         = Number(formData.get("quantity") ?? 1);
 
-  if (!combatId || !templateId) throw new Error("Missing combatId or templateId");
+  if (!combatId) throw new Error("Missing combatId");
+  // Exactly one source — a campaign CharacterTemplate or a global monster.
+  if (templateId && monsterTemplateId)
+    throw new Error("Provide either templateId or monsterTemplateId, not both");
+  if (!templateId && !monsterTemplateId)
+    throw new Error("Missing templateId or monsterTemplateId");
 
   await requireCombatDm(combatId);
 
-  const [combat, template] = await Promise.all([
-    prisma.combat.findUnique({ where: { id: combatId } }),
-    prisma.characterTemplate.findUnique({ where: { id: templateId } }),
-  ]);
-
-  if (!combat)    throw new Error("Combat not found");
-  if (!template)  throw new Error("Template not found");
-  if (template.campaignId !== combat.campaignId) throw new Error("Template belongs to a different campaign");
+  const combat = await prisma.combat.findUnique({ where: { id: combatId } });
+  if (!combat) throw new Error("Combat not found");
   if (combat.status === "FINISHED") throw new Error("Cannot add participants after combat has started");
 
-  // Per-template count → suffix; total count → a non-colliding turnOrder base.
-  const [existing, totalExisting] = await Promise.all([
-    prisma.combatParticipant.count({ where: { combatId, templateId } }),
-    prisma.combatParticipant.count({ where: { combatId } }),
-  ]);
+  // total count → a non-colliding turnOrder base (never 0, see the header note)
+  const totalExisting = await prisma.combatParticipant.count({ where: { combatId } });
 
-  // Create one participant per quantity
-  const data = Array.from({ length: quantity }, (_, i) => {
-    const suffix = quantity > 1 || existing > 0
-      ? ` #${existing + i + 1}`
-      : "";
-    return {
-      combatId,
-      templateId,
-      displayName:      `${template.name}${suffix}`,
-      maxHp:            template.maxHp,
-      currentHp:        template.currentHp ?? template.maxHp,
-      tempHp:           0,
-      baseAc:           template.baseAc,
-      level:            template.level,
-      proficiencyBonus: template.proficiencyBonus,
-      str:              template.str,
-      dex:              template.dex,
-      con:              template.con,
-      int:              template.int,
-      wis:              template.wis,
-      cha:              template.cha,
-      initiative:  0,
-      turnOrder:   totalExisting + i,
-      acModifiers: [],
-      conditions:  [],
-      isConscious: true,
-    };
-  });
+  let rows: Prisma.CombatParticipantUncheckedCreateInput[];
+
+  if (monsterTemplateId) {
+    // Global roster — no campaignId check, it has no campaign
+    // (spec-tecnico-etapa-3-monstruos.md §2/§3).
+    const monster = await prisma.monsterTemplate.findUnique({ where: { id: monsterTemplateId } });
+    if (!monster) throw new Error("Monster not found");
+
+    const existing = await prisma.combatParticipant.count({ where: { combatId, monsterTemplateId } });
+
+    rows = Array.from({ length: quantity }, (_, i) => {
+      const suffix = quantity > 1 || existing > 0 ? ` #${existing + i + 1}` : "";
+      return {
+        combatId,
+        templateId:       null,
+        monsterTemplateId: monster.id,
+        displayName:      `${monster.name}${suffix}`,
+        maxHp:            monster.maxHp,
+        currentHp:        monster.maxHp, // MonsterTemplate has no currentHp — always full
+        tempHp:           0,
+        baseAc:           monster.baseAc,
+        speed:            monster.speed,
+        // level / proficiencyBonus / str..cha deliberately omitted — MonsterTemplate
+        // doesn't carry them, so they fall through to the model @default(...)
+        // (etapa-3-monstruos.md §4). initiativeBonus is read live from
+        // monsterTemplate by startCombat / setParticipantInitiative.
+        initiative:  0,
+        turnOrder:   totalExisting + i,
+        acModifiers: [],
+        conditions:  [],
+        isConscious: true,
+      };
+    });
+  } else {
+    if (!templateId) throw new Error("Missing templateId"); // unreachable — narrows the type
+    const template = await prisma.characterTemplate.findUnique({ where: { id: templateId } });
+    if (!template) throw new Error("Template not found");
+    if (template.campaignId !== combat.campaignId) throw new Error("Template belongs to a different campaign");
+
+    const existing = await prisma.combatParticipant.count({ where: { combatId, templateId } });
+
+    rows = Array.from({ length: quantity }, (_, i) => {
+      const suffix = quantity > 1 || existing > 0 ? ` #${existing + i + 1}` : "";
+      return {
+        combatId,
+        templateId,
+        displayName:      `${template.name}${suffix}`,
+        maxHp:            template.maxHp,
+        currentHp:        template.currentHp ?? template.maxHp,
+        tempHp:           0,
+        baseAc:           template.baseAc,
+        level:            template.level,
+        proficiencyBonus: template.proficiencyBonus,
+        str:              template.str,
+        dex:              template.dex,
+        con:              template.con,
+        int:              template.int,
+        wis:              template.wis,
+        cha:              template.cha,
+        initiative:  0,
+        turnOrder:   totalExisting + i,
+        acModifiers: [],
+        conditions:  [],
+        isConscious: true,
+      };
+    });
+  }
 
   // create-per-row (not createMany) so we can hand the ids back to the
   // mid-combat caller — createMany doesn't return the created records.
   const created = await prisma.$transaction(
-    data.map((d) => prisma.combatParticipant.create({ data: d, select: { id: true } }))
+    rows.map((d) => prisma.combatParticipant.create({ data: d, select: { id: true } }))
   );
 
   revalidatePath(`/combat/${combatId}/setup`);
@@ -199,7 +236,7 @@ export async function startCombat(formData: FormData) {
   const combat = await prisma.combat.findUnique({
     where: { id: combatId },
     include: {
-      participants: { include: { template: true } },
+      participants: { include: { template: true, monsterTemplate: true } },
     },
   });
 
@@ -207,14 +244,17 @@ export async function startCombat(formData: FormData) {
   if (combat.status !== "SETUP")  throw new Error("Combat has already started");
   if (combat.participants.length === 0) throw new Error("Add at least one participant before starting");
 
-  // Read each die roll from formData — field names are "roll_<participantId>"
-  // etapa-3-monstruos.md: p.template is null for a monster-roster participant.
-  // addParticipant doesn't create those yet, so this fallback is unreachable
-  // today — just keeping the type honest.
+  // Read each die roll from formData — field names are "roll_<participantId>".
+  // The initiative bonus comes from whichever template backs the participant:
+  // a campaign CharacterTemplate, or a global MonsterTemplate (etapa-3-
+  // monstruos.md §5 — monsters aren't a CharacterTemplate).
+  const initiativeBonusOf = (p: (typeof combat.participants)[number]) =>
+    p.template?.initiativeBonus ?? p.monsterTemplate?.initiativeBonus ?? 0;
+
   const withInitiative = combat.participants.map((p) => ({
     id:              p.id,
-    initiative:      Number(formData.get(`roll_${p.id}`) ?? 0) + (p.template?.initiativeBonus ?? 0),
-    initiativeBonus: p.template?.initiativeBonus ?? 0,
+    initiative:      Number(formData.get(`roll_${p.id}`) ?? 0) + initiativeBonusOf(p),
+    initiativeBonus: initiativeBonusOf(p),
   }));
 
   // Turn order via the shared rule (initiative desc, ties by initiativeBonus) —
@@ -276,7 +316,12 @@ export async function setParticipantInitiative(
     const combat = await prisma.combat.findUnique({
       where:   { id: participant.combatId },
       include: {
-        participants: { include: { template: { select: { initiativeBonus: true } } } },
+        participants: {
+          include: {
+            template:        { select: { initiativeBonus: true } },
+            monsterTemplate: { select: { initiativeBonus: true } },
+          },
+        },
       },
     });
     if (!combat) return { ok: false, error: "Combat not found" };
@@ -299,7 +344,7 @@ export async function setParticipantInitiative(
       combat.participants.map((p) => ({
         id:              p.id,
         initiative:      p.id === participantId ? initiative : p.initiative,
-        initiativeBonus: p.template?.initiativeBonus ?? 0, // monster-roster participant — see startCombat
+        initiativeBonus: p.template?.initiativeBonus ?? p.monsterTemplate?.initiativeBonus ?? 0, // see startCombat
       }))
     );
     const orderById = new Map(order.map((t) => [t.id, t.turnOrder]));

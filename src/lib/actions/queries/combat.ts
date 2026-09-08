@@ -6,7 +6,10 @@ import { prisma } from "@/lib/prisma";
 export const COMBAT_DETAIL_INCLUDE = {
   participants: {
     orderBy: { turnOrder: "asc" as const },
-    include: { template: true },
+    // monsterTemplate rides along so the mapper can surface a synthetic
+    // view-model `template` (type MONSTER) for global-roster participants —
+    // their real `template` relation is null (etapa-3-monstruos.md §5).
+    include: { template: true, monsterTemplate: true },
   },
   logs: {
     orderBy: { createdAt: "asc" as const },
@@ -60,8 +63,17 @@ export function getCombatSetupDetail(id: string) {
     include: {
       participants: {
         orderBy: { createdAt: "asc" as const },
-        include: { template: true },
+        include: { template: true, monsterTemplate: true },
       },
     },
+  });
+}
+
+// Global monster roster — deliberately NOT campaign-scoped (the roster has no
+// campaignId; spec-tecnico-etapa-3-monstruos.md §2/§3). Ordered so the picker
+// groups cleanly by category.
+export function getMonsterTemplates() {
+  return prisma.monsterTemplate.findMany({
+    orderBy: [{ category: "asc" }, { name: "asc" }],
   });
 }

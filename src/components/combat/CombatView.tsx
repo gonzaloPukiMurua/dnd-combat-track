@@ -10,14 +10,15 @@ import { CombatLog } from "@/components/combat/CombatLog";
 import { AddParticipantMidCombat } from "./AddParticipantMidCombat";
 import { reorderParticipants } from "@/lib/actions/participant";
 import { makeFormData } from "@/lib/utils/formData";
-import { TemplateSummary } from "@/domain/templates/types";
+import { TemplateSummary, MonsterSummary } from "@/domain/templates/types";
 type Props = {
   combatId:   string;
   isFinished: boolean;
   templates: TemplateSummary[];
+  monsters:  MonsterSummary[];
 };
 
-export function CombatView({ combatId, isFinished, templates }: Props) {
+export function CombatView({ combatId, isFinished, templates, monsters }: Props) {
   const participants     = useCombatStore((s) => s.participants);
   const logs             = useCombatStore((s) => s.logs);
   const round            = useCombatStore((s) => s.round);
@@ -126,6 +127,7 @@ export function CombatView({ combatId, isFinished, templates }: Props) {
         <AddParticipantMidCombat
           combatId={combatId}
           templates={templates}
+          monsters={monsters}
           isActive={status === "ACTIVE"}
         />
       )}

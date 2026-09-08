@@ -10,7 +10,7 @@ import {
   startCombat,
   addParticipantsFromGroup,
 } from "@/lib/actions/combat";
-import { getCombatSetupDetail } from "@/lib/actions/queries/combat";
+import { getCombatSetupDetail, getMonsterTemplates } from "@/lib/actions/queries/combat";
 
 export default async function CombatSetupPage({
   params,
@@ -41,10 +41,19 @@ export default async function CombatSetupPage({
 
   // Templates/groups aren't portable between campaigns — only offer the
   // combat's own campaign as candidates for the participant-picker.
-  const [templates, groups] = await Promise.all([
+  // Monsters are the global roster — not campaign-scoped (etapa-3-monstruos.md §3).
+  const [templates, groups, monsters] = await Promise.all([
     getTemplatesForCampaign(combat.campaignId),
     getGroupsForCampaign(combat.campaignId),
+    getMonsterTemplates(),
   ]);
+
+  // Group the global roster by category for the picker's <optgroup>s.
+  const monstersByCategory = monsters.reduce<Record<string, typeof monsters>>((acc, m) => {
+    const key = m.category ?? "Otros";
+    (acc[key] ??= []).push(m);
+    return acc;
+  }, {});
 
   const selectClass =
     "flex-1 rounded-gothic-sm bg-gothic-surface px-3 h-11 text-sm text-gothic-on-surface outline-none ring-1 ring-gothic-outline-variant focus:ring-gothic-primary transition-all";
@@ -90,7 +99,7 @@ export default async function CombatSetupPage({
       {/* Add individual participant */}
       <section className="rounded-gothic-md bg-gothic-surface-low ring-1 ring-gothic-outline-variant p-4 space-y-3">
         <h2 className="font-gothic-headline text-lg text-gothic-primary">Agregar participante</h2>
-        {templates.length === 0 ? (
+        {templates.length === 0 && monsters.length === 0 ? (
           <div className="text-center py-4 space-y-2">
             <p className="text-sm text-gothic-on-surface-variant">No se encontraron personajes.</p>
             <Link href={`/campaigns/${combat.campaignId}/templates`} className="text-gothic-primary text-sm font-medium underline decoration-gothic-outline-variant underline-offset-4">
@@ -101,6 +110,11 @@ export default async function CombatSetupPage({
           <form
             action={async (fd) => {
               "use server";
+              // The picker sends one "pick" value tagged "t:<id>" (campaign
+              // template) or "m:<id>" (global monster roster); split it back
+              // into the field addParticipant expects.
+              const [kind, id] = (fd.get("pick")?.toString() ?? "").split(":");
+              fd.set(kind === "m" ? "monsterTemplateId" : "templateId", id ?? "");
               // addParticipant returns the new ids (for the mid-combat flow);
               // on /setup we don't need them — discard so the form action type
               // stays () => Promise<void>.
@@ -109,11 +123,24 @@ export default async function CombatSetupPage({
             className="flex gap-2"
           >
             <input type="hidden" name="combatId" value={combat.id} />
-            <select name="templateId" className={selectClass}>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} · {t.type} · PV {t.maxHp} · CA {t.baseAc}
-                </option>
+            <select name="pick" className={selectClass}>
+              {templates.length > 0 && (
+                <optgroup label="Templates de campaña">
+                  {templates.map((t) => (
+                    <option key={t.id} value={`t:${t.id}`}>
+                      {t.name} · {t.type} · PV {t.maxHp} · CA {t.baseAc}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {Object.entries(monstersByCategory).map(([category, list]) => (
+                <optgroup key={category} label={`Roster global — ${category}`}>
+                  {list.map((m) => (
+                    <option key={m.id} value={`m:${m.id}`}>
+                      {m.name} · PV {m.maxHp} · CA {m.baseAc}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             <input
@@ -144,10 +171,11 @@ export default async function CombatSetupPage({
           {/* Participant rows — initiative inputs tied to start-form by id */}
           <div className="space-y-2">
             {combat.participants.map((p) => {
-              // etapa-3-monstruos.md: p.template is null for a monster-roster
-              // participant. addParticipant doesn't create those yet, so this
-              // fallback is unreachable today — just keeping the type honest.
-              const templateInitiativeBonus = p.template?.initiativeBonus ?? 0;
+              // p.template is null for a global-roster participant
+              // (etapa-3-monstruos.md §5) — its initiative bonus lives on
+              // monsterTemplate instead.
+              const templateInitiativeBonus =
+                p.template?.initiativeBonus ?? p.monsterTemplate?.initiativeBonus ?? 0;
               const bonus = templateInitiativeBonus >= 0
                 ? `+${templateInitiativeBonus}`
                 : `${templateInitiativeBonus}`;

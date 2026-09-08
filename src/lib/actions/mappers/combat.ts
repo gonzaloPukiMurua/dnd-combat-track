@@ -52,6 +52,11 @@ export function mapCombatDetail(combat: CombatDetail): MappedCombat {
       cha:                p.cha,
       speed:              p.speed,
       hitDice:            p.hitDice,
+      // A global-roster participant has no CharacterTemplate (p.template null,
+      // etapa-3-monstruos.md §5). Surface a synthetic view-model template with
+      // type "MONSTER" from the MonsterTemplate so the border-color selector
+      // (TYPE_ACCENT) and the initiative tie-break work without a null check at
+      // every use site. `templateId` stays null — that's the real monster flag.
       template: p.template ? {
         id:              p.template.id,
         name:            p.template.name,
@@ -59,6 +64,13 @@ export function mapCombatDetail(combat: CombatDetail): MappedCombat {
         maxHp:           p.template.maxHp,
         baseAc:          p.template.baseAc,
         initiativeBonus: p.template.initiativeBonus,
+      } : p.monsterTemplate ? {
+        id:              p.monsterTemplate.id,
+        name:            p.monsterTemplate.name,
+        type:            "MONSTER",
+        maxHp:           p.monsterTemplate.maxHp,
+        baseAc:          p.monsterTemplate.baseAc,
+        initiativeBonus: p.monsterTemplate.initiativeBonus,
       } : null,
     })),
     logs: combat.logs.map((l) => ({

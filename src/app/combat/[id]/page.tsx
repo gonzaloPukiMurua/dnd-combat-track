@@ -3,7 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { endCombat, saveHpToTemplates } from "@/lib/actions/combat";
-import { getCombatDetail } from "@/lib/actions/queries/combat";
+import { getCombatDetail, getMonsterTemplates } from "@/lib/actions/queries/combat";
 import { mapCombatDetail } from "@/lib/actions/mappers/combat";
 import { getTemplatesForCampaign } from "@/lib/actions/templates";
 import { CombatStoreInitializer } from "@/components/combat/CombatStoreInitializer";
@@ -34,7 +34,10 @@ export default async function CombatPage({
   if (!membership) notFound();
   if (membership.role !== "DM") redirect(`/combat/${id}/spectate`);
 
-  const templates = await getTemplatesForCampaign(combatRow.campaignId);
+  const [templates, monsters] = await Promise.all([
+    getTemplatesForCampaign(combatRow.campaignId),
+    getMonsterTemplates(),
+  ]);
 
   const combat = mapCombatDetail(combatRow);
   const isFinished = combat.status === "FINISHED";
@@ -74,6 +77,7 @@ export default async function CombatPage({
         combatId={combat.id}
         isFinished={isFinished}
         templates={templates}
+        monsters={monsters}
       />
 
       {/* End combat buttons — positioned above the sticky panel */}
