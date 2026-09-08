@@ -90,6 +90,7 @@ export async function getTemplatesForCampaign(campaignId: string) {
 export async function getTemplateById(id: string) {
   return prisma.characterTemplate.findUnique({
     where: { id },
+    include: { actions: { orderBy: { order: "asc" } } },
   });
 }
 

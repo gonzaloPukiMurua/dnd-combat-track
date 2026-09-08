@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getTemplateById, updateTemplate } from "@/lib/actions/templates";
 import { requireCampaignDm } from "@/lib/auth/guards";
+import { TemplateActionsSection } from "@/components/templates/TemplateActionsSection";
 
 const TYPE_LABELS: Record<string, string> = {
   PLAYER:  "Jugador",
@@ -195,6 +196,22 @@ export default async function EditTemplatePage({
           </button>
         </div>
       </form>
+
+      {/* E — attacks / heals (spec-tecnico-etapa-3-acciones-tiradas.md §6).
+          Its own <section> with independent forms — never nested in the
+          template form above. */}
+      <TemplateActionsSection
+        characterTemplateId={template.id}
+        actions={template.actions.map((a) => ({
+          id:          a.id,
+          name:        a.name,
+          kind:        a.kind,
+          attackBonus: a.attackBonus,
+          formula:     a.formula,
+          damageType:  a.damageType,
+          uses:        a.uses,
+        }))}
+      />
     </div>
   );
 }

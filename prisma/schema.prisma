@@ -167,9 +167,12 @@ model TemplateAction {
   characterTemplate CharacterTemplate? @relation(fields: [characterTemplateId], references: [id], onDelete: Cascade)
   monsterTemplate   MonsterTemplate?   @relation(fields: [monsterTemplateId], references: [id], onDelete: Cascade)
 
-  // Seed upsert key for monster actions (character actions leave monsterTemplateId
-  // null; Postgres treats NULLs as distinct, so this does not constrain them).
+  // One action name per owning template. Each pair has a nullable column, so
+  // Postgres (NULLs distinct) only enforces it for rows that actually belong
+  // to that side — monster actions for the first, character actions for the
+  // second.
   @@unique([monsterTemplateId, name])
+  @@unique([characterTemplateId, name])
 }
 
 // One combat encounter.
