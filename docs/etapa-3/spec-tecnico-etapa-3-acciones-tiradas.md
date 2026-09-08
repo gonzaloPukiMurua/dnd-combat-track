@@ -137,6 +137,32 @@ contra el código real al implementar, no asumido acá), tira `action.formula`, 
   en detalle — la sección 5 de este documento queda a nivel de intención, no de UI final.
 - Copy exacto de los mensajes de impacto/fallo y el formato del log enriquecido.
 
+## 7b. Addendum — flexibilidad para stat blocks completos (post-diseño, pre-seed de C)
+
+Surgió al armar el seed de monstruos: un stat block completo tipo D&D (ej. Dragón azul
+adulto) trae características, habilidades, inmunidades, salvaciones con recarga, y acciones
+legendarias — mucho más de lo que este documento modeló. Decisión: agregar SOLO lo que tiene
+un consumidor ya planeado, todo lo demás va como texto libre en `notes`.
+
+- **Se agrega ahora**: `TemplateAction.uses Int @default(1)` — cubre multiataque
+  ("Desgarro +12 (×3)" = una acción con `uses: 3`). No es un caso exótico de dragón, es un
+  hueco real del diseño original (cualquier criatura con ataque extra lo necesitaba).
+- **Queda en `notes` indefinidamente, sin fecha de reconsideración**: acciones legendarias
+  (economía de acción sin ningún soporte hoy, la más especulativa).
+- **Queda en `notes` hasta que el consumidor exista**:
+  - Características/habilidades → hasta que se diseñe el sistema de bonificadores (mismo
+    motivo por el que ya se excluyeron de `MonsterTemplate` en §5).
+  - Inmunidades → hasta que `dealDamage` conecte `damageType` a algo mecánico (hoy es puro
+    sabor, ni se lee).
+  - Salvaciones con recarga (ej. aliento de dragón) → se diseña junto con `ActionKind.SAVE`
+    en el documento de salvaciones/bonificadores, no aislado acá. El campo de recarga
+    (`rechargeMin: Int?`) es una extensión barata de sumar en ese momento si hace falta.
+
+Regla general para no repetir esta conversación cada vez que aparezca un stat block más
+complejo: **un campo estructurado nuevo necesita un consumidor mecánico ya planeado, no solo
+un dato que "estaría bueno tener"** — mismo principio que ya aplicó S2-8 al conectar (no
+esconder) los campos fantasma del personaje.
+
 ## 8. Fuera de este documento (todavía sin diseñar)
 
 - Salvaciones + bonificadores de habilidad del personaje (documento combinado, pendiente).

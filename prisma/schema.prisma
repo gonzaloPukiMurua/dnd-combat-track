@@ -136,7 +136,7 @@ model CharacterTemplate {
 // campaign-scoped query can ever "forget" to exclude/include them (the D16 class of bug).
 model MonsterTemplate {
   id              String   @id @default(uuid())
-  name            String
+  name            String   @unique // roster is global + seeded by name — upsert key
   maxHp           Int
   baseAc          Int
   initiativeBonus Int      @default(0)
@@ -161,10 +161,15 @@ model TemplateAction {
   attackBonus         Int? // required if kind = ATTACK, null if kind = HEAL
   formula             String // dice notation — damage if ATTACK, healing if HEAL
   damageType          String? // flavor only ("cortante", "fuego") — not mechanical
+  uses                Int        @default(1) // times the formula is rolled per use — multiattack ("Bite ×3") = 3; formula stays single-hit
   order               Int        @default(0) // display order within the template
 
   characterTemplate CharacterTemplate? @relation(fields: [characterTemplateId], references: [id], onDelete: Cascade)
   monsterTemplate   MonsterTemplate?   @relation(fields: [monsterTemplateId], references: [id], onDelete: Cascade)
+
+  // Seed upsert key for monster actions (character actions leave monsterTemplateId
+  // null; Postgres treats NULLs as distinct, so this does not constrain them).
+  @@unique([monsterTemplateId, name])
 }
 
 // One combat encounter.

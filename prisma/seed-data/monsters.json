@@ -1,0 +1,117 @@
+[
+  {
+    "name": "Goblin",
+    "maxHp": 7,
+    "baseAc": 15,
+    "initiativeBonus": 2,
+    "speed": 30,
+    "category": "Humanoide",
+    "notes": "Merodeador pequeño y cobarde que pelea en grupo y huye apenas la cosa se pone fea. Suele tender emboscadas y retirarse de la línea de visión tras atacar. Bonificador de sigilo alto (aprox. +6).",
+    "actions": [
+      { "name": "Cimitarra", "kind": "ATTACK", "attackBonus": 4, "formula": "1d6+2", "damageType": "cortante" },
+      { "name": "Arco corto", "kind": "ATTACK", "attackBonus": 4, "formula": "1d6+2", "damageType": "perforante" }
+    ]
+  },
+  {
+    "name": "Orco",
+    "maxHp": 15,
+    "baseAc": 13,
+    "initiativeBonus": 1,
+    "speed": 30,
+    "category": "Humanoide",
+    "notes": "Guerrero agresivo que carga de frente y busca el cuerpo a cuerpo lo antes posible. Como acción adicional puede moverse hacia un enemigo que pueda ver u oír.",
+    "actions": [
+      { "name": "Hacha grande", "kind": "ATTACK", "attackBonus": 5, "formula": "1d12+3", "damageType": "cortante" },
+      { "name": "Jabalina", "kind": "ATTACK", "attackBonus": 5, "formula": "1d6+3", "damageType": "perforante" }
+    ]
+  },
+  {
+    "name": "Hobgoblin",
+    "maxHp": 11,
+    "baseAc": 18,
+    "initiativeBonus": 1,
+    "speed": 30,
+    "category": "Humanoide",
+    "notes": "Soldado disciplinado que combate en formación. Pega más fuerte (2d6 extra) cuando tiene un aliado a 1,5 m del objetivo y ese aliado no está incapacitado.",
+    "actions": [
+      { "name": "Espada larga", "kind": "ATTACK", "attackBonus": 3, "formula": "1d8+1", "damageType": "cortante" },
+      { "name": "Arco largo", "kind": "ATTACK", "attackBonus": 3, "formula": "1d8+1", "damageType": "perforante" }
+    ]
+  },
+  {
+    "name": "Ogro",
+    "maxHp": 59,
+    "baseAc": 11,
+    "initiativeBonus": -1,
+    "speed": 40,
+    "category": "Gigante",
+    "notes": "Bruto enorme, lento de reflejos y de entendederas. Pega durísimo pero es fácil de engañar o distraer.",
+    "actions": [
+      { "name": "Garrote", "kind": "ATTACK", "attackBonus": 6, "formula": "2d8+4", "damageType": "contundente" },
+      { "name": "Jabalina", "kind": "ATTACK", "attackBonus": 6, "formula": "2d6+4", "damageType": "perforante" }
+    ]
+  },
+  {
+    "name": "Esqueleto",
+    "maxHp": 13,
+    "baseAc": 13,
+    "initiativeBonus": 2,
+    "speed": 30,
+    "category": "No-muerto",
+    "notes": "Restos animados que siguen órdenes simples al pie de la letra. Vulnerable al daño contundente, inmune a veneno y a la condición envenenado, y no se cansa ni siente miedo.",
+    "actions": [
+      { "name": "Espada corta", "kind": "ATTACK", "attackBonus": 4, "formula": "1d6+2", "damageType": "perforante" },
+      { "name": "Arco corto", "kind": "ATTACK", "attackBonus": 4, "formula": "1d6+2", "damageType": "perforante" }
+    ]
+  },
+  {
+    "name": "Lobo",
+    "maxHp": 11,
+    "baseAc": 13,
+    "initiativeBonus": 2,
+    "speed": 40,
+    "category": "Bestia",
+    "notes": "Depredador de manada. Ataca con ventaja si al menos un aliado suyo está adyacente al objetivo, y si impacta puede tirar al suelo a una criatura Mediana o menor (salvación de Fuerza CD 11).",
+    "actions": [
+      { "name": "Mordisco", "kind": "ATTACK", "attackBonus": 4, "formula": "2d4+2", "damageType": "perforante" }
+    ]
+  },
+  {
+    "name": "Zombi",
+    "maxHp": 22,
+    "baseAc": 8,
+    "initiativeBonus": -2,
+    "speed": 20,
+    "category": "No-muerto",
+    "notes": "Cadáver reanimado, torpe e implacable. Cuando bajaría a 0 pg, con una salvación de Constitución CD 5 + daño recibido queda en 1 pg en su lugar (no aplica si el golpe fue radiante o un crítico).",
+    "actions": [
+      { "name": "Golpe", "kind": "ATTACK", "attackBonus": 3, "formula": "1d6+1", "damageType": "contundente" }
+    ]
+  },
+  {
+    "name": "Simio",
+    "maxHp": 19,
+    "baseAc": 12,
+    "initiativeBonus": 2,
+    "speed": 30,
+    "category": "Bestia",
+    "notes": "Primate grande y territorial. Trepa a 30 pies. Su ataque de Multiataque son DOS puñetazos en el mismo turno (por eso 'uses': 2 en la acción de puñetazo). También puede arrojar una roca a distancia una sola vez por turno.",
+    "actions": [
+      { "name": "Puñetazo", "kind": "ATTACK", "attackBonus": 5, "formula": "1d6+3", "damageType": "contundente", "uses": 2 },
+      { "name": "Roca", "kind": "ATTACK", "attackBonus": 5, "formula": "1d6+3", "damageType": "contundente" }
+    ]
+  },
+  {
+    "name": "Dragón azul adulto",
+    "maxHp": 212,
+    "baseAc": 19,
+    "initiativeBonus": 0,
+    "speed": 40,
+    "category": "Dragón",
+    "notes": "Dragón cromático adulto, arrogante y territorial, cavador nato: se mueve 30 pies excavando y 80 pies volando. Vive en desiertos y mesetas áridas.\n\nCaracterísticas: FUE 25 (+7), DES 10 (+0), CON 23 (+6), INT 16 (+3), SAB 13 (+1), CAR 19 (+4).\nSalvaciones: DES +5, CON +11, SAB +6, CAR +9.\nHabilidades: Percepción +11, Sigilo +5. Percepción pasiva 21. Visión en la oscuridad 120 pies, visión ciega 60 pies.\nInmunidad al daño: relámpago.\nIdiomas: común y dracónico.\n\nMultiataque: usa 'Presencia aterradora' y después hace tres ataques: uno de Mordisco y dos de Desgarro. El Mordisco añade además 1d10 de daño por relámpago que la fórmula estructurada NO refleja (la gramática de fórmulas de la app no admite dados de tipo mixto — ver spec-tecnico-etapa-3-acciones-tiradas.md §3).\n\nAliento de relámpago (Recarga 5-6): exhala un rayo en línea de 90 pies de largo por 5 de ancho. Cada criatura en la línea hace una salvación de Destreza CD 19: 12d10 de daño por relámpago si falla, la mitad si tiene éxito.\n\nPresencia aterradora: cada criatura elegida a 120 pies o menos que pueda ver al dragón hace una salvación de Sabiduría CD 17 o queda asustada 1 minuto (repite la salvación al final de cada turno suyo). Con éxito o al terminar el efecto, queda inmune a la presencia de ESE dragón por 24 horas.\n\nAcciones legendarias (3 por ronda, una a la vez, al final del turno de otra criatura): Detectar (prueba de Percepción de Sabiduría), Ataque de cola (+12, alcance 15 pies, 2d8+7 contundente) o Ataque alar (cuesta 2 acciones: criaturas a 15 pies hacen salvación de Destreza CD 20 o reciben 2d6+7 contundente y quedan derribadas; luego el dragón vuela hasta la mitad de su velocidad).",
+    "actions": [
+      { "name": "Mordisco", "kind": "ATTACK", "attackBonus": 12, "formula": "2d10+6", "damageType": "perforante", "uses": 1 },
+      { "name": "Desgarro", "kind": "ATTACK", "attackBonus": 12, "formula": "2d6+6", "damageType": "cortante", "uses": 2 }
+    ]
+  }
+]
