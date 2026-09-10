@@ -205,6 +205,14 @@ export const useCombatStore = create<CombatState>((set, get) => ({
         state.participants.map((p) => ({
           id:              p.id,
           initiative:      p.id === participantId ? initiative : p.initiative,
+          // No `?? p.monsterTemplate?.initiativeBonus` branch here on purpose:
+          // this assumes the store is ALWAYS hydrated from mapCombatDetail's
+          // output, which already flattens a monster-roster participant's bonus
+          // into the synthetic MONSTER template (mappers/combat.ts:67-74). The
+          // server-side mirror (setParticipantInitiative in lib/actions/combat.ts)
+          // reads raw Prisma rows and DOES need the explicit fallback. If the
+          // hydration flow ever changes to feed raw Prisma rows here, this
+          // breaks silently — a monster would tie-break with bonus 0.
           initiativeBonus: p.template?.initiativeBonus ?? 0,
         }))
       ).map((t) => [t.id, t.turnOrder])
