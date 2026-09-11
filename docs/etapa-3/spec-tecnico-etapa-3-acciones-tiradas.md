@@ -109,6 +109,36 @@ Vive en `domain/dice/` (paquete nuevo, mismo criterio de separación que ya tien
    Impacta. Daño: 1d8+3=9"* en vez del genérico actual. Es una extensión del `note` que
    `dealDamage` ya arma, no una tabla nueva — mismo lugar donde S2-11 tradujo los strings.
 
+## 4b. Addendum — economía de acción como filtro del flujo (post-diseño, pre-F)
+
+Surgió probando la app: el flujo original (§4) no distinguía qué tipo de economía de acción
+consume cada `TemplateAction` — quedaba desconectado de `actionUsed`/`bonusUsed`/
+`reactionUsed`, que ya existen en `CombatParticipant` desde antes de esta etapa (toggle
+manual del DM, sin relación con qué acción se usó). Se decide conectar ambos.
+
+**Schema**: `TemplateAction` gana `economyType ActionEconomy` (enum `ACTION | BONUS_ACTION |
+REACTION`, requerido). Migración con `@default(ACTION)` para las filas ya sembradas por C —
+el DM corrige puntualmente después vía el CRUD de E si algo debería ser Bono/Reacción.
+
+**Flujo revisado** (reemplaza al de §4 punto 2 en adelante):
+
+1. DM expande la fila del participante en su turno.
+2. Selector de economía — Acción / Bono / Reacción — deshabilitado el que ya esté gastado
+   (lee `actionUsed`/`bonusUsed`/`reactionUsed` directo del participante, sin query nueva).
+3. Filtra a las `TemplateAction` de ese `economyType` (ATTACK y HEAL pueden convivir bajo el
+   mismo tipo — ej. una curación de Bono al lado de un ataque de Bono, si existiera).
+4. Acción elegida, `uses > 1`: se repite la secuencia objetivo→tirada→aplicar tantas veces
+   como `uses` indique, un objetivo genuinamente distinto por vez si el DM lo desea (ej.
+   Espada larga ×2 contra dos objetivos separados) — sin cambio de modelo, ya cubierto por
+   `uses`.
+5. **`actionUsed`/`bonusUsed`/`reactionUsed` se marca recién al confirmar el primer
+   daño/curación de esa invocación** (click en Daño/Curar), no al solo elegir la acción —
+   decisión explícita para no penalizar a un DM que abre el menú y se arrepiente antes de
+   aplicar nada.
+6. **El input libre de cantidad (`amount` manual) se mantiene** como alternativa separada,
+   fuera del selector de economía — para daño de entorno, homebrew, o cualquier caso no
+   modelado como `TemplateAction`. No pasa por el gating de economía ni lo consume.
+
 ## 5. Flujo de curación
 
 Más simple: selector de acción (`kind: HEAL`) del propio participante que se cura o de quien
@@ -163,7 +193,24 @@ complejo: **un campo estructurado nuevo necesita un consumidor mecánico ya plan
 un dato que "estaría bueno tener"** — mismo principio que ya aplicó S2-8 al conectar (no
 esconder) los campos fantasma del personaje.
 
-## 8. Fuera de este documento (todavía sin diseñar)
+## 8. Ticket nuevo (G) — visibilidad del roster global
+
+Surgió de la misma pasada de feedback: el roster global de monstruos (C) no tiene ningún
+lugar donde explorarse — ni para mirar qué hay disponible, ni para filtrar en el picker de
+combate más allá del agrupamiento por "Templates de campaña" / "Roster global" que ya
+construyó D. Dos piezas chicas, empaquetadas juntas por compartir la misma fuente de datos
+(`getMonsterTemplates()`, ya existe desde D):
+
+- **Página de exploración de solo lectura** — nueva ruta fuera del scope de una campaña (la
+  data no es campaign-scoped, no tiene sentido anidarla bajo `/campaigns/[id]/...`). Filtro
+  por `category` en cliente (el dataset es chico, no amerita filtro server-side). Accesible a
+  cualquier usuario logueado, sin distinción de rol — es contenido de sistema, no de gestión.
+- **Sub-agrupación por categoría en el picker de combate** (D) — el `<select>` con optgroups
+  "Templates de campaña" / "Roster global" ya existe; se agrega sub-agrupación por
+  `category` dentro de "Roster global" para no escrollear una lista plana a medida que el
+  bestiario crezca más allá de los 9 sembrados por C.
+
+## 9. Fuera de este documento (todavía sin diseñar)
 
 - Salvaciones + bonificadores de habilidad del personaje (documento combinado, pendiente).
 - Ventaja/desventaja, ataques de área, críticos con reglas especiales.
