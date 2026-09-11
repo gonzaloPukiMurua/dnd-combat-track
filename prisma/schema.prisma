@@ -40,6 +40,12 @@ enum ActionKind {
   HEAL
 }
 
+enum ActionEconomy {
+  ACTION
+  BONUS_ACTION
+  REACTION
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 // Account used to log in. Campaign membership/roles are modeled separately
@@ -162,6 +168,7 @@ model TemplateAction {
   formula             String // dice notation — damage if ATTACK, healing if HEAL
   damageType          String? // flavor only ("cortante", "fuego") — not mechanical
   uses                Int        @default(1) // times the formula is rolled per use — multiattack ("Bite ×3") = 3; formula stays single-hit
+  economyType         ActionEconomy @default(ACTION) // which action-economy slot this consumes (etapa-3-acciones-tiradas.md §4b) — connects to CombatParticipant.actionUsed/bonusUsed/reactionUsed at roll time
   order               Int        @default(0) // display order within the template
 
   characterTemplate CharacterTemplate? @relation(fields: [characterTemplateId], references: [id], onDelete: Cascade)

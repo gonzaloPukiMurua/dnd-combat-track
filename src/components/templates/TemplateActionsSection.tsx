@@ -17,6 +17,7 @@ type ActionRow = {
   formula:     string;
   damageType:  string | null;
   uses:        number;
+  economyType: string;
 };
 
 const labelClass = "text-xs font-medium uppercase tracking-widest text-gothic-on-surface-variant";
@@ -28,6 +29,12 @@ const KIND_LABELS: Record<string, string> = { ATTACK: "Ataque", HEAL: "Curación
 const KIND_COLORS: Record<string, string> = {
   ATTACK: "bg-gothic-danger/20 text-gothic-danger-bright",
   HEAL:   "bg-gothic-success-bg text-gothic-success-text",
+};
+
+const ECONOMY_LABELS: Record<string, string> = {
+  ACTION:       "Acción",
+  BONUS_ACTION: "Acción adicional",
+  REACTION:     "Reacción",
 };
 
 // ─── Add / edit form ─────────────────────────────────────────────────────────
@@ -60,6 +67,7 @@ function ActionForm({
       formula:    fd.get("formula")?.toString() ?? "",
       damageType: fd.get("damageType")?.toString() ?? null,
       uses:       usesRaw ? Number(usesRaw) : null,
+      economyType: fd.get("economyType")?.toString(),
     };
     setError(null);
     startTransition(async () => {
@@ -95,6 +103,18 @@ function ActionForm({
             <option value="HEAL">Curación</option>
           </select>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className={labelClass}>Economía de acción</label>
+          <select name="economyType" defaultValue={initial?.economyType ?? "ACTION"} className={inputClass}>
+            {Object.entries(ECONOMY_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
+        <div />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -198,6 +218,9 @@ function ActionListItem({ action }: { action: ActionRow }) {
       <div className="flex items-center gap-2 px-3 py-2">
         <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-gothic-sm flex-shrink-0 ${KIND_COLORS[action.kind] ?? ""}`}>
           {KIND_LABELS[action.kind] ?? action.kind}
+        </span>
+        <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-gothic-sm flex-shrink-0 bg-gothic-surface-high text-gothic-on-surface-variant">
+          {ECONOMY_LABELS[action.economyType] ?? action.economyType}
         </span>
         <span className="font-semibold text-sm text-gothic-on-surface truncate flex-1 min-w-0">{action.name}</span>
         <span className="hidden sm:flex items-center gap-2 text-xs font-mono text-gothic-on-surface-variant flex-shrink-0">

@@ -210,6 +210,7 @@ export default async function EditTemplatePage({
           formula:     a.formula,
           damageType:  a.damageType,
           uses:        a.uses,
+          economyType: a.economyType,
         }))}
       />
     </div>

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma, ActionKind } from "@prisma/client";
+import { Prisma, ActionKind, ActionEconomy } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireCampaignDmAction, UnauthorizedError } from "@/lib/auth/action-guards";
 import { rollFormula } from "@/domain/dice/roll";
@@ -22,6 +22,7 @@ export type TemplateActionInput = {
   formula: string;
   damageType?: string | null;
   uses?: number | null;
+  economyType?: string; // narrowed to ActionEconomy by validate()
 };
 
 export type TemplateActionResult = { ok: boolean; error?: string };
@@ -33,6 +34,7 @@ type ValidatedAction = {
   formula: string;
   damageType: string | null;
   uses: number;
+  economyType: ActionEconomy;
 };
 
 function validate(input: TemplateActionInput): { data: ValidatedAction } | { error: string } {
@@ -43,6 +45,19 @@ function validate(input: TemplateActionInput): { data: ValidatedAction } | { err
     return { error: "El tipo de acción debe ser ATTACK o HEAL" };
   }
   const kind = input.kind as ActionKind;
+
+  // economyType: same criterion as kind — must be one of the enum's own
+  // values (§4b). Defaults to ACTION when omitted, same default as the
+  // migration gave already-seeded rows.
+  const economyTypeRaw = input.economyType ?? "ACTION";
+  if (
+    economyTypeRaw !== "ACTION" &&
+    economyTypeRaw !== "BONUS_ACTION" &&
+    economyTypeRaw !== "REACTION"
+  ) {
+    return { error: "La economía de acción debe ser ACTION, BONUS_ACTION o REACTION" };
+  }
+  const economyType = economyTypeRaw as ActionEconomy;
 
   // attackBonus: required for ATTACK, forced null for HEAL (§2).
   let attackBonus: number | null = null;
@@ -72,7 +87,7 @@ function validate(input: TemplateActionInput): { data: ValidatedAction } | { err
 
   const damageType = input.damageType?.trim() || null;
 
-  return { data: { name, kind, attackBonus, formula, damageType, uses } };
+  return { data: { name, kind, attackBonus, formula, damageType, uses, economyType } };
 }
 
 function isDuplicateName(err: unknown): boolean {

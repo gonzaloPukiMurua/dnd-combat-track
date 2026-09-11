@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { PrismaClient, type ActionKind } from "@prisma/client";
+import { PrismaClient, type ActionKind, type ActionEconomy } from "@prisma/client";
 import { rollFormula } from "../src/domain/dice/roll";
 
 // Loads the global monster roster from prisma/seed-data/monsters.json into
@@ -20,6 +20,7 @@ interface SeedAction {
   formula: string;
   damageType?: string;
   uses?: number;
+  economyType?: ActionEconomy;
 }
 
 interface SeedMonster {
@@ -54,6 +55,10 @@ function validate(monsters: SeedMonster[]) {
       }
       if (a.uses != null && (!Number.isInteger(a.uses) || a.uses < 1)) {
         throw new Error(`"${m.name}" → "${a.name}": "uses" debe ser un entero >= 1`);
+      }
+      const ECONOMY_VALUES: ActionEconomy[] = ["ACTION", "BONUS_ACTION", "REACTION"];
+      if (a.economyType != null && !ECONOMY_VALUES.includes(a.economyType)) {
+        throw new Error(`"${m.name}" → "${a.name}": "economyType" debe ser uno de ${ECONOMY_VALUES.join(", ")}`);
       }
       // Fail loud at seed time rather than at roll time in combat.
       rollFormula(a.formula);
@@ -97,6 +102,7 @@ async function main() {
           formula: a.formula,
           damageType: a.damageType ?? null,
           uses: a.uses ?? 1,
+          economyType: a.economyType ?? "ACTION",
           order: i,
         };
 
