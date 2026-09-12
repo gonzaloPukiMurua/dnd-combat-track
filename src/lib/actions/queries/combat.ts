@@ -9,7 +9,12 @@ export const COMBAT_DETAIL_INCLUDE = {
     // monsterTemplate rides along so the mapper can surface a synthetic
     // view-model `template` (type MONSTER) for global-roster participants —
     // their real `template` relation is null (etapa-3-monstruos.md §5).
-    include: { template: true, monsterTemplate: true },
+    // Each side's actions ride along too — read live at roll time, never
+    // snapshotted (etapa-3-acciones-tiradas.md §2/§4b).
+    include: {
+      template:        { include: { actions: { orderBy: { order: "asc" as const } } } },
+      monsterTemplate: { include: { actions: { orderBy: { order: "asc" as const } } } },
+    },
   },
   logs: {
     orderBy: { createdAt: "asc" as const },

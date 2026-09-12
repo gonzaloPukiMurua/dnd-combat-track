@@ -12,7 +12,8 @@ import { TargetSelector } from "@/components/ui/TargetSelector";
 import { AmountControls } from "@/components/ui/AmountControls";
 import { TempHpControls } from "@/components/ui/TempHpControls";
 import { CombatantNameRow } from "./CombatNameRow";
-import type { LogEntry } from "@/domain/combat/types";
+import { GuidedActionPanel, type RollInfo } from "./GuidedActionPanel";
+import type { LogEntry, ActionEconomy, TemplateActionView } from "@/domain/combat/types";
 import {
   dealDamage,
   healParticipant,
@@ -25,6 +26,15 @@ import { setParticipantInitiative } from "@/lib/actions/combat";
 import { makeFormData } from "@/lib/utils/formData";
 import { TYPE_ACCENT, computeAcTotal } from "@/domain/combat/selectors";
 import { ParticipantSummary } from "@/domain/combat/types";
+import { rollFormula } from "@/domain/dice/roll";
+
+// F — maps the economy filter to the CombatParticipant boolean field it
+// gates against / marks on first confirm (etapa-3-acciones-tiradas.md §4b).
+const ECONOMY_FIELD: Record<ActionEconomy, "actionUsed" | "bonusUsed" | "reactionUsed"> = {
+  ACTION:       "actionUsed",
+  BONUS_ACTION: "bonusUsed",
+  REACTION:     "reactionUsed",
+};
 
 function CombatantRowBase({
   participant: p, combatId, isCurrentTurn, isFinished,
@@ -50,14 +60,138 @@ function CombatantRowBase({
   const isDead   = p.deathSaveFailures >= 3;
   const disabled = isMutating || globalMutating || isFinished;
 
+  // F — guided attack/heal roll flow (etapa-3-acciones-tiradas.md §4 + §4b).
+  const [economy, setEconomy] = useState<ActionEconomy | null>(null);
+  const [selectedActionId, setSelectedActionId] = useState<string | null>(null);
+  const [useIndex, setUseIndex] = useState(1);
+  const [rollInfo, setRollInfo] = useState<RollInfo | null>(null);
+  const [guidedNote, setGuidedNote] = useState<string | null>(null);
+  const [pendingEconomyField, setPendingEconomyField] =
+    useState<"actionUsed" | "bonusUsed" | "reactionUsed" | null>(null);
+
+  const templateActions = p.template?.actions ?? [];
+  const selectedAction  = templateActions.find((a) => a.id === selectedActionId) ?? null;
+  const targetName      = allParticipants.find((t) => t.id === targetId)?.displayName ?? "";
+
+  function handleTargetChange(id: string) {
+    setTargetId(id);
+    // A pending roll's impact note is only valid against the target it was
+    // rolled for — force a fresh roll rather than let a stale "vs CA X" note
+    // attach to a different target (§4b punto 4 — objetivo→tirada→aplicar,
+    // per use).
+    if (guidedNote) {
+      setGuidedNote(null);
+      setPendingEconomyField(null);
+      setRollInfo(null);
+      setAmount("");
+    }
+  }
+
+  function handleSelectEconomy(next: ActionEconomy) {
+    setEconomy(next);
+    setSelectedActionId(null);
+    setUseIndex(1);
+    setRollInfo(null);
+    setGuidedNote(null);
+    setPendingEconomyField(null);
+  }
+
+  function handleSelectAction(action: TemplateActionView) {
+    setSelectedActionId(action.id);
+    setUseIndex(1);
+    setRollInfo(null);
+    setGuidedNote(null);
+    setPendingEconomyField(null);
+    setAmount("");
+  }
+
+  function handleCancelGuidedAction() {
+    setEconomy(null);
+    setSelectedActionId(null);
+    setUseIndex(1);
+    setRollInfo(null);
+    setGuidedNote(null);
+    setPendingEconomyField(null);
+  }
+
+  function handleGuidedRoll() {
+    if (!selectedAction || !economy) return;
+    const target = allParticipants.find((t) => t.id === targetId);
+
+    let amountTotal: number;
+    let noteBody: string;
+
+    if (selectedAction.kind === "ATTACK") {
+      const bonus = selectedAction.attackBonus ?? 0;
+      const bonusStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+      const attackRoll = rollFormula(`1d20${bonusStr}`);
+      const acTargetTotal = target ? computeAcTotal(target.baseAc, target.acModifiers) : 0;
+      const hit = attackRoll.total >= acTargetTotal;
+      const damageRoll = rollFormula(selectedAction.formula);
+      amountTotal = damageRoll.total;
+      noteBody =
+        `Ataca con ${selectedAction.name}: d20${bonusStr}=${attackRoll.total} ` +
+        `vs CA ${acTargetTotal} → ${hit ? "Impacta" : "Falla"}. Daño: ${selectedAction.formula}=${damageRoll.total}`;
+      setRollInfo({
+        text: `d20${bonusStr}=${attackRoll.total} vs CA ${acTargetTotal} → ${hit ? "Impacta" : "Falla"}`,
+        hit,
+      });
+    } else {
+      const healRoll = rollFormula(selectedAction.formula);
+      amountTotal = healRoll.total;
+      noteBody = `Cura con ${selectedAction.name}: ${selectedAction.formula}=${healRoll.total}`;
+      setRollInfo({ text: `${selectedAction.formula}=${healRoll.total}` });
+    }
+
+    if (selectedAction.uses > 1) {
+      noteBody += ` — uso ${useIndex}/${selectedAction.uses}`;
+    }
+
+    setAmount(amountTotal > 0 ? String(amountTotal) : "");
+    setGuidedNote(noteBody);
+    setPendingEconomyField(ECONOMY_FIELD[economy]);
+  }
+
+  // Runs after a guided-flow damage/heal is confirmed — advances to the next
+  // use of a multiattack (§7b) or, once uses are exhausted, resets the
+  // wizard so the DM starts clean for this participant's next invocation.
+  function advanceGuidedUse() {
+    setGuidedNote(null);
+    setPendingEconomyField(null);
+    setRollInfo(null);
+    if (selectedAction && useIndex < selectedAction.uses) {
+      setUseIndex((i) => i + 1);
+    } else {
+      setEconomy(null);
+      setSelectedActionId(null);
+      setUseIndex(1);
+    }
+  }
+
   function handleDamage() {
     const n = parseInt(amount);
     if (!n || n < 1) return;
+    const note = guidedNote;
+    const field = pendingEconomyField;
+    const shouldToggleEconomy = field !== null && !p[field];
     mutate({
-      optimistic: () => useCombatStore.getState().applyDamage(targetId, n),
+      optimistic: () => {
+        useCombatStore.getState().applyDamage(targetId, n);
+        if (shouldToggleEconomy) useCombatStore.getState().toggleAction(p.id, field!);
+      },
       action: async () => {
-        const r = await dealDamage(makeFormData({ combatId, actorId: p.id, targetId, amount: n }));
-        setAmount(""); return r;
+        const results = await Promise.all([
+          dealDamage(makeFormData({
+            combatId, actorId: p.id, targetId, amount: n,
+            ...(note ? { rollNote: note } : {}),
+          })),
+          ...(shouldToggleEconomy
+            ? [toggleActionState(makeFormData({ combatId, targetId: p.id, field: field! }))]
+            : []),
+        ]);
+        setAmount("");
+        if (note) advanceGuidedUse();
+        return results.find((r) => !r.ok) ?? { ok: true };
       },
     });
   }
@@ -65,11 +199,27 @@ function CombatantRowBase({
   function handleHeal() {
     const n = parseInt(amount);
     if (!n || n < 1) return;
+    const note = guidedNote;
+    const field = pendingEconomyField;
+    const shouldToggleEconomy = field !== null && !p[field];
     mutate({
-      optimistic: () => useCombatStore.getState().applyHeal(targetId, n),
+      optimistic: () => {
+        useCombatStore.getState().applyHeal(targetId, n);
+        if (shouldToggleEconomy) useCombatStore.getState().toggleAction(p.id, field!);
+      },
       action: async () => {
-        const r = await healParticipant(makeFormData({ combatId, actorId: p.id, targetId, amount: n }));
-        setAmount(""); return r;
+        const results = await Promise.all([
+          healParticipant(makeFormData({
+            combatId, actorId: p.id, targetId, amount: n,
+            ...(note ? { rollNote: note } : {}),
+          })),
+          ...(shouldToggleEconomy
+            ? [toggleActionState(makeFormData({ combatId, targetId: p.id, field: field! }))]
+            : []),
+        ]);
+        setAmount("");
+        if (note) advanceGuidedUse();
+        return results.find((r) => !r.ok) ?? { ok: true };
       },
     });
   }
@@ -257,12 +407,30 @@ function CombatantRowBase({
             onToggle={handleToggleAction}
           />
 
+          {/* F — guided attack/heal roll flow */}
+          <GuidedActionPanel
+            actions={templateActions}
+            actionUsed={p.actionUsed}
+            bonusUsed={p.bonusUsed}
+            reactionUsed={p.reactionUsed}
+            disabled={disabled}
+            economy={economy}
+            onSelectEconomy={handleSelectEconomy}
+            selectedAction={selectedAction}
+            onSelectAction={handleSelectAction}
+            onCancel={handleCancelGuidedAction}
+            useIndex={useIndex}
+            rollInfo={rollInfo}
+            onRoll={handleGuidedRoll}
+            targetName={targetName}
+          />
+
           {/* Target */}
           <TargetSelector
             value={targetId}
             participants={allParticipants}
             currentParticipantId={p.id}
-            onChange={setTargetId}
+            onChange={handleTargetChange}
           />
 
           {/* Amount */}

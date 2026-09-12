@@ -1,7 +1,37 @@
 import type { getCombatDetail } from "@/lib/actions/queries/combat";
-import type { Participant, LogEntry, CombatStatus } from "@/domain/combat/types";
+import type {
+  Participant, LogEntry, CombatStatus, TemplateActionView, ActionKind, ActionEconomy,
+} from "@/domain/combat/types";
 
 type CombatDetail = NonNullable<Awaited<ReturnType<typeof getCombatDetail>>>;
+
+// Shape of a raw Prisma TemplateAction row as it rides along on either side
+// of the include (queries/combat.ts) — stated explicitly rather than derived
+// via conditional types, since both template.actions and
+// monsterTemplate.actions resolve to the same row shape.
+type RawAction = {
+  id:          string;
+  name:        string;
+  kind:        string;
+  attackBonus: number | null;
+  formula:     string;
+  damageType:  string | null;
+  uses:        number;
+  economyType: string;
+};
+
+function mapAction(a: RawAction): TemplateActionView {
+  return {
+    id:          a.id,
+    name:        a.name,
+    kind:        a.kind as ActionKind,
+    attackBonus: a.attackBonus,
+    formula:     a.formula,
+    damageType:  a.damageType,
+    uses:        a.uses,
+    economyType: a.economyType as ActionEconomy,
+  };
+}
 
 export type MappedCombat = {
   id:               string;
@@ -64,6 +94,7 @@ export function mapCombatDetail(combat: CombatDetail): MappedCombat {
         maxHp:           p.template.maxHp,
         baseAc:          p.template.baseAc,
         initiativeBonus: p.template.initiativeBonus,
+        actions:         p.template.actions.map(mapAction),
       } : p.monsterTemplate ? {
         id:              p.monsterTemplate.id,
         name:            p.monsterTemplate.name,
@@ -71,6 +102,7 @@ export function mapCombatDetail(combat: CombatDetail): MappedCombat {
         maxHp:           p.monsterTemplate.maxHp,
         baseAc:          p.monsterTemplate.baseAc,
         initiativeBonus: p.monsterTemplate.initiativeBonus,
+        actions:         p.monsterTemplate.actions.map(mapAction),
       } : null,
     })),
     logs: combat.logs.map((l) => ({

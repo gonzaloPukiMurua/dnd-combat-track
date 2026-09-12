@@ -43,6 +43,8 @@ export function CombatView({ combatId, isFinished, templates, monsters }: Props)
         currentHp:   p.currentHp,
         maxHp:       p.maxHp,
         tempHp:      p.tempHp,
+        baseAc:      p.baseAc,
+        acModifiers: p.acModifiers,
       })),
     [participants]
   );

@@ -54,6 +54,9 @@ export async function dealDamage(formData: FormData): Promise<ActionResult> {
     const targetId  = fd(formData, "targetId");
     const actorId   = fd(formData, "actorId") || null;
     const rawAmount = Number(fd(formData, "amount"));
+    // Optional roll detail from the guided attack flow (etapa-3-acciones-
+    // tiradas.md §4 punto 6) — enriches the log note, never required.
+    const rollNote  = fd(formData, "rollNote").trim() || null;
 
     if (!combatId || !targetId) return { ok: false, error: "Missing combatId or targetId" };
     if (isNaN(rawAmount) || rawAmount < 1) return { ok: false, error: "Amount must be at least 1" };
@@ -66,6 +69,9 @@ export async function dealDamage(formData: FormData): Promise<ActionResult> {
     if (!target) return { ok: false, error: "Target not found" };
 
     const { currentHp: newHp, tempHp: newTempHp, isConscious } = applyDamage(target, rawAmount);
+
+    const unconsciousNote = !isConscious ? `${target.displayName} cayó inconsciente` : null;
+    const note = [rollNote, unconsciousNote].filter(Boolean).join(". ") || null;
 
     await prisma.$transaction([
       prisma.combatParticipant.update({
@@ -82,7 +88,7 @@ export async function dealDamage(formData: FormData): Promise<ActionResult> {
           actorId,
           targetId,
           amount:   rawAmount,
-          note:     !isConscious ? `${target.displayName} cayó inconsciente` : null,
+          note,
         },
       }),
     ]);
@@ -102,6 +108,9 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
     const targetId  = fd(formData, "targetId");
     const actorId   = fd(formData, "actorId") || null;
     const rawAmount = Number(fd(formData, "amount"));
+    // Optional roll detail from the guided heal flow (etapa-3-acciones-
+    // tiradas.md §4 punto 6 / §5) — enriches the log note, never required.
+    const rollNote  = fd(formData, "rollNote").trim() || null;
 
     if (!combatId || !targetId) return { ok: false, error: "Missing combatId or targetId" };
     if (isNaN(rawAmount) || rawAmount < 1) return { ok: false, error: "Amount must be at least 1" };
@@ -114,6 +123,11 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
     if (!target) return { ok: false, error: "Target not found" };
 
     const healed = applyHeal(target, rawAmount);
+
+    const consciousnessNote = healed.regainedConsciousness
+      ? `${target.displayName} recuperó la consciencia`
+      : null;
+    const note = [rollNote, consciousnessNote].filter(Boolean).join(". ") || null;
 
     await prisma.$transaction([
       prisma.combatParticipant.update({
@@ -136,9 +150,7 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
           actorId,
           targetId,
           amount:   rawAmount,
-          note:     healed.regainedConsciousness
-            ? `${target.displayName} recuperó la consciencia`
-            : null,
+          note,
         },
       }),
     ]);
