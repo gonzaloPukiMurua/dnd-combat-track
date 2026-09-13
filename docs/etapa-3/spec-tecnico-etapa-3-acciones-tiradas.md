@@ -215,3 +215,169 @@ construyó D. Dos piezas chicas, empaquetadas juntas por compartir la misma fuen
 - Salvaciones + bonificadores de habilidad del personaje (documento combinado, pendiente).
 - Ventaja/desventaja, ataques de área, críticos con reglas especiales.
 - Cualquier automatización de efectos al impactar/fallar (condiciones automáticas, etc.).
+
+## 10. Ticket nuevo (H) — extender el flujo guiado a CurrentTurnPanel.tsx
+
+Surgió al cerrar F: `CombatRow.tsx` recibió el selector de economía → acción → objetivo →
+tirada (§4b), pero `CurrentTurnPanel.tsx` tiene su propio control de Daño/Curar/Target
+duplicado, sin tocar. Con F cerrado, la app queda con **dos caminos distintos** para aplicar
+daño/curación — uno guiado, uno crudo — dependiendo de qué panel esté usando el DM en ese
+momento. Es una inconsistencia real de UX, no cosmética: un DM se topa con comportamiento
+distinto según el mismo tipo de acción.
+
+Alcance de H: extender el mismo componente `GuidedActionPanel.tsx` (extraído en F) a
+`CurrentTurnPanel.tsx`, reusándolo tal cual en vez de reimplementar la lógica de gating ahí.
+No es una feature nueva — es aplicar F al segundo lugar donde ya hacía falta. Conviene
+esperar a tener F verificado en vivo contra un combate real antes de replicar el patrón, para
+no propagar un bug de F a dos lugares a la vez.
+
+## 11. Bitácora de implementación (C–H, Sprint 3)
+
+Mismo criterio que spec-tecnico-etapa-1.md §8: estado real, verificado contra el código y
+(donde se indica) contra la DB real, no un resumen de intención. Cubre los cuatro commits de
+esta pasada, en orden.
+
+**de99151 — `economyType` en `TemplateAction`:** agrega el enum `ActionEconomy { ACTION
+BONUS_ACTION REACTION }` y la columna `TemplateAction.economyType @default(ACTION)`
+(migración `20260911001249_add_action_economy_type`), reusando el mismo enum que ya
+consumían `CombatParticipant.actionUsed/bonusUsed/reactionUsed` desde antes de esta etapa —
+no se creó ningún tipo nuevo del lado de `CombatParticipant`. Validado en
+`templateActions.ts` con el mismo criterio que ya aplicaba a `kind` (debe ser uno de los
+valores propios del enum, si no `{ error }`). `TemplateActionsSection.tsx` suma el `<select>`
+de economía en alta y edición, más una badge por fila. El seed (`monsters.json` +
+`seed-monsters.ts`) declara `economyType: "ACTION"` explícito en las 16 acciones ya
+sembradas por C — todas son ataques de arma física, ninguna necesitó Bono/Reacción.
+Idempotencia: confirmada **por lectura de código**, no por una corrida en vivo dedicada a
+este commit — el mecanismo de upsert que ya traía `seed-monsters.ts` (por `name` de
+monstruo y por la unique key `(monsterTemplateId, name)` de cada acción) no cambió con este
+commit, así que reejecutar `npm run seed:monsters` sigue sin duplicar filas; este commit es
+anterior a las verificaciones en vivo de esta sesión (F en adelante), así que no hay una
+corrida registrada específica para él.
+
+**0724a6b (F) — flujo guiado economía→acción→tirada en `CombatRow.tsx`:** DM elige
+Acción/Bono/Reacción (deshabilitado lo ya gastado, leído directo de
+`actionUsed`/`bonusUsed`/`reactionUsed`), después una `TemplateAction` de ese tipo, tira
+`d20+attackBonus` vs `computeAcTotal(target)` para `ATTACK` (informativo, nunca bloquea),
+tira la fórmula de daño/curación y prellena el input de cantidad existente — el DM sigue
+confirmando con el botón Daño/Curar de siempre. Multiataque (`uses > 1`) repite
+objetivo→tirada→aplicar por uso, con un objetivo nuevo posible en cada vuelta.
+`actionUsed`/`bonusUsed`/`reactionUsed` se marca recién al confirmar el primer daño/curación
+de la invocación (no al elegir la acción, no en usos posteriores del mismo multiataque) — el
+chequeo es directo contra el valor actual del campo (`!p[field]`) antes de decidir si llamar
+a `toggleActionState`, sin agregar un flag nuevo de "ya marcado".
+
+Cambios de soporte, todos necesarios por lo anterior: `queries/combat.ts` no traía
+`TemplateAction` en el include de participantes — se agregó `actions` (ordenadas) bajo
+`template` y `monsterTemplate`; `mappers/combat.ts` unifica ambas ramas como
+`template.actions` en el view-model (`mapAction`, compartida); `domain/combat/types.ts` gana
+`ActionKind`/`ActionEconomy`/`TemplateActionView`, `Participant.template.actions`, y
+`ParticipantSummary` gana `baseAc`/`acModifiers` (la tirada de impacto necesita la CA del
+objetivo, y el único listado de participantes que llegaba a `CombatRow` era el resumen
+liviano); `participant.ts` — `dealDamage`/`healParticipant` aceptan un `rollNote` opcional
+que se pliega en el `note` de `CombatLog` existente (mismo criterio de string en español que
+fijó S2-11); `GuidedActionPanel.tsx` — nuevo, puramente presentacional, todo el estado y la
+matemática de tirada viven en `CombatRow.tsx` (así se documentó en el propio componente, ver
+comentario de cabecera).
+
+Verificación en vivo (script temporal + cleanup, campaña/combate ACTIVE sembrados en la DB
+real de Supabase, monstruo real del roster global — Simio con Puñetazo `uses: 2`): filtro
+`economyType: ACTION` devuelve exactamente `[Puñetazo, Roca]` (se agregó una acción
+`REACTION` temporal al mismo Simio solo para probar la exclusión, borrada al final —
+alcance admitido explícitamente como extra en el reporte de esa pasada); primer uso del
+multiataque contra un objetivo → `actionUsed` pasa `false→true`, `CombatLog` con **una**
+fila cuyo `note` trae el detalle de la tirada (`"Ataca con Puñetazo: d20+5=... vs CA ... →
+Impacta/Falla. Daño: 1d6+3=... — uso 1/2"`); segundo uso contra otro objetivo → **no** se
+vuelve a invocar `toggleActionState` (`shouldToggleEconomy` da `false` porque el campo ya
+era `true`), `actionUsed` se mantiene en `true`, `CombatLog` termina con exactamente 2 filas
+(no una fantasma por el toggle — que de por sí nunca escribe `CombatLog`, solo flipea el
+booleano); caso HEAL sin tirada de impacto, `bonusUsed` pasa a `true`, HP correcto. Limpieza
+confirmada por query: cero filas residuales de campaña/combate/participantes/logs/usuario, y
+el Simio global de vuelta a sus 2 acciones originales.
+
+**Limitación conocida, no resuelta:** la capa de autorización (`auth()` / next-auth) **no se
+ejerció** en esta verificación ni en las de H/hook más abajo — el script llama Prisma
+directo replicando la lógica de `dealDamage`/`healParticipant`/`toggleActionState`, no las
+Server Actions exportadas, porque `auth()` necesita contexto de request HTTP real
+(`cookies()`) que un script standalone no tiene. Los guards de `action-guards.ts`
+(`requireParticipantAccess`, `requireParticipantDmAccess`) siguen sin un test en vivo
+posterior a este cambio — quedan cubiertos únicamente por lectura de código.
+
+**54c2c36 (H) — extensión a `CurrentTurnPanel.tsx`:** antes de asumir que
+`GuidedActionPanel.tsx` encajaba tal cual, se confirmó contra el código real cómo armaba
+`CurrentTurnPanel.tsx` su propio Daño/Curar/Target — crudo, sin `rollNote` ni gating de
+economía, con un tipo `CurrentActor` que ni siquiera traía `template.actions`. Se confirmó
+también que el `actor` que le pasa `CombatView.tsx` (vía `computeCurrentActor(participants,
+currentTurnIndex)`) ya es el `Participant` completo del store — con `template.actions`
+incluido de fábrica gracias al include/mapper que F ya había extendido — así que no hizo
+falta tocar `CombatView.tsx` ni el mapper, solo ensanchar el tipo local `CurrentActor`.
+
+**Decisión de esta pasada que quedó revertida en el siguiente commit, dejada como parte de
+la historia:** en 54c2c36 el wiring de estado (los mismos `useState` de
+economía/acción/tirada + `handleSelectEconomy`/`handleSelectAction`/`handleGuidedRoll`/
+`advanceGuidedUse`/`handleDamage`/`handleHeal`) se **duplicó** línea por línea en
+`CurrentTurnPanel.tsx` a partir de `CombatRow.tsx` (mismo cuerpo, `p` renombrado a `actor`).
+Fue una decisión consciente en su momento — la consigna de H pedía reusar
+`GuidedActionPanel.tsx` sin tocarlo, no necesariamente extraer un hook nuevo, y hacerlo
+hubiera tocado también `CombatRow.tsx` — pero quedó registrada como riesgo de duplicación
+real (un bug corregido en un lugar y no en el otro) hasta que 8530a1a la resolvió.
+
+Verificación en vivo: campaña descartable (sin tocar el roster global esta vez, ya que no se
+repitió el test del filtro de economía) con Simio en modo **solo lectura** + un target con
+una acción HEAL propia. Mismo trace que F — multiataque uso 1/2 marca `actionUsed`, uso 2/2
+no re-togglea, `CombatLog` con 2 filas, HEAL correcto. Un detalle real (no un bug) que surgió
+en esta corrida: el HP del target llegó a exactamente 0 por la combinación de daños, así que
+`healParticipant` agregó el sufijo *"recuperó la consciencia"* al `note` — comportamiento
+correcto de la función ya existente (mismo mecanismo que la nota de "cayó inconsciente" de
+`dealDamage`), lo que se tuvo que corregir fue la aserción del script de verificación, no el
+código de la app. Limpieza confirmada por query, igual que en F.
+
+**8530a1a — extracción de `useGuidedAction` (elimina la duplicación de 54c2c36):** antes de
+diseñar la firma se releyeron ambos archivos completos y se confirmó que los handlers
+guiados eran **idénticos** entre hosts salvo el nombre de la variable (`p` vs `actor`) — no
+había ninguna diferencia real de comportamiento que preservar por separado.
+
+**Por qué el hook no orquesta `mutate()`/`dealDamage`/`toggleActionState` directamente**
+(a diferencia de la firma `useGuidedAction(actor, { onDamage, onHeal, toggleActionState })`
+sugerida al pedir el refactor): `mutate()` (de `useCombatMutation()`) ya es compartido por
+**todas** las mutaciones de cada host — HP temporal, condiciones, iniciativa, fin de turno,
+no solo el flujo guiado. Si el hook llamara su propia `useCombatMutation()` internamente,
+sería una segunda instancia independiente de la del host, y el indicador "Guardando…"/
+`disabled` dejaría de reflejar exactamente cuándo una confirmación guiada está en vuelo —
+un cambio de comportamiento observable, justo lo que un refactor puro no debe introducir.
+Por eso el hook (`src/hooks/useGuidedAction.ts`) solo expone los valores derivados
+(`guidedNote`, `pendingField`, `shouldToggleEconomy`, `targetName`, `roll()` devolviendo el
+monto como string en vez de escribirlo, `advanceUse()`) y cada host sigue armando su propio
+`mutate({ optimistic, action })` exactamente como antes — ahora leyendo esos valores del hook
+en vez de estado local. `targetId` y `allParticipants` quedan fuera del hook por instrucción
+explícita (cada host arma su target distinto — `TargetSelector` en `CombatRow.tsx`, un
+`<select>` inline con opción "Uno mismo" en `CurrentTurnPanel.tsx`) y se le pasan como
+parámetros de solo lectura.
+
+Verificación en vivo: dos trazas independientes con fixtures **distintos** por host, en una
+misma campaña descartable —
+Escenario A ("como lo dispararía `CombatRow.tsx`"): Simio/Puñetazo;
+Escenario B ("como lo dispararía `CurrentTurnPanel.tsx`"): Dragón azul adulto/Desgarro,
+ambos `uses: 2` del roster global, en modo solo lectura. Los dos escenarios dieron el mismo
+patrón de resultado que las corridas de F y H (toggle una sola vez, 2 filas de `CombatLog`,
+HEAL correcto) — confirmando que mover el estado al hook no cambió ningún cálculo. Lo que
+esta verificación **no** cubre: que el propio hook funcione como hook de React al
+renderizarse (orden de llamadas, re-renders) — no hay runtime de React en un script de Node;
+eso quedó cubierto solo por `tsc --noEmit`/`build`/ESLint limpios más revisión manual línea
+por línea de cada `guided.*` contra el código original, no por un test de React en vivo.
+
+**Nota para la próxima verificación en vivo contra esta DB:** tanto en F como en el refactor
+del hook (8530a1a), el script de limpieza final se cortó una vez por un timeout intermitente
+del connection pooler de Supabase (`P1001`, o el proceso colgado sin error) — nunca por
+pérdida real de datos (se confirmó ambas veces con una query de diagnóstico aparte que lo ya
+borrado seguía borrado). Mitigación aplicada: reemplazar cualquier `Promise.all` de varias
+queries de verificación por awaits secuenciales reduce la frecuencia, pero no la elimina. No
+es un bug para resolver ahora — es un aviso: quien verifique algo en vivo contra esta DB más
+adelante debería esperar tener que reintentar o completar la limpieza a mano si el proceso se
+corta, y confirmar con una query de diagnóstico aparte antes de asumir que algo quedó
+huérfano.
+
+**Estado abierto de Sprint 3 al cierre de esta bitácora:** el ticket **G** (§8 — página de
+exploración de solo lectura del bestiario + sub-agrupación por categoría en el picker de
+combate) sigue **sin implementar**. Salvaciones y bonificadores de habilidad del personaje
+(§9) siguen **sin diseñar** — documento combinado pendiente, ninguna decisión tomada más
+allá de la mención de que `ActionKind.SAVE` se diseñaría ahí si hiciera falta (§7b).
