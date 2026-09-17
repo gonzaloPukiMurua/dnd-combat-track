@@ -1,5 +1,28 @@
 @AGENTS.md
 
+## Operaciones destructivas de base de datos — jamás sin confirmación explícita
+
+Ningún comando que pueda borrar o truncar datos contra DATABASE_URL se ejecuta sin que el
+usuario lo confirme explícitamente en ESE momento, sin importar qué problema esté tratando
+de resolver (un migrate dev que falla no interactivo, un P3005, lo que sea). Esto incluye
+sin excepción:
+- prisma migrate reset
+- prisma db push --force-reset o --accept-data-loss
+- TRUNCATE, DROP TABLE, DROP SCHEMA, DROP DATABASE
+- Cualquier DELETE/deleteMany sin WHERE, o con un WHERE que no esté acotado a IDs
+  específicos verificados antes de ejecutar
+
+Si un flujo de trabajo (migración, seed, verificación) parece requerir uno de estos comandos
+para "destrabar" un error, la respuesta correcta es PARAR y preguntarle al usuario cómo
+quiere proceder — nunca ejecutarlo como solución de paso intermedio, ni siquiera con la
+intención de revertirlo después. No existe una versión "segura" de estos comandos contra una
+base compartida real.
+
+Regla adicional: cualquier script de verificación/diagnóstico que toque DATABASE_URL debe
+confirmar primero, imprimiéndolo, contra qué base está apuntando (host/nombre de DB de la
+URL, sin exponer credenciales) antes de escribir o borrar nada — un typo de entorno no debe
+poder pasar desapercibido.
+
 ## Formato de reporte al cerrar una tarea
 
 Aplica a cualquier tarea que toque más de un archivo, o cualquier cosa relacionada a

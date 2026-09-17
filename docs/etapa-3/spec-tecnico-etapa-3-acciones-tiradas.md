@@ -381,3 +381,41 @@ exploración de solo lectura del bestiario + sub-agrupación por categoría en e
 combate) sigue **sin implementar**. Salvaciones y bonificadores de habilidad del personaje
 (§9) siguen **sin diseñar** — documento combinado pendiente, ninguna decisión tomada más
 allá de la mención de que `ActionKind.SAVE` se diseñaría ahí si hiciera falta (§7b).
+
+### Incidente: pérdida total de datos en Supabase (15/09 noche)
+
+**Síntoma:** al intentar crear una campaña, la app devolvía `P2003` (foreign key constraint
+violation) — la referencia a un `User` que la sesión daba por existente ya no resolvía contra
+la DB real.
+
+**Hallazgo:** conteo de filas por tabla contra la DB de Supabase mostró **todas las tablas de
+la app en 0** (`User`, `Campaign`, `CampaignMember`, `CharacterTemplate`, `Combat`,
+`CombatParticipant`, `CombatLog`, `Group`, `GroupMember`) — excepto `MonsterTemplate` y
+`TemplateAction`, que sobrevivieron porque el seed (`npm run seed:monsters`) las repuebla por
+upsert y se había re-corrido después del vaciado. No había backup disponible para restaurar
+el estado previo.
+
+**Investigación de causa:** se revisaron las 13 sesiones de Claude Code contra este proyecto
+de punta a punta — no solo el texto de mensajes de usuario/asistente, sino el contenido real
+de cada `tool_use` de Bash/PowerShell (el campo `input.command` literal) y, adicionalmente,
+el contenido de los scripts `.ts` que esos comandos ejecutaron, buscando `prisma migrate
+reset`, `db push --force-reset`/`--accept-data-loss`, `TRUNCATE`, `DROP TABLE`/`SCHEMA`/
+`DATABASE`, y cualquier `DELETE`/`deleteMany` sin acotar. **No se encontró ningún comando
+destructivo** en ninguna de las 13 sesiones — los únicos matches de esos patrones fueron
+comandos de búsqueda (`grep`) de la propia investigación, no ejecuciones reales. La causa
+queda **sin determinar**; la hipótesis más probable no descartable con esta evidencia es un
+comando corrido fuera de una sesión de Claude Code (terminal manual o el SQL Editor de
+Supabase).
+
+No había datos reales de mesa en juego — todo lo perdido era de desarrollo/pruebas, sin
+usuarios ni campañas de una partida real.
+
+**Salvaguarda agregada independientemente de la causa:** regla permanente en `CLAUDE.md`
+("Operaciones destructivas de base de datos — jamás sin confirmación explícita") que exige
+confirmación explícita del usuario antes de cualquier `migrate reset`, `db push
+--force-reset`/`--accept-data-loss`, `TRUNCATE`/`DROP *`, o `DELETE`/`deleteMany` no acotado
+contra `DATABASE_URL`, sin excepción aunque un flujo de trabajo parezca requerirlo para
+destrabar un error — y exige que todo script de diagnóstico contra `DATABASE_URL` imprima
+primero contra qué base apunta.
+
+**Cierre:** resuelto operativamente, causa raíz desconocida.
