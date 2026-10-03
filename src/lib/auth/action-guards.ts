@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import type { CampaignMember } from "@prisma/client";
+import type { CampaignMember, CombatParticipant } from "@prisma/client";
 
 // S2-0 — write-side counterpart of src/lib/auth/guards.ts (requireCampaignDm,
 // the first line of every management page.tsx since D16). Server Actions are
@@ -24,11 +24,15 @@ export class UnauthorizedError extends Error {
 }
 
 type CombatContext = { campaignId: string; membership: CampaignMember };
+// The full participant row plus the combat's round, read once by the guard so
+// the action doesn't re-read the same row (see requireParticipantAccess).
+type ParticipantRow = CombatParticipant & { combat: { campaignId: string; round: number } };
 type ParticipantContext = {
   participantId: string;
   combatId: string;
   campaignId: string;
   membership: CampaignMember;
+  participant: ParticipantRow;
 };
 type TemplateOwnerContext = { templateId: string; campaignId: string; ownerId: string };
 
@@ -92,9 +96,11 @@ export async function requireCombatDm(combatId: string): Promise<CombatContext> 
 export async function requireParticipantAccess(participantId: string): Promise<ParticipantContext> {
   const userId = await requireUserId();
 
+  // Reads the whole row (+ combat round) once: the action needs the same data
+  // right after the guard, so it reuses this instead of issuing a second read.
   const participant = await prisma.combatParticipant.findUnique({
     where: { id: participantId },
-    select: { id: true, combatId: true, templateId: true, combat: { select: { campaignId: true } } },
+    include: { combat: { select: { campaignId: true, round: true } } },
   });
   if (!participant) throw new UnauthorizedError();
 
@@ -118,7 +124,13 @@ export async function requireParticipantAccess(participantId: string): Promise<P
     if (!owned) throw new UnauthorizedError();
   }
 
-  return { participantId: participant.id, combatId: participant.combatId, campaignId, membership };
+  return {
+    participantId: participant.id,
+    combatId: participant.combatId,
+    campaignId,
+    membership,
+    participant,
+  };
 }
 
 // ─── Template-owner-scoped ───────────────────────────────────────────────────
@@ -145,7 +157,7 @@ export async function requireTemplateOwner(templateId: string): Promise<Template
 export async function requireParticipantDmAccess(participantId: string): Promise<ParticipantContext> {
   const participant = await prisma.combatParticipant.findUnique({
     where: { id: participantId },
-    select: { id: true, combatId: true, combat: { select: { campaignId: true } } },
+    include: { combat: { select: { campaignId: true, round: true } } },
   });
   if (!participant) throw new UnauthorizedError();
 
@@ -153,5 +165,11 @@ export async function requireParticipantDmAccess(participantId: string): Promise
   const membership = await membershipOrThrow(campaignId);
   if (membership.role !== "DM") throw new UnauthorizedError();
 
-  return { participantId: participant.id, combatId: participant.combatId, campaignId, membership };
+  return {
+    participantId: participant.id,
+    combatId: participant.combatId,
+    campaignId,
+    membership,
+    participant,
+  };
 }

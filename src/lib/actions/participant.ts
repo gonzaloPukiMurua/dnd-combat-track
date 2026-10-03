@@ -64,7 +64,7 @@ export async function dealDamage(formData: FormData): Promise<ActionResult> {
     const g = await guard(() => requireParticipantAccess(targetId));
     if (!g.ok) return g;
 
-    const target = await getParticipantWithRound(targetId);
+    const target = g.ctx.participant;
 
     if (!target) return { ok: false, error: "Target not found" };
 
@@ -118,7 +118,7 @@ export async function healParticipant(formData: FormData): Promise<ActionResult>
     const g = await guard(() => requireParticipantAccess(targetId));
     if (!g.ok) return g;
 
-    const target = await getParticipantWithRound(targetId);
+    const target = g.ctx.participant;
 
     if (!target) return { ok: false, error: "Target not found" };
 
@@ -176,7 +176,7 @@ export async function setTempHp(formData: FormData): Promise<ActionResult> {
     const g = await guard(() => requireParticipantDmAccess(targetId));
     if (!g.ok) return g;
 
-    const target = await getParticipantWithRound(targetId);
+    const target = g.ctx.participant;
     if (!target) return { ok: false, error: "Target not found" };
 
     await prisma.combatParticipant.update({
@@ -206,7 +206,7 @@ export async function addCondition(formData: FormData): Promise<ActionResult> {
     const g = await guard(() => requireParticipantAccess(targetId));
     if (!g.ok) return g;
 
-    const target = await getParticipantWithRound(targetId);
+    const target = g.ctx.participant;
 
     if (!target) return { ok: false, error: "Target not found" };
 
@@ -254,7 +254,7 @@ export async function removeCondition(formData: FormData): Promise<ActionResult>
     const g = await guard(() => requireParticipantAccess(targetId));
     if (!g.ok) return g;
 
-    const target = await getParticipantWithRound(targetId);
+    const target = g.ctx.participant;
 
     if (!target) return { ok: false, error: "Target not found" };
 
@@ -298,7 +298,7 @@ export async function addAcModifier(formData: FormData): Promise<ActionResult> {
     const g = await guard(() => requireParticipantDmAccess(targetId));
     if (!g.ok) return g;
 
-    const target = await getParticipantWithRound(targetId);
+    const target = g.ctx.participant;
     if (!target) return { ok: false, error: "Target not found" };
 
     await prisma.combatParticipant.update({
@@ -394,7 +394,7 @@ export async function recordDeathSave(formData: FormData): Promise<ActionResult>
     const g = await guard(() => requireParticipantAccess(targetId));
     if (!g.ok) return g;
 
-    const target = await getParticipantWithRound(targetId);
+    const target = g.ctx.participant;
 
     if (!target) return { ok: false, error: "Target not found" };
     if (target.isConscious || target.isStabilized) return { ok: true };
@@ -508,9 +508,3 @@ export async function reorderParticipants(formData: FormData): Promise<ActionRes
   }
 }
 
-function getParticipantWithRound(targetId: string) {
-  return prisma.combatParticipant.findUnique({
-    where: { id: targetId },
-    include: { combat: { select: { round: true } } },
-  });
-}
