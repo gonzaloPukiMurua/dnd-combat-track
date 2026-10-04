@@ -33,13 +33,11 @@ export function CurrentTurnPanel({
   combatId,
   round,
   allParticipants,
-  globalMutating,
 }: {
   actor: CurrentActor;
   combatId: string;
   round: number;
   allParticipants: ParticipantSummary[];
-  globalMutating: boolean;
 }) {
   const { mutate, isMutating } = useCombatMutation();
 
@@ -47,7 +45,8 @@ export function CurrentTurnPanel({
   const [targetId, setTargetId] = useState(actor.id);
   const [expanded, setExpanded] = useState(true);
 
-  const disabled = isMutating || globalMutating;
+  // Never disabled by an in-flight mutation: clicks are queued (see useCombatMutation).
+  const disabled = false;
 
   const hpPct = computeHpPct(actor.currentHp, actor.maxHp);
 

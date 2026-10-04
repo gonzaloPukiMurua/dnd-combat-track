@@ -24,7 +24,6 @@ export function CombatView({ combatId, isFinished, templates, monsters }: Props)
   const round            = useCombatStore((s) => s.round);
   const combatName       = useCombatStore((s) => s.combatName);
   const currentTurnIndex = useCombatStore((s) => s.currentTurnIndex);
-  const isMutating       = useCombatStore((s) => s.isMutating);
   const status           = useCombatStore((s) => s.status);
   const { mutate } = useCombatMutation();
 
@@ -110,7 +109,6 @@ export function CombatView({ combatId, isFinished, templates, monsters }: Props)
               isFinished={isFinished}
               round={round}
               allParticipants={participantSummaries}
-              globalMutating={isMutating}
               canDrag={status === "ACTIVE"}
               isActive={status === "ACTIVE"}
               onDropParticipant={handleDropParticipant}
@@ -150,7 +148,6 @@ export function CombatView({ combatId, isFinished, templates, monsters }: Props)
           combatId={combatId}
           round={round}
           allParticipants={participantSummaries}
-          globalMutating={isMutating}
         />
       )}
     </div>
