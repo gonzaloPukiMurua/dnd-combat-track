@@ -58,7 +58,7 @@ export function DeathSaveTracker({
   isStabilized,
 }: Props) {
 
-  const { mutate, isMutating } = useCombatMutation();
+  const { mutate } = useCombatMutation();
 
   const isDead = deathSaveFailures >= 3;
 
@@ -103,7 +103,6 @@ export function DeathSaveTracker({
             ? "ring-gothic-success-text bg-gothic-success-bg/40"
             : "ring-gothic-brass-bright bg-gothic-surface-low"
         }
-        ${isMutating ? "opacity-60 pointer-events-none" : ""}
       `}
     >
       {/* Header */}
@@ -134,7 +133,6 @@ export function DeathSaveTracker({
         <button
           type="button"
           onClick={handleReset}
-          disabled={isMutating}
           className="
             text-xs text-gothic-on-surface-variant hover:text-gothic-on-surface
             underline disabled:opacity-40
@@ -177,7 +175,6 @@ export function DeathSaveTracker({
           <button
             type="button"
             onClick={() => handleSave("success")}
-            disabled={isMutating}
             className="
               h-11 rounded-gothic-sm bg-gothic-success-bg text-gothic-success-text
               text-sm font-semibold hover:brightness-110
@@ -190,7 +187,6 @@ export function DeathSaveTracker({
           <button
             type="button"
             onClick={() => handleSave("failure")}
-            disabled={isMutating}
             className="
               h-11 rounded-gothic-sm bg-gothic-wine text-gothic-on-surface
               text-sm font-semibold hover:bg-gothic-danger

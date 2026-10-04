@@ -30,11 +30,11 @@ import { useGuidedAction } from "@/hooks/useGuidedAction";
 
 function CombatantRowBase({
   participant: p, combatId, isCurrentTurn, isFinished,
-  round, allParticipants, globalMutating, canDrag, isActive, onDropParticipant, logs,
+  round, allParticipants, canDrag, isActive, onDropParticipant, logs,
 }: {
   participant: Participant; combatId: string;
   isCurrentTurn: boolean; isFinished: boolean; round: number;
-  allParticipants: ParticipantSummary[]; globalMutating: boolean;
+  allParticipants: ParticipantSummary[];
   canDrag?: boolean; isActive?: boolean;
   onDropParticipant?: (draggedId: string, targetId: string) => void;
   logs: LogEntry[];
@@ -50,7 +50,8 @@ function CombatantRowBase({
   const [initiativeDraft, setInitiativeDraft] = useState("");
   const acTotal  = computeAcTotal(p.baseAc, p.acModifiers);
   const isDead   = p.deathSaveFailures >= 3;
-  const disabled = isMutating || globalMutating || isFinished;
+  // Not disabled while a mutation is in flight: clicks are queued (see useCombatMutation).
+  const disabled = isFinished;
 
   // F — guided attack/heal roll flow (etapa-3-acciones-tiradas.md §4 + §4b),
   // state/wizard logic shared with CurrentTurnPanel.tsx (H) via this hook.
