@@ -112,3 +112,84 @@ export function exhaustionEffects(level: number): ExhaustionEffects {
     dead: level === 6,
   };
 }
+
+// ─── Ficha calculada (P2, docs/rework/p2-reglas-personaje.md §5) ─────────────
+
+export const ABILITY_KEYS: readonly Ability[] = ["str", "dex", "con", "int", "wis", "cha"];
+
+export type SheetInput = {
+  level: number;
+  scores: Record<Ability, number>;
+  saveProficiencies: readonly Ability[];
+  skillProficiencies: readonly SkillName[];
+  skillExpertise: readonly SkillName[];
+  spellcastingAbility: Ability | null;
+  exhaustionLevel: number;
+};
+
+export type Sheet = {
+  proficiencyBonus: number;
+  abilities: { key: Ability; score: number; modifier: number }[];
+  saves: { key: Ability; bonus: number; proficient: boolean }[];
+  skills: { name: SkillName; ability: Ability; bonus: number; proficient: boolean; expertise: boolean }[];
+  passivePerception: number;
+  spell: { saveDc: number; attackBonus: number } | null;
+  exhaustion: ExhaustionEffects;
+};
+
+export function buildSheet(input: SheetInput): Sheet {
+  const pb = proficiencyBonus(input.level);
+
+  const abilities = ABILITY_KEYS.map((key) => ({
+    key,
+    score: input.scores[key],
+    modifier: abilityModifier(input.scores[key]),
+  }));
+
+  const saves = ABILITY_KEYS.map((key) => {
+    const proficient = input.saveProficiencies.includes(key);
+    return {
+      key,
+      proficient,
+      bonus: savingThrowBonus({ score: input.scores[key], level: input.level, proficient }),
+    };
+  });
+
+  const skills = SKILLS.map((skill) => {
+    const proficient = input.skillProficiencies.includes(skill.name);
+    const expertise = input.skillExpertise.includes(skill.name);
+    return {
+      name: skill.name,
+      ability: skill.ability,
+      proficient,
+      expertise,
+      bonus: skillBonus({
+        score: input.scores[skill.ability],
+        level: input.level,
+        proficient,
+        expertise,
+      }),
+    };
+  });
+
+  const perception = skills.find((s) => s.name === "Percepción");
+  if (!perception) throw new Error("Falta la habilidad Percepción en SKILLS");
+
+  const spell =
+    input.spellcastingAbility === null
+      ? null
+      : {
+          saveDc: spellSaveDc({ score: input.scores[input.spellcastingAbility], level: input.level }),
+          attackBonus: spellAttackBonus({ score: input.scores[input.spellcastingAbility], level: input.level }),
+        };
+
+  return {
+    proficiencyBonus: pb,
+    abilities,
+    saves,
+    skills,
+    passivePerception: passiveScore(perception.bonus),
+    spell,
+    exhaustion: exhaustionEffects(input.exhaustionLevel),
+  };
+}
