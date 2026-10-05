@@ -182,8 +182,10 @@ export async function addParticipant(formData: FormData): Promise<string[]> {
         initiative:  0,
         turnOrder:   totalExisting + i,
         acModifiers: [],
-        conditions:  [],
-        isConscious: true,
+        // D-2: se arrastran las condiciones guardadas al cerrar el último combate.
+        conditions:  template.conditions as Prisma.InputJsonValue,
+        // Un personaje que cerró a 0 PV empieza caído, no consciente.
+        isConscious: (template.currentHp ?? template.maxHp) > 0,
       };
     });
   }
@@ -474,14 +476,39 @@ export async function advanceTurn(combatId: string) {
 
 // ─── End combat ──────────────────────────────────────────────────────────────
 
-export async function endCombat(combatId: string, campaignId: string) {
+// D-2: al cerrar, el estado de cada personaje (PV y condiciones) se escribe en su
+// plantilla dentro de la MISMA transacción que cierra el combate. Si algo falla,
+// no queda un combate cerrado con los PV perdidos (auditoría, hallazgo T3).
+// Los monstruos no tienen plantilla mutable: se omiten.
+export async function endCombat(
+  combatId: string,
+  campaignId: string,
+  options: { saveState?: boolean } = {}
+) {
   const { campaignId: ownerCampaignId } = await requireCombatDm(combatId);
   if (campaignId !== ownerCampaignId) throw new UnauthorizedError();
 
-  await prisma.combat.update({
-    where: { id: combatId },
-    data:  { status: "FINISHED" },
-  });
+  const ops: Prisma.PrismaPromise<unknown>[] = [
+    prisma.combat.update({
+      where: { id: combatId },
+      data:  { status: "FINISHED" },
+    }),
+  ];
+
+  if (options.saveState) {
+    const participants = await prisma.combatParticipant.findMany({ where: { combatId } });
+    for (const p of participants) {
+      if (!p.templateId) continue;
+      ops.push(
+        prisma.characterTemplate.update({
+          where: { id: p.templateId },
+          data:  { currentHp: p.currentHp, conditions: p.conditions as Prisma.InputJsonValue },
+        })
+      );
+    }
+  }
+
+  await prisma.$transaction(ops);
 
   // Combat is scoped to its campaign (D14/D11) — the DM lands back on that
   // campaign's hub, not the old global /combat list.
@@ -535,50 +562,15 @@ export async function addParticipantsFromGroup(formData: FormData) {
       initiative:  0,
       turnOrder:   0,
       acModifiers: [],
-      conditions:  [],
-      isConscious: true,
+      // D-2: condiciones guardadas (ver addParticipant).
+      conditions:  m.template.conditions as Prisma.InputJsonValue,
+      isConscious: (m.template.currentHp ?? m.template.maxHp) > 0,
     }));
   });
 
   await prisma.combatParticipant.createMany({ data });
 
   revalidatePath(`/combat/${combatId}/setup`);
-}
-
-// ── Save HP back to templates after combat ───────────────────────────────────
-// Called optionally when ending a combat.
-// Updates each template's currentHp with the participant's final HP.
-
-export async function saveHpToTemplates(combatId: string): Promise<{ ok: boolean; error?: string }> {
-  try {
-    await requireCombatDm(combatId);
-
-    const participants = await prisma.combatParticipant.findMany({
-      where: { combatId },
-    });
-
-    // MonsterTemplate has no currentHp field (etapa-3-monstruos.md §5 — the
-    // global roster isn't a mutable per-campaign resource) — only
-    // CharacterTemplate participants have somewhere to save HP back to.
-    await prisma.$transaction(
-      participants
-        .filter((p): p is typeof p & { templateId: string } => p.templateId !== null)
-        .map((p) =>
-          prisma.characterTemplate.update({
-            where: { id: p.templateId },
-            data:  { currentHp: p.currentHp },
-          })
-        )
-    );
-
-    return { ok: true };
-  } catch (err) {
-    if (err instanceof UnauthorizedError) {
-      return { ok: false, error: err.message };
-    }
-    console.error("[saveHpToTemplates]", err);
-    return { ok: false, error: "Failed to save HP to templates" };
-  }
 }
 
 export async function getCombatByJoinCode(code: string) {

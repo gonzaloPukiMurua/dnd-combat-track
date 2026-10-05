@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { endCombat, saveHpToTemplates } from "@/lib/actions/combat";
+import { endCombat } from "@/lib/actions/combat";
 import { getCombatDetail, getMonsterTemplates } from "@/lib/actions/queries/combat";
 import { mapCombatDetail } from "@/lib/actions/mappers/combat";
 import { getTemplatesForCampaign } from "@/lib/actions/templates";
@@ -83,7 +83,7 @@ export default async function CombatPage({
       {/* End combat buttons — positioned above the sticky panel */}
       {!isFinished && (
         <div className="space-y-2 mb-52 sm:mb-40">
-          <form action={async () => { "use server"; await saveHpToTemplates(combat.id); await endCombat(combat.id, campaignId); }}>
+          <form action={async () => { "use server"; await endCombat(combat.id, campaignId, { saveState: true }); }}>
             <button type="submit" className="w-full rounded-gothic-sm ring-1 ring-gothic-success-text text-gothic-success-text py-3 text-sm font-medium hover:bg-gothic-success-bg/40 transition-colors">
               Terminar combate + guardar PV en personajes
             </button>

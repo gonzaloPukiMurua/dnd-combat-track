@@ -3,6 +3,9 @@ import Link from "next/link";
 import { getTemplateById, updateTemplate } from "@/lib/actions/templates";
 import { requireCampaignDm } from "@/lib/auth/guards";
 import { TemplateActionsSection } from "@/components/templates/TemplateActionsSection";
+import { prisma } from "@/lib/prisma";
+import { SheetConfigForm } from "./SheetConfigForm";
+import { ResourcesManager } from "./ResourcesManager";
 
 const TYPE_LABELS: Record<string, string> = {
   PLAYER:  "Jugador",
@@ -34,6 +37,12 @@ export default async function EditTemplatePage({
   const template = await getTemplateById(templateId);
 
   if (!template || template.campaignId !== campaignId) notFound();
+
+  // P2 — recursos consumibles del personaje (tabla CharacterResource).
+  const resources = await prisma.characterResource.findMany({
+    where:   { templateId: template.id },
+    orderBy: [{ recharge: "asc" }, { name: "asc" }],
+  });
 
   const bonus = template.initiativeBonus >= 0
     ? `+${template.initiativeBonus}`
@@ -213,6 +222,16 @@ export default async function EditTemplatePage({
           economyType: a.economyType,
         }))}
       />
+
+      {/* P2 — competencias (D-8) y recursos consumibles. Secciones independientes del form principal. */}
+      <SheetConfigForm
+        templateId={template.id}
+        initialSaves={template.saveProficiencies}
+        initialSkills={template.skillProficiencies}
+        initialExpertise={template.skillExpertise}
+        initialSpellcasting={template.spellcastingAbility}
+      />
+      <ResourcesManager templateId={template.id} resources={resources} />
     </div>
   );
 }
