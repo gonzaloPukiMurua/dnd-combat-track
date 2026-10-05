@@ -1,6 +1,6 @@
 # P2 — Reglas de personaje (D&D 2024)
 
-> Estado: **BORRADOR** (2026-10-04). Pendiente de revisión de Gonzalo antes de escribir código.
+> Estado: **APROBADO** por Gonzalo (2026-10-04), con decisiones D-8 a D-11 tomadas. Pendiente solo verificar contra el libro las marcas [verificar] de subidas de nivel y pericia.
 > Alcance: el cálculo puro del personaje (`src/domain/character/`). No incluye pantallas ni clases completas.
 > Etiquetas: **[regla]** = mecánica del libro, · **[verificar]** = tomada de fuentes secundarias, confirmar contra el PHB 2024 · **[decidir]** = decisión de producto pendiente.
 
@@ -66,7 +66,7 @@ Modificador de Destreza. La app ya lo tiene como `initiativeBonus` en la plantil
 
 ### 2.7 Agotamiento  **[verificar]**
 Según fuentes secundarias del PHB 2024 (confirmar):
-- Cada nivel resta **2 × nivel** a todas las pruebas de d20 (característica, ataque, salvación).
+- Cada nivel resta **2 × nivel** a todas las pruebas de d20 (característica, ataque, salvación). *Confirmado por Gonzalo.*
 - Cada nivel resta **5 pies × nivel** a la velocidad.
 - Nivel 6 = muerte.
 - Un descanso largo quita **un** nivel.
@@ -82,14 +82,14 @@ Mejoras de característica en niveles 4, 8, 12, 16 y 19 (+2 a una característic
 - Dotes y rasgos (P5).
 - Tiradas automáticas (la app no tira dados para el DM).
 
-## 4. Decisiones pendientes de Gonzalo
+## 4. Decisiones (tomadas por Gonzalo, 2026-10-04)
 
 | ID | Pregunta | Recomendación |
 |---|---|---|
-| D-8 | ¿Las salvaciones y habilidades con competencia se marcan a mano en v1? | Sí. Clases después. |
-| D-9 | ¿Los espacios de conjuro se cargan a mano en v1? | Sí. Tabla por clase en P4. |
-| D-10 | ¿El agotamiento se muestra como penalización informativa? | Sí. Automatizarlo sin tiradas automáticas daría cifras engañosas. |
-| D-11 | ¿Los valores de ataque y CD son solo referencia? | Sí, mientras el DM tire los dados. |
+| D-8 | ¿Las salvaciones y habilidades con competencia se marcan a mano en v1? | **Sí.** Se automatiza con clases más adelante. |
+| D-9 | ¿Los espacios de conjuro se cargan a mano en v1? | **Sí, por ahora.** |
+| D-10 | ¿El agotamiento se muestra como penalización informativa? | **Sí, por ahora solo informativa.** |
+| D-11 | ¿Los valores de ataque y CD son solo referencia? | **Sí, por ahora.** |
 
 ## 5. Criterio de salida de P2
 - Funciones de la sección 1 implementadas y con tests (`npm test`).
