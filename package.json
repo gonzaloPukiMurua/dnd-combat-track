@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/domain/dice/roll.test.ts src/domain/combat/rules.test.ts",
+    "test": "node --experimental-strip-types --test src/domain/dice/roll.test.ts src/domain/combat/rules.test.ts src/domain/character/rules.test.ts",
     "test:e2e": "playwright test",
     "seed:monsters": "tsx prisma/seed-monsters.ts",
     "postinstall": "prisma generate"
