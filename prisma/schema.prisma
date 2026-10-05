@@ -123,6 +123,9 @@ model CharacterTemplate {
   // NPC/monster templates (ownerId null) just leave this null. Length is
   // capped in the Server Action, not the DB.
   notes            String?
+  // P2 / D-2 — condiciones del personaje al cerrar el último combate. Se copian al
+  // participante al empezar el siguiente. Forma: [{name: "Envenenado"}].
+  conditions       Json          @default("[]")
   createdAt        DateTime      @default(now())
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
