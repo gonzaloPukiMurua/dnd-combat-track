@@ -46,6 +46,12 @@ enum ActionEconomy {
   REACTION
 }
 
+// Cuándo se recupera un recurso del personaje (P2 / D-2, tabla genérica).
+enum RechargeType {
+  SHORT
+  LONG
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 // Account used to log in. Campaign membership/roles are modeled separately
@@ -134,9 +140,29 @@ model CharacterTemplate {
   participants CombatParticipant[]
   groupMembers GroupMember[]
   actions      TemplateAction[]
+  resources    CharacterResource[]
 
   @@index([campaignId])
   @@index([ownerId])
+}
+
+// Recurso consumible de un personaje: espacio de conjuro (con level) o recurso de
+// clase (Furia, Segundo aire…, level null). Tabla genérica (P2, decisión del usuario).
+// `used` cambia en combate y fuera de él; los descansos lo recuperan según `recharge`.
+model CharacterResource {
+  id         String       @id @default(uuid())
+  templateId String
+  name       String
+  level      Int?
+  max        Int
+  used       Int          @default(0)
+  recharge   RechargeType
+  createdAt  DateTime     @default(now())
+
+  template CharacterTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, name])
+  @@index([templateId])
 }
 
 // A monster from the global roster — no campaign, no owner (etapa-3-monstruos.md §2/§5).

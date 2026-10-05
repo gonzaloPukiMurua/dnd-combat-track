@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { CharacterType } from "@prisma/client";
 import { requireCampaignDmAction, UnauthorizedError } from "@/lib/auth/action-guards";
+import { usedAfterRest } from "@/domain/character/resources";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -223,14 +224,21 @@ export async function longRest(templateIds: string[]): Promise<TemplateFormState
     const denied = await requireDm(campaignId);
     if (denied) return denied;
 
-    await prisma.$transaction(
-      templateIds.map((id) =>
+    // P2: el descanso largo recupera todos los recursos de estos personajes.
+    const resources = await prisma.characterResource.findMany({ where: { templateId: { in: templateIds } } });
+    const resourceOps = resources
+      .filter((r) => usedAfterRest(r, "LONG") !== r.used)
+      .map((r) => prisma.characterResource.update({ where: { id: r.id }, data: { used: usedAfterRest(r, "LONG") } }));
+
+    await prisma.$transaction([
+      ...templateIds.map((id) =>
         prisma.characterTemplate.update({
           where: { id },
           data:  { currentHp: null }, // null = full HP on next combat start
         })
-      )
-    );
+      ),
+      ...resourceOps,
+    ]);
     revalidatePath(`/campaigns/${campaignId}/templates`);
     return { success: true };
   } catch {
@@ -256,8 +264,14 @@ export async function shortRest(
     const denied = await requireDm(campaignId);
     if (denied) return denied;
 
-    await prisma.$transaction(
-      updates.map((u) => {
+    // P2: el descanso corto recupera solo los recursos de recarga corta.
+    const resources = await prisma.characterResource.findMany({ where: { templateId: { in: ids } } });
+    const resourceOps = resources
+      .filter((r) => usedAfterRest(r, "SHORT") !== r.used)
+      .map((r) => prisma.characterResource.update({ where: { id: r.id }, data: { used: usedAfterRest(r, "SHORT") } }));
+
+    await prisma.$transaction([
+      ...updates.map((u) => {
         const template = templates.find((t) => t.id === u.id);
         if (!template) return prisma.characterTemplate.update({ where: { id: u.id }, data: {} });
         const currentHp = template.currentHp ?? template.maxHp;
@@ -266,8 +280,9 @@ export async function shortRest(
           where: { id: u.id },
           data:  { currentHp: newHp },
         });
-      })
-    );
+      }),
+      ...resourceOps,
+    ]);
     revalidatePath(`/campaigns/${campaignId}/templates`);
     return { success: true };
   } catch {
