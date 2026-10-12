@@ -45,6 +45,7 @@ type CombatActions = {
   applyDamage:               (targetId: string, amount: number) => void;
   applyHeal:                 (targetId: string, amount: number) => void;
   applyTempHp:               (targetId: string, amount: number) => void;
+  applyExhaustion:           (targetId: string, level: number) => void;
   applyCondition:            (targetId: string, condition: string) => void;
   removeConditionOptimistic: (targetId: string, condition: string) => void;
   resetDeathSavesOptimistic: (targetId: string) => void;
@@ -136,6 +137,12 @@ export const useCombatStore = create<CombatState>((set, get) => ({
       if (p.id !== targetId) return p;
       return { ...p, tempHp: ruleApplyTempHp(p, amount) };
     }),
+  })),
+
+  applyExhaustion: (targetId, level) => set((state) => ({
+    participants: state.participants.map((p) =>
+      p.id === targetId ? { ...p, exhaustionLevel: level } : p
+    ),
   })),
 
   applyCondition: (targetId, condition) => set((state) => ({

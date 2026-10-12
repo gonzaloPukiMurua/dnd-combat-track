@@ -256,6 +256,10 @@ model CombatParticipant {
   cha               Int     @default(10)
   speed             Int     @default(30)
   hitDice           String?
+  // Copiado de CharacterTemplate.exhaustionLevel al crear el participante;
+  // el DM lo ajusta durante el combate (setExhaustion) y se escribe de vuelta
+  // a la plantilla al cerrar con guardado de estado (endCombat, D-2).
+  exhaustionLevel   Int     @default(0)
   // Initiative
   initiative        Int     @default(0) // final value: d20 roll + initiativeBonus
   turnOrder         Int     @default(0) // 0 = goes first; sorted descending by initiative

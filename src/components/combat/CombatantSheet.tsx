@@ -2,6 +2,7 @@ import { HpDial } from "@/components/ui/HpDial";
 import { AcBadge } from "@/components/ui/AcBadge";
 import { CombatLog } from "@/components/combat/CombatLog";
 import type { Participant, LogEntry } from "@/domain/combat/types";
+import { exhaustionEffects } from "@/domain/character/rules";
 
 // D10 — Ficha de combatiente. No hay referencia Stitch dedicada para esta
 // pantalla; construida a partir de los componentes documentados en
@@ -50,6 +51,20 @@ export function CombatantSheet({ participant: p, acTotal, logs }: { participant:
         <span>VEL {p.speed} ft</span>
         {p.hitDice && <span>DG {p.hitDice}</span>}
       </div>
+
+      {/* Agotamiento — solo informativo: la penalización a tiradas no se aplica sola,
+          el DM la tiene en cuenta al leer el número (docs/rework/p2-reglas-personaje.md §2.7). */}
+      {p.exhaustionLevel > 0 && (() => {
+        const ex = exhaustionEffects(p.exhaustionLevel);
+        return (
+          <div className="flex items-center justify-center gap-1.5 rounded-gothic-sm bg-gothic-danger/10 px-3 py-1.5 text-xs text-gothic-danger-bright ring-1 ring-gothic-danger/40">
+            <span className="font-semibold">Agotamiento {p.exhaustionLevel}</span>
+            <span className="text-gothic-on-surface-variant">
+              {ex.dead ? "— muerte" : `· −${ex.d20Penalty} a tiradas de d20 · −${ex.speedPenaltyFt} ft vel.`}
+            </span>
+          </div>
+        );
+      })()}
 
       {/* Ability score stat cards */}
       <div className="grid grid-cols-2 gap-2">

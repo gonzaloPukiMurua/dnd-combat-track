@@ -50,6 +50,7 @@ export type Participant = {
   cha:                number;
   speed:              number;
   hitDice:            string | null;
+  exhaustionLevel:    number;
   template: {
     id:              string;
     name:            string;

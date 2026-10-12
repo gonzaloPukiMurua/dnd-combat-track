@@ -176,6 +176,7 @@ export async function addParticipant(formData: FormData): Promise<string[]> {
         acModifiers: [],
         // D-2: se arrastran las condiciones guardadas al cerrar el último combate.
         conditions:  template.conditions as Prisma.InputJsonValue,
+        exhaustionLevel: template.exhaustionLevel,
         // Un personaje que cerró a 0 PV empieza caído, no consciente.
         isConscious: (template.currentHp ?? template.maxHp) > 0,
       };
@@ -494,7 +495,11 @@ export async function endCombat(
       ops.push(
         prisma.characterTemplate.update({
           where: { id: p.templateId },
-          data:  { currentHp: p.currentHp, conditions: p.conditions as Prisma.InputJsonValue },
+          data:  {
+            currentHp:       p.currentHp,
+            conditions:      p.conditions as Prisma.InputJsonValue,
+            exhaustionLevel: p.exhaustionLevel,
+          },
         })
       );
     }
@@ -556,6 +561,7 @@ export async function addParticipantsFromGroup(formData: FormData) {
       acModifiers: [],
       // D-2: condiciones guardadas (ver addParticipant).
       conditions:  m.template.conditions as Prisma.InputJsonValue,
+      exhaustionLevel: m.template.exhaustionLevel,
       isConscious: (m.template.currentHp ?? m.template.maxHp) > 0,
     }));
   });
