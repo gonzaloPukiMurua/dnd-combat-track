@@ -39,9 +39,11 @@ export async function getCombatById(id: string) {
 
 // ─── Create combat ───────────────────────────────────────────────────────────
 
-// Shared by createCombat (form action) and startCombatFromGroup (E5) — keeps
-// the one-SETUP/ACTIVE-combat-per-campaign rule in a single place.
-async function createCombatRecord(campaignId: string, name?: string) {
+// Shared by src/app/campaigns/[id]/combat/new/route.ts (D14a) and
+// startCombatFromGroup (E5) — keeps the one-SETUP/ACTIVE-combat-per-campaign
+// rule in a single place. requireCampaignDmAction is deliberately NOT called
+// here: both callers already guard DM-ness themselves before reaching this.
+export async function createCombatRecord(campaignId: string, name?: string) {
   const existing = await prisma.combat.findFirst({
     where: { campaignId, status: { in: ["SETUP", "ACTIVE"] } },
   });
@@ -52,16 +54,6 @@ async function createCombatRecord(campaignId: string, name?: string) {
   return prisma.combat.create({
     data: { name: name?.trim() || "New Combat", campaignId, status: "SETUP", round: 0, currentTurnIndex: 0 },
   });
-}
-
-export async function createCombat(formData: FormData) {
-  const campaignId = formData.get("campaignId")?.toString();
-  if (!campaignId) throw new Error("Missing campaignId");
-
-  await requireCampaignDmAction(campaignId);
-
-  const combat = await createCombatRecord(campaignId, formData.get("name")?.toString());
-  redirect(`/combat/${combat.id}/setup`);
 }
 
 // ─── E5 — "Start combat with this group" ─────────────────────────────────────
