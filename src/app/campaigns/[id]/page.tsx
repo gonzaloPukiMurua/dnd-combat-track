@@ -195,7 +195,7 @@ function DmQuickAccess({ campaignId, hasActiveCombat }: { campaignId: string; ha
 
       {/* D14 — solo se ofrece si no hay ya un combate SETUP/ACTIVE en esta
           campaña: la ActiveCombatCard de arriba ya cubre ese caso, y
-          createCombat rechaza un segundo combate simultáneo por campaña. */}
+          createCombatRecord rechaza un segundo combate simultáneo por campaña. */}
       {!hasActiveCombat && (
         <Link
           href={`/campaigns/${campaignId}/combat/new`}
