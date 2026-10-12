@@ -191,6 +191,38 @@ export async function setTempHp(formData: FormData): Promise<ActionResult> {
   }
 }
 
+// ─── Set exhaustion ─────────────────────────────────────────────────────────
+// DM-only (como setTempHp/addAcModifier): el agotamiento es un dato de gestión
+// del combate, no algo que el jugador se aplique a sí mismo. Antes solo vivía
+// en CharacterTemplate, editable fuera de combate — sin forma de subirlo o
+// bajarlo durante la pelea (reportado por el usuario, 2026-10-11).
+
+export async function setExhaustion(formData: FormData): Promise<ActionResult> {
+  try {
+    const combatId  = fd(formData, "combatId");
+    const targetId  = fd(formData, "targetId");
+    const rawLevel  = Number(fd(formData, "level"));
+
+    if (!combatId || !targetId) return { ok: false, error: "Missing required fields" };
+    if (!Number.isInteger(rawLevel) || rawLevel < 0 || rawLevel > 6) {
+      return { ok: false, error: "Exhaustion level must be an integer between 0 and 6" };
+    }
+
+    const g = await guard(() => requireParticipantDmAccess(targetId));
+    if (!g.ok) return g;
+
+    await prisma.combatParticipant.update({
+      where: { id: targetId },
+      data:  { exhaustionLevel: rawLevel },
+    });
+
+    return { ok: true };
+  } catch (err) {
+    console.error("[setExhaustion]", err);
+    return { ok: false, error: "Failed to set exhaustion. Please try again." };
+  }
+}
+
 // ─── Add condition ────────────────────────────────────────────────────────────
 
 export async function addCondition(formData: FormData): Promise<ActionResult> {

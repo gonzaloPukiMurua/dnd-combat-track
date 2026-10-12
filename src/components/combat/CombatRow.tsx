@@ -18,6 +18,7 @@ import {
   dealDamage,
   healParticipant,
   setTempHp,
+  setExhaustion,
   addCondition,
   removeCondition,
   toggleActionState,
@@ -178,6 +179,17 @@ function CombatantRowBase({
     });
   }
 
+  // DM sube o baja el nivel de agotamiento (0-6) durante el combate. Antes
+  // solo se podía editar fuera de combate, en la plantilla.
+  function handleSetExhaustion(next: number) {
+    const level = Math.max(0, Math.min(6, next));
+    if (level === p.exhaustionLevel) return;
+    mutate({
+      optimistic: () => useCombatStore.getState().applyExhaustion(p.id, level),
+      action: () => setExhaustion(makeFormData({ combatId, targetId: p.id, level })),
+    });
+  }
+
   function handleDragOver(e: DragEvent) {
     if (!canDrag) return;
     e.preventDefault();
@@ -298,6 +310,33 @@ function CombatantRowBase({
               </button>
             </div>
           )}
+
+          {/* Agotamiento (0-6) — editable por el DM en cualquier momento del combate,
+              no solo mientras está ACTIVE (a diferencia de la iniciativa). */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs uppercase tracking-widest text-gothic-on-surface-variant">
+              Agotamiento
+            </span>
+            <button
+              type="button"
+              onClick={() => handleSetExhaustion(p.exhaustionLevel - 1)}
+              disabled={disabled || p.exhaustionLevel <= 0}
+              aria-label={`Bajar agotamiento de ${p.displayName}`}
+              className="h-9 w-9 rounded-gothic-sm ring-1 ring-gothic-outline-variant text-gothic-on-surface-variant hover:bg-gothic-surface-high disabled:opacity-40 transition-colors"
+            >
+              −
+            </button>
+            <span className="font-mono text-sm text-gothic-on-surface w-4 text-center">{p.exhaustionLevel}</span>
+            <button
+              type="button"
+              onClick={() => handleSetExhaustion(p.exhaustionLevel + 1)}
+              disabled={disabled || p.exhaustionLevel >= 6}
+              aria-label={`Subir agotamiento de ${p.displayName}`}
+              className="h-9 w-9 rounded-gothic-sm ring-1 ring-gothic-outline-variant text-gothic-on-surface-variant hover:bg-gothic-surface-high disabled:opacity-40 transition-colors"
+            >
+              +
+            </button>
+          </div>
 
           {/* Action trackers */}
           <ActionTracker

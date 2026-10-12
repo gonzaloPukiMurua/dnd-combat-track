@@ -82,6 +82,7 @@ export function mapCombatDetail(combat: CombatDetail): MappedCombat {
       cha:                p.cha,
       speed:              p.speed,
       hitDice:            p.hitDice,
+      exhaustionLevel:    p.exhaustionLevel,
       // A global-roster participant has no CharacterTemplate (p.template null,
       // etapa-3-monstruos.md §5). Surface a synthetic view-model template with
       // type "MONSTER" from the MonsterTemplate so the border-color selector
