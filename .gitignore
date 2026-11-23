@@ -55,3 +55,6 @@ node_modules/
 # .impeccable/config.json (persisted rule exceptions) stays tracked.
 .impeccable/*
 !.impeccable/config.json
+
+# Supabase log export (local, not versioned)
+supabase_logs.json
