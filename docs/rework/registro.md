@@ -42,6 +42,7 @@
 | T13 | Cada fila y el panel del turno leen `isMutating`: cada acción provoca dos renders extra de todas las filas | **[código]** `CombatRow.tsx:44`, `CurrentTurnPanel.tsx:42` | Media (rendimiento) | **Abierto** |
 | T14 | `setParticipantInitiative` llama a `revalidatePath` sobre la pantalla de combate, pero el store se hidrata una sola vez por combate: el servidor vuelve a armar una página que se descarta | **[código]** `lib/actions/combat.ts` (`setParticipantInitiative`) | Baja (latencia) | **Abierto** |
 | T15 | La cola de mutaciones nunca compara el estado de la pantalla con el del servidor tras un éxito, y mientras se revierte un fallo descarta los clics nuevos sin avisar | **[código]** `useCombatMutation.ts` | Media (la pantalla puede quedar distinta de la base) | **Abierto.** El camino de fallo nunca se probó en vivo |
+| T16 | `getTemplatesForCampaign` y `getTemplateById` están exportadas desde un archivo `"use server"` sin guard: son Server Actions llamables por cualquiera que tenga su ID | **[código]** `lib/actions/templates.ts:84-97` | Media (lectura de plantillas de otra campaña); explotabilidad sin verificar | **Abierto.** Se corrige en el tramo A1 (`fase-a-plan.md`). Pendiente revisar si otros archivos `"use server"` exportan consultas sin guard |
 
 ## C. Fuera del listado (para no perderlo)
 

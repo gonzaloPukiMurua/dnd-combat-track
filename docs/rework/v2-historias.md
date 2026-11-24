@@ -1,6 +1,7 @@
 # Versión 2 — historias de usuario, fases y alcance
 
 > **Estado: alcance acordado en conversación (2026-11-23). Cada fase necesita aprobación explícita antes de empezar a programarla.**
+> **Fase A: alcance aprobado (2026-11-23).** Plan e inventario en [`fase-a-plan.md`](./fase-a-plan.md).
 > Si al trabajar aparece una diferencia con este documento, se conversa y se negocia; el cambio que se acuerde se anota acá (§8) antes de implementarlo.
 > Reemplaza el contenido de las fases P3, P4 y P5 de [`README.md`](./README.md); P0–P2 siguen cerradas.
 > Documentos relacionados: [`registro.md`](./registro.md) · [`p2-reglas-personaje.md`](./p2-reglas-personaje.md) · [`catalogo-recursos-clase.md`](./catalogo-recursos-clase.md).
@@ -94,7 +95,7 @@ Formato: historia → hoy → criterio de aceptación. "Hoy" es lo que existe en
 - Hoy: existen `shortRest` y `longRest`, los activa el DM desde `RestPanel` **[código]**.
 - Criterio:
   - Descanso corto: el jugador puede gastar dados de golpe y escribir lo que sacó en la tirada + mod. CON (D-14). Los recursos se recuperan según su regla, incluida la recuperación parcial (`catalogo-recursos-clase.md` §2.1).
-  - Descanso largo: PG completos, recursos y espacios completos, recupera la mitad de los dados de golpe **[verificar]** y baja 1 nivel de agotamiento.
+  - Descanso largo: PG completos, recursos y espacios completos, recupera los dados de golpe (en 2024, todos; en 2014 era la mitad) **[verificar]** y baja 1 nivel de agotamiento.
 
 **U13 — Catálogo de recursos de clase**, ya diseñado en `catalogo-recursos-clase.md`, recortado a los niveles 1–7 (D-12).
 
