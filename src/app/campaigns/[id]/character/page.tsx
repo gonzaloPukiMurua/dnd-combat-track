@@ -9,6 +9,7 @@ import {
 } from "@/domain/character/rules";
 import { CharacterNotesForm } from "./CharacterNotesForm";
 import { ResourceCounter } from "./ResourceCounter";
+import { rechargeLabel } from "@/domain/character/resources";
 
 // Formato de texto para bonos (+3 / −1). Solo presentación: el cálculo está en el dominio.
 function signed(n: number): string {
@@ -56,7 +57,7 @@ export default async function CharacterSheetPage({
   // El DM normalmente no tiene ninguna → estado vacío.
   const character = await prisma.characterTemplate.findFirst({
     where: { campaignId, ownerId: userId },
-    include: { resources: { orderBy: [{ recharge: "asc" }, { name: "asc" }] } },
+    include: { resources: { orderBy: [{ fullRecoveryOnShortRest: "desc" }, { shortRestRecoveryAmount: "desc" }, { name: "asc" }] } },
   });
 
   const backLink = (
@@ -188,7 +189,7 @@ export default async function CharacterSheetPage({
                 level={r.level}
                 used={r.used}
                 max={r.max}
-                recharge={r.recharge}
+                rechargeText={rechargeLabel(r)}
               />
             ))}
           </div>

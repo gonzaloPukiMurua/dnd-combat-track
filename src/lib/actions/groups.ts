@@ -22,33 +22,8 @@ async function requireDm(campaignId: string): Promise<GroupFormState | null> {
   }
 }
 
-// ── Queries ──────────────────────────────────────────────────────────────────
-
-// Groups aren't portable between campaigns, so every caller must go through
-// the scoped query below. There is deliberately no unscoped getGroups();
-// that was D16's bug (mixed every campaign's groups together on /groups).
-export async function getGroupsForCampaign(campaignId: string) {
-  return prisma.group.findMany({
-    where:   { campaignId },
-    orderBy: { createdAt: "desc" },
-    include: {
-      members: {
-        include: { template: true },
-      },
-    },
-  });
-}
-
-export async function getGroupById(id: string) {
-  return prisma.group.findUnique({
-    where: { id },
-    include: {
-      members: {
-        include: { template: true },
-      },
-    },
-  });
-}
+// Las consultas de grupos están en lib/actions/queries/groups.ts: exportadas
+// desde este archivo "use server" eran Server Actions sin guard (T17).
 
 // ── Create group ─────────────────────────────────────────────────────────────
 

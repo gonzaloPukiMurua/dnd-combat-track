@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { createCombatRecord } from "@/lib/actions/combat";
+import { createCombatRecord } from "@/lib/actions/internal/combat-records";
 
 // D14a — entry point for "Nuevo combate" from the campaign hub (D14b).
 // "Combate" is an action inside a campaign, not a top-level route (spec

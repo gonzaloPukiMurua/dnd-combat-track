@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { endCombat } from "@/lib/actions/combat";
 import { getCombatDetail, getMonsterTemplates } from "@/lib/actions/queries/combat";
 import { mapCombatDetail } from "@/lib/actions/mappers/combat";
-import { getTemplatesForCampaign } from "@/lib/actions/templates";
+import { getTemplatesForCampaign } from "@/lib/actions/queries/templates";
 import { CombatStoreInitializer } from "@/components/combat/CombatStoreInitializer";
 import { ErrorToast } from "@/components/ErrorToast";
 import { CombatView } from "@/components/combat/CombatView";

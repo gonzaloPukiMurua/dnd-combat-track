@@ -1,4 +1,4 @@
-import { getGroupsForCampaign } from "@/lib/actions/groups";
+import { getGroupsForCampaign } from "@/lib/actions/queries/groups";
 import { requireCampaignDm } from "@/lib/auth/guards";
 import Link from "next/link";
 import { GroupListFilter } from "@/components/templates/GroupListFilter";

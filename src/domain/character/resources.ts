@@ -1,9 +1,27 @@
 // Recursos consumibles del personaje (P2, tabla genérica CharacterResource).
 // Pura: sin Prisma ni React. Las acciones de servidor y los descansos la usan.
 
-export type Recharge = "SHORT" | "LONG";
 export type RestKind = "SHORT" | "LONG";
-export type ResourceState = { max: number; used: number; recharge: Recharge };
+
+// Recarga generalizada (catalogo-recursos-clase.md §2.1): el descanso largo
+// siempre repone todo; lo que cambia entre recursos es el descanso corto.
+export type Recharge = {
+  /** Usos que vuelven con un descanso corto (Segundo Aire 2024: 1). */
+  shortRestRecoveryAmount: number;
+  /** true = el descanso corto repone todo (espacios de Brujo). */
+  fullRecoveryOnShortRest: boolean;
+};
+export type ResourceState = { max: number; used: number } & Recharge;
+
+/** Texto corto para mostrar la regla de recarga de un recurso. */
+export function rechargeLabel(r: Recharge): string {
+  if (r.fullRecoveryOnShortRest) return "recupera todo con descanso corto";
+  if (r.shortRestRecoveryAmount > 0) {
+    const n = r.shortRestRecoveryAmount;
+    return `recupera ${n} ${n === 1 ? "uso" : "usos"} con descanso corto, todo con largo`;
+  }
+  return "recupera con descanso largo";
+}
 
 function assertCount(value: number, label: string) {
   if (!Number.isInteger(value) || value < 0) {
@@ -38,9 +56,10 @@ export function restoreResource(resource: ResourceState, amount = 1): number {
 /**
  * Cuántos usos quedan usados después de un descanso.
  * - Descanso largo: todo vuelve a estar disponible.
- * - Descanso corto: solo se recuperan los recursos de recarga corta.
+ * - Descanso corto: todo si `fullRecoveryOnShortRest`; si no, `shortRestRecoveryAmount` usos.
  */
 export function usedAfterRest(resource: ResourceState, rest: RestKind): number {
   if (rest === "LONG") return 0;
-  return resource.recharge === "SHORT" ? 0 : resource.used;
+  if (resource.fullRecoveryOnShortRest) return 0;
+  return Math.max(0, resource.used - resource.shortRestRecoveryAmount);
 }

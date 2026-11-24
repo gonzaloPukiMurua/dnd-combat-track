@@ -1,6 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { getTemplateById, updateTemplate } from "@/lib/actions/templates";
+import { updateTemplate } from "@/lib/actions/templates";
+import { getTemplateById } from "@/lib/actions/queries/templates";
+import { proficiencyForLevel } from "@/domain/character/rules";
+import { MAX_LEVEL, MAX_PLAYER_LEVEL } from "@/domain/character/progression";
 import { requireCampaignDm } from "@/lib/auth/guards";
 import { TemplateActionsSection } from "@/components/templates/TemplateActionsSection";
 import { prisma } from "@/lib/prisma";
@@ -41,7 +44,7 @@ export default async function EditTemplatePage({
   // P2 — recursos consumibles del personaje (tabla CharacterResource).
   const resources = await prisma.characterResource.findMany({
     where:   { templateId: template.id },
-    orderBy: [{ recharge: "asc" }, { name: "asc" }],
+    orderBy: [{ fullRecoveryOnShortRest: "desc" }, { shortRestRecoveryAmount: "desc" }, { name: "asc" }],
   });
 
   const bonus = template.initiativeBonus >= 0
@@ -154,15 +157,27 @@ export default async function EditTemplatePage({
           />
         </div>
 
-        {/* Level + Proficiency bonus */}
+        {/* Nivel; la competencia sale del nivel (D-5) */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label htmlFor="level" className={labelClass}>Nivel</label>
-            <input id="level" name="level" type="number" min={1} defaultValue={template.level} className={numberInputClass} />
+            <input
+              id="level"
+              name="level"
+              type="number"
+              min={1}
+              // D-12: jugadores hasta 7; un PJ ya guardado por encima conserva su nivel (7.2).
+              max={template.type === "PLAYER" ? Math.max(MAX_PLAYER_LEVEL, template.level) : MAX_LEVEL}
+              defaultValue={template.level}
+              className={numberInputClass}
+            />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="proficiencyBonus" className={labelClass}>Bono de competencia</label>
-            <input id="proficiencyBonus" name="proficiencyBonus" type="number" defaultValue={template.proficiencyBonus} className={numberInputClass} />
+            <span className={labelClass}>Bono de competencia</span>
+            <p className="py-2 font-mono text-sm text-gothic-on-surface">
+              +{proficiencyForLevel(template.level)}
+              <span className="ml-2 font-gothic-body text-xs text-gothic-on-surface-variant">según el nivel</span>
+            </p>
           </div>
         </div>
 

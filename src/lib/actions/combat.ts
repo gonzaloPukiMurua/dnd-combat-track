@@ -11,49 +11,27 @@ import {
   computeTurnOrder,
   relocateCurrentActor,
 } from "@/domain/combat/rules";
+import { proficiencyForLevel } from "@/domain/character/rules";
+import { hitDiceLabel } from "@/domain/character/progression";
 import {
   requireCampaignDmAction,
   requireCombatDm,
   UnauthorizedError,
 } from "@/lib/auth/action-guards";
-import {
-  getActiveCombatDetail,
-  getCombatDetail,
-  getCombatByJoinCodeDetail,
-} from "@/lib/actions/queries/combat";
+import { createCombatRecord } from "@/lib/actions/internal/combat-records";
 
-// ─── Queries ─────────────────────────────────────────────────────────────────
-// Thin async wrappers — "use server" files may only export async functions,
-// so these can't be plain const re-exports. Shared include shape lives in
-// lib/actions/queries/combat.ts.
+// T17: createCombatRecord vive en lib/actions/internal/combat-records.ts. Exportada
+// desde este archivo "use server" era una Server Action sin guard (cualquiera podía
+// crear un combate en cualquier campaña). Las consultas getActiveCombat,
+// getCombatById y getCombatByJoinCode se borraron: no las usaba nadie.
 
-// Returns the single SETUP or ACTIVE combat, or null.
-// We enforce one combat at a time at the query level.
-export async function getActiveCombat() {
-  return getActiveCombatDetail();
-}
-
-export async function getCombatById(id: string) {
-  return getCombatDetail(id);
-}
-
-// ─── Create combat ───────────────────────────────────────────────────────────
-
-// Shared by src/app/campaigns/[id]/combat/new/route.ts (D14a) and
-// startCombatFromGroup (E5) — keeps the one-SETUP/ACTIVE-combat-per-campaign
-// rule in a single place. requireCampaignDmAction is deliberately NOT called
-// here: both callers already guard DM-ness themselves before reaching this.
-export async function createCombatRecord(campaignId: string, name?: string) {
-  const existing = await prisma.combat.findFirst({
-    where: { campaignId, status: { in: ["SETUP", "ACTIVE"] } },
-  });
-  if (existing) {
-    throw new Error("A combat is already in progress in this campaign. End it before starting a new one.");
-  }
-
-  return prisma.combat.create({
-    data: { name: name?.trim() || "New Combat", campaignId, status: "SETUP", round: 0, currentTurnIndex: 0 },
-  });
+// D-5 (T11): la competencia del participante sale del nivel, no de la columna
+// de la plantilla. A-H1: los dados de golpe se muestran si la plantilla tiene clase.
+function derivedParticipantStats(t: { level: number; characterClass: Parameters<typeof hitDiceLabel>[0] | null }) {
+  return {
+    proficiencyBonus: proficiencyForLevel(t.level),
+    hitDice:          t.characterClass ? hitDiceLabel(t.characterClass, t.level) : null,
+  };
 }
 
 // ─── E5 — "Start combat with this group" ─────────────────────────────────────
@@ -164,7 +142,7 @@ export async function addParticipant(formData: FormData): Promise<string[]> {
         tempHp:           0,
         baseAc:           template.baseAc,
         level:            template.level,
-        proficiencyBonus: template.proficiencyBonus,
+        ...derivedParticipantStats(template),
         str:              template.str,
         dex:              template.dex,
         con:              template.con,
@@ -549,7 +527,7 @@ export async function addParticipantsFromGroup(formData: FormData) {
       tempHp:           0,
       baseAc:           m.template.baseAc,
       level:            m.template.level,
-      proficiencyBonus: m.template.proficiencyBonus,
+      ...derivedParticipantStats(m.template),
       str:              m.template.str,
       dex:              m.template.dex,
       con:              m.template.con,
@@ -569,8 +547,4 @@ export async function addParticipantsFromGroup(formData: FormData) {
   await prisma.combatParticipant.createMany({ data });
 
   revalidatePath(`/combat/${combatId}/setup`);
-}
-
-export async function getCombatByJoinCode(code: string) {
-  return getCombatByJoinCodeDetail(code);
 }

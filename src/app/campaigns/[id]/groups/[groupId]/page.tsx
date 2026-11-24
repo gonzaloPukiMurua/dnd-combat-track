@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { getGroupById } from "@/lib/actions/groups";
-import { getTemplatesForCampaign } from "@/lib/actions/templates";
+import { getGroupById } from "@/lib/actions/queries/groups";
+import { getTemplatesForCampaign } from "@/lib/actions/queries/templates";
 import { addGroupMember, removeGroupMember } from "@/lib/actions/groups";
 import { requireCampaignDm } from "@/lib/auth/guards";
 import Link from "next/link";
