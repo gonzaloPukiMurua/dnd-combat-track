@@ -1,6 +1,7 @@
 # Rework — prioridades y decisiones
 
 > **Estado al 2026-11-22: P0, P1 y P2 cerrados y fusionados en `main` (PR #1–#2), más los PR #3–#5. P3 en adelante sin empezar.**
+> **2026-11-23: P3–P5 se reemplazan por la versión 2 (fases A–D) en [`v2-historias.md`](./v2-historias.md).**
 > Plan original: propuesta del 2026-09-27, aprobado por Gonzalo fase por fase.
 > Documentos hermanos: [`registro.md`](./registro.md) (qué hay que hacer y qué se encontró) · [`capas.md`](./capas.md) (dónde vive cada cosa y qué reglas sigue) · [`p2-reglas-personaje.md`](./p2-reglas-personaje.md) · [`catalogo-recursos-clase.md`](./catalogo-recursos-clase.md).
 > Etiquetas de evidencia: **[código]** leído en el repo · **[DB]** consulta de solo lectura · **[git]** mensaje de commit o PR · **[docs]** afirmado por documentos, no verificado · **[supuesto]**.
@@ -36,14 +37,14 @@ Tamaños (S/M/L) son estimaciones relativas **[supuesto]**, no horas.
 | **P4 — Catálogos y contenido** (L) | Patrón único global + contenido del DM (D-3): monstruos (explorar y clonar), hechizos, armas/acciones; lista de hechizos e inventario de armas del personaje | El DM crea contenido propio y clona desde el catálogo; el jugador ve hechizos y armas en su ficha | P2, decisión D-3 | Sin empezar |
 | **P5 — Progresión** (M) | Subida de nivel por el DM: puntos de característica y dotes/rasgos por nivel | Una subida de nivel actualiza la ficha derivada sin editar campos a mano | P2, P4 (los rasgos son contenido) | Sin empezar |
 
-Orden de P3 y P4: **decisión tuya (D-4)**, sin tomar.
+P3, P4 y P5 quedan como referencia histórica: su contenido pasa a las fases B (aventuras), C (catálogos de hechizos, armas y armaduras) y D (progresión) de [`v2-historias.md`](./v2-historias.md), con una fase A previa (personaje v2). Orden acordado: A → B → C → D.
 
 ### Trabajo en curso (fuera de las fases, 2026-11-22)
 
 Antes de abrir P3 o P4, Gonzalo pidió una ronda de consolidación:
 
 1. Puesta al día: bases reactivadas tras la pausa por inactividad, docs de estado (este cambio), auditoría retrospectiva en PR #6.
-2. Cambios a las plantillas de personaje, monstruo y NPC (lista pendiente de Gonzalo).
+2. Historias de usuario de la versión 2: escritas en [`v2-historias.md`](./v2-historias.md) (2026-11-23). La fase A espera aprobación.
 3. Rendimiento de la pantalla de combate (T12–T15).
 4. Bugs del tracking de combate (T6, T11, T15 y lo que salga de una partida de prueba).
 5. Catálogo de recursos de clase (`catalogo-recursos-clase.md`).
@@ -54,13 +55,14 @@ Antes de abrir P3 o P4, Gonzalo pidió una ronda de consolidación:
 |---|---|---|---|
 | D-1 | Entorno de desarrollo | (a) segundo proyecto Supabase para dev · (b) Postgres local en Docker | **Tomada: (a).** Los dos proyectos de Supabase se pausan si no se usan; si no responden ("tenant/user not found" en el pooler), hay que restaurarlos desde el panel |
 | D-2 | Dónde vive el estado del personaje entre combates | (A) copiar del participante al personaje al terminar el combate · (B) escribir en el personaje en cada mutación | **Tomada: (A)**, en la misma transacción que `endCombat`. Riesgo aceptado: cerrar "sin guardar" o abandonar un combate pierde su estado |
-| D-3 | Patrón para catálogos (hechizos, monstruos, armas/acciones) | (a) `campaignId` nullable + flag · (b) tablas de sistema de solo lectura + contenido de campaña + operación "clonar a mi campaña" | Pendiente (recomendado (b)). El diseño del catálogo de recursos de clase ya lo asume |
-| D-4 | Orden de P3 y P4 | P3→P4 · P4→P3 | Pendiente (recomendado P3→P4) |
+| D-3 | Patrón para catálogos (hechizos, monstruos, armas/acciones) | (a) `campaignId` nullable + flag · (b) tablas de sistema de solo lectura + contenido de campaña + operación "clonar a mi campaña" | **Tomada: (b)** (2026-11-23, D-20 en `v2-historias.md`), para hechizos, armas y recursos de clase |
+| D-4 | Orden de P3 y P4 | P3→P4 · P4→P3 | **Tomada:** fases A → B → C → D de `v2-historias.md` |
 | D-5 | `proficiencyBonus` | (a) derivarlo del nivel (tabla 2024) · (b) seguir editable a mano | **Tomada: (a).** Aplicada solo en la ficha del jugador; el resto de la app sigue usando la columna (T11) |
-| D-6 | Concepto de "sesión" | (a) la cadena pertenece a la campaña, con etiqueta libre · (b) entidad `Sesión` nueva | Pendiente, se decide al abrir P3 |
+| D-6 | Concepto de "sesión" | (a) la cadena pertenece a la campaña, con etiqueta libre · (b) entidad `Sesión` nueva | **Tomada: (b)**, entidad Aventura con estado (2026-11-23) |
 | D-7 | Fuente del contenido global (P4) | SRD 5.2 (verificar licencia y cobertura) · carga manual propia | Pendiente, se decide al abrir P4 |
 | D-8 a D-11 | Competencias y espacios a mano; agotamiento, ataque y CD solo informativos | ver `p2-reglas-personaje.md` | **Tomadas** (2026-10-04) |
 | — | Multiclase | — | **Fuera de alcance** (decisión de Gonzalo, 2026-10-11) |
+| D-12 a D-20 | Nivel máximo 7, sondeo cada ~10 s, rasgos manuales, catálogos y demás decisiones de la versión 2 | ver `v2-historias.md` §1 | **Tomadas** (2026-11-23) |
 
 ## Cómo se trabaja cada fase
 

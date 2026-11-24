@@ -21,7 +21,7 @@
 | U11 | Persistencia entre combates de condiciones, fatiga, ranuras y recursos | feature | P2 | **Hecho en P2** para HP, condiciones y agotamiento: se escriben en la plantilla en la misma transacción que `endCombat` **[código]**. Ranuras y recursos viven en la plantilla y no se tocan durante el combate |
 | U12 | Cadena de desafíos/combates para planificar la aventura | feature | P3 | Sin empezar |
 | U13 | Catálogo de recursos de clase y tabla de espacios de conjuro | feature | ronda actual | Diseñado (PR #4), sin construir. Requiere confirmar filas contra el PHB 2024 y el cambio de esquema de recarga |
-| U14 | Cambios a las plantillas de personaje, monstruo y NPC | por definir | ronda actual | Esperando la lista de Gonzalo |
+| U14 | Historias de usuario de la versión 2 (ficha completa, aventuras, catálogos de hechizos y armas, progresión hasta nivel 7) | feature | fases A–D | **Escritas** en [`v2-historias.md`](./v2-historias.md) (2026-11-23). Absorbe U2, U3, U5, U6, U12 y U13. La fase A espera aprobación |
 
 ## B. Hallazgos técnicos
 
