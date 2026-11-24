@@ -1,4 +1,5 @@
 import type { getCombatDetail } from "@/lib/actions/queries/combat";
+import { proficiencyForLevel } from "@/domain/character/rules";
 import type {
   Participant, LogEntry, CombatStatus, TemplateActionView, ActionKind, ActionEconomy,
 } from "@/domain/combat/types";
@@ -73,7 +74,9 @@ export function mapCombatDetail(combat: CombatDetail): MappedCombat {
       bonusUsed:          p.bonusUsed,
       reactionUsed:       p.reactionUsed,
       level:              p.level,
-      proficiencyBonus:   p.proficiencyBonus,
+      // D-5 (T11): para personajes de campaña sale del nivel, también en combates
+      // creados antes del cambio. Los monstruos globales no tienen nivel: queda la columna.
+      proficiencyBonus:   p.templateId ? proficiencyForLevel(p.level) : p.proficiencyBonus,
       str:                p.str,
       dex:                p.dex,
       con:                p.con,

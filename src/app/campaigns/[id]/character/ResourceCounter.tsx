@@ -11,14 +11,14 @@ export function ResourceCounter({
   level,
   used,
   max,
-  recharge,
+  rechargeText,
 }: {
   resourceId: string;
   name: string;
   level: number | null;
   used: number;
   max: number;
-  recharge: "SHORT" | "LONG";
+  rechargeText: string;
 }) {
   const [value, setValue] = useState(used);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export function ResourceCounter({
         <div className="flex flex-col">
           <span className="text-sm text-gothic-on-surface">{name}</span>
           <span className="text-[10px] uppercase tracking-widest text-gothic-on-surface-variant">
-            {level !== null ? `Espacio de nivel ${level}` : "Recurso de clase"} · recarga {recharge === "SHORT" ? "corta" : "larga"}
+            {level !== null ? `Espacio de nivel ${level}` : "Recurso de clase"} · {rechargeText}
           </span>
         </div>
         <span className="font-gothic-data text-sm text-gothic-on-surface">

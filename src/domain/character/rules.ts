@@ -47,6 +47,16 @@ export function proficiencyBonus(level: number): number {
   return 2 + Math.floor((level - 1) / 4);
 }
 
+/**
+ * D-5: la competencia siempre sale del nivel. Para datos fuera de rango (una
+ * plantilla vieja) se acota a 1–20 en vez de fallar: mostrar un valor es mejor
+ * que romper la pantalla de combate.
+ */
+export function proficiencyForLevel(level: number): number {
+  const safe = Number.isInteger(level) ? Math.min(20, Math.max(1, level)) : 1;
+  return proficiencyBonus(safe);
+}
+
 // ─── Salvaciones y habilidades ───────────────────────────────────────────────
 
 export function savingThrowBonus(input: {

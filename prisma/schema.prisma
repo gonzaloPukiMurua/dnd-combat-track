@@ -46,10 +46,27 @@ enum ActionEconomy {
   REACTION
 }
 
-// Cuándo se recupera un recurso del personaje (P2 / D-2, tabla genérica).
+// Sin uso desde la fase A: la recarga pasó a shortRestRecoveryAmount /
+// fullRecoveryOnShortRest. Se elimina con la columna en una migración de limpieza.
 enum RechargeType {
   SHORT
   LONG
+}
+
+// Fase A (catalogo-recursos-clase.md §3). Mismos valores que domain/character/progression.ts.
+enum CharacterClass {
+  BARBARIAN
+  BARD
+  CLERIC
+  DRUID
+  FIGHTER
+  MONK
+  PALADIN
+  RANGER
+  ROGUE
+  SORCERER
+  WARLOCK
+  WIZARD
 }
 
 // ─── Models ───────────────────────────────────────────────────────────────────
@@ -107,37 +124,52 @@ model CampaignMember {
 // The reusable definition of a character, NPC or monster.
 // Never mutated during combat — CombatParticipant holds the live state.
 model CharacterTemplate {
-  id               String        @id @default(uuid())
-  campaignId       String
-  ownerId          String? // null = NPC/monster with no player owner
-  name             String
-  type             CharacterType
-  maxHp            Int
-  currentHp        Int? // null = always start at full HP
-  baseAc           Int
-  initiativeBonus  Int           @default(0)
-  level            Int           @default(1)
-  proficiencyBonus Int           @default(2)
-  str              Int           @default(10)
-  dex              Int           @default(10)
-  con              Int           @default(10)
-  int              Int           @default(10)
-  wis              Int           @default(10)
-  cha              Int           @default(10)
-  exhaustionLevel  Int           @default(0)
+  id                  String          @id @default(uuid())
+  campaignId          String
+  ownerId             String? // null = NPC/monster with no player owner
+  name                String
+  type                CharacterType
+  maxHp               Int
+  currentHp           Int? // null = always start at full HP
+  baseAc              Int
+  initiativeBonus     Int             @default(0)
+  level               Int             @default(1)
+  // Sin uso desde la fase A (D-5, T11): la competencia sale del nivel. Se elimina más adelante.
+  proficiencyBonus    Int             @default(2)
+  str                 Int             @default(10)
+  dex                 Int             @default(10)
+  con                 Int             @default(10)
+  int                 Int             @default(10)
+  wis                 Int             @default(10)
+  cha                 Int             @default(10)
+  exhaustionLevel     Int             @default(0)
   // S2-6 — free text the player owner edits from /campaigns/[id]/character.
   // NPC/monster templates (ownerId null) just leave this null. Length is
   // capped in the Server Action, not the DB.
-  notes            String?
+  notes               String?
   // P2 / D-2 — condiciones del personaje al cerrar el último combate. Se copian al
   // participante al empezar el siguiente. Forma: [{name: "Envenenado"}].
-  conditions       Json          @default("[]")
+  conditions          Json            @default("[]")
   // P2 / D-8 — competencias marcadas a mano por el DM (claves de característica y nombres de habilidad).
-  saveProficiencies    String[] @default([])
-  skillProficiencies   String[] @default([])
-  skillExpertise       String[] @default([])
-  spellcastingAbility  String?
-  createdAt        DateTime      @default(now())
+  saveProficiencies   String[]        @default([])
+  skillProficiencies  String[]        @default([])
+  skillExpertise      String[]        @default([])
+  spellcastingAbility String?
+  // Fase A (v2-historias.md H3). Todo opcional: los personajes existentes no cambian.
+  characterClass      CharacterClass?
+  subclass            String?
+  // Datos físicos, texto libre. El jugador los edita (D-17).
+  eyeColor            String?
+  hairColor           String?
+  skinColor           String?
+  height              String?
+  build               String? // complexión y/o peso
+  backstory           String? // máx. 300 caracteres, validado en la acción
+  armorName           String? // solo el nombre; la CA la escribe el DM en baseAc (7.4)
+  silver              Int             @default(0)
+  hitDiceUsed         Int             @default(0) // dados de golpe gastados; el total es el nivel
+  tempHp              Int             @default(0) // PG temporales entre combates (A-H2)
+  createdAt           DateTime        @default(now())
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   owner    User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
@@ -146,6 +178,7 @@ model CharacterTemplate {
   groupMembers GroupMember[]
   actions      TemplateAction[]
   resources    CharacterResource[]
+  traits       CharacterTrait[]
 
   @@index([campaignId])
   @@index([ownerId])
@@ -153,20 +186,38 @@ model CharacterTemplate {
 
 // Recurso consumible de un personaje: espacio de conjuro (con level) o recurso de
 // clase (Furia, Segundo aire…, level null). Tabla genérica (P2, decisión del usuario).
-// `used` cambia en combate y fuera de él; los descansos lo recuperan según `recharge`.
+// `used` cambia en combate y fuera de él. El descanso largo repone todo; el corto
+// según shortRestRecoveryAmount / fullRecoveryOnShortRest (catalogo-recursos-clase.md §2.1).
 model CharacterResource {
-  id         String       @id @default(uuid())
-  templateId String
-  name       String
-  level      Int?
-  max        Int
-  used       Int          @default(0)
-  recharge   RechargeType
-  createdAt  DateTime     @default(now())
+  id                      String        @id @default(uuid())
+  templateId              String
+  name                    String
+  level                   Int?
+  max                     Int
+  used                    Int           @default(0)
+  shortRestRecoveryAmount Int           @default(0) // usos que vuelven con descanso corto
+  fullRecoveryOnShortRest Boolean       @default(false) // true = el corto repone todo
+  recharge                RechargeType? // sin uso desde la fase A; ver RechargeType
+  createdAt               DateTime      @default(now())
 
   template CharacterTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@unique([templateId, name])
+  @@index([templateId])
+}
+
+// Rasgo de clase o dote del personaje, en texto libre (7.3). El máximo de usos,
+// si tiene, vive en CharacterResource (D-15). Lo edita el DM (D-17).
+model CharacterTrait {
+  id          String   @id @default(uuid())
+  templateId  String
+  name        String
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  template CharacterTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
   @@index([templateId])
 }
 
@@ -193,7 +244,7 @@ model MonsterTemplate {
 // MonsterTemplate (etapa-3-acciones-tiradas.md §2). Read live at roll time — never
 // snapshotted onto CombatParticipant, unlike HP/AC/ability scores.
 model TemplateAction {
-  id                  String     @id @default(uuid())
+  id                  String        @id @default(uuid())
   characterTemplateId String?
   monsterTemplateId   String?
   name                String // "Espada larga", "Mordisco", "Curar heridas"
@@ -201,9 +252,9 @@ model TemplateAction {
   attackBonus         Int? // required if kind = ATTACK, null if kind = HEAL
   formula             String // dice notation — damage if ATTACK, healing if HEAL
   damageType          String? // flavor only ("cortante", "fuego") — not mechanical
-  uses                Int        @default(1) // times the formula is rolled per use — multiattack ("Bite ×3") = 3; formula stays single-hit
+  uses                Int           @default(1) // times the formula is rolled per use — multiattack ("Bite ×3") = 3; formula stays single-hit
   economyType         ActionEconomy @default(ACTION) // which action-economy slot this consumes (etapa-3-acciones-tiradas.md §4b) — connects to CombatParticipant.actionUsed/bonusUsed/reactionUsed at roll time
-  order               Int        @default(0) // display order within the template
+  order               Int           @default(0) // display order within the template
 
   characterTemplate CharacterTemplate? @relation(fields: [characterTemplateId], references: [id], onDelete: Cascade)
   monsterTemplate   MonsterTemplate?   @relation(fields: [monsterTemplateId], references: [id], onDelete: Cascade)

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { CharacterType } from "@prisma/client";
 import { requireCampaignDmAction, UnauthorizedError } from "@/lib/auth/action-guards";
 import { usedAfterRest } from "@/domain/character/resources";
+import { levelError, type CharacterKind } from "@/domain/character/progression";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,13 +31,14 @@ async function requireDm(campaignId: string): Promise<TemplateFormState | null> 
 // ─── Stat fields (S2-8) ───────────────────────────────────────────────────────
 
 // The character forms (CreateTemplateForm / the edit page) have always shown
-// inputs for these 8 fields, but createTemplate/updateTemplate used to drop
+// inputs for these fields, but createTemplate/updateTemplate used to drop
 // them silently — nothing else edits them, so the form was lying. Parse +
 // validate here, same shape as the maxHp/baseAc checks below: one specific
 // message per field, never a generic "invalid input".
+// Fase A: proficiencyBonus ya no se lee ni se escribe (D-5, T11) y el nivel
+// tiene tope según el tipo (D-12, levelError).
 type StatFields = {
   level:            number;
-  proficiencyBonus: number;
   str:              number;
   dex:              number;
   con:              number;
@@ -47,53 +49,37 @@ type StatFields = {
 };
 
 const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha"] as const;
+const ABILITY_LABELS: Record<(typeof ABILITY_KEYS)[number], string> = {
+  str: "FUE", dex: "DES", con: "CON", int: "INT", wis: "SAB", cha: "CAR",
+};
 
-function parseStatFields(formData: FormData): StatFields | { error: string } {
-  const level            = Number(formData.get("level"));
-  const proficiencyBonus = Number(formData.get("proficiencyBonus"));
-  const exhaustionLevel  = Number(formData.get("exhaustionLevel"));
+function parseStatFields(
+  formData: FormData,
+  type: CharacterKind,
+  storedLevel: number | null,
+): StatFields | { error: string } {
+  const level           = Number(formData.get("level"));
+  const exhaustionLevel = Number(formData.get("exhaustionLevel"));
 
-  if (!Number.isInteger(level) || level < 1)
-    return { error: "Level must be a whole number of at least 1" };
-
-  // Homebrew rules can drive proficiency negative (a curse, an anti-magic
-  // field), so there's no minimum here — only the whole-number requirement.
-  if (!Number.isInteger(proficiencyBonus))
-    return { error: "Proficiency bonus must be a whole number" };
+  const badLevel = levelError({ type, level, storedLevel });
+  if (badLevel) return { error: badLevel };
 
   const abilities = {} as Record<(typeof ABILITY_KEYS)[number], number>;
   for (const key of ABILITY_KEYS) {
     const value = Number(formData.get(key));
     if (!Number.isInteger(value) || value < 1 || value > 30)
-      return { error: `${key.toUpperCase()} must be a whole number between 1 and 30` };
+      return { error: `${ABILITY_LABELS[key]} debe ser un número entero entre 1 y 30` };
     abilities[key] = value;
   }
 
   if (!Number.isInteger(exhaustionLevel) || exhaustionLevel < 0 || exhaustionLevel > 6)
-    return { error: "Exhaustion level must be a whole number between 0 and 6" };
+    return { error: "El agotamiento debe ser un número entero entre 0 y 6" };
 
-  return { level, proficiencyBonus, exhaustionLevel, ...abilities };
+  return { level, exhaustionLevel, ...abilities };
 }
 
-// ─── Queries ──────────────────────────────────────────────────────────────────
-
-// Templates aren't portable between campaigns (spec-tecnico-etapa-1.md §2) —
-// every caller must go through the scoped query below. There is
-// deliberately no unscoped getTemplates(); that was D16's bug (mixed every
-// campaign's roster together on /templates).
-export async function getTemplatesForCampaign(campaignId: string) {
-  return prisma.characterTemplate.findMany({
-    where:   { campaignId },
-    orderBy: [{ type: "asc" }, { name: "asc" }],
-  });
-}
-
-export async function getTemplateById(id: string) {
-  return prisma.characterTemplate.findUnique({
-    where: { id },
-    include: { actions: { orderBy: { order: "asc" } } },
-  });
-}
+// Las consultas de lectura (getTemplatesForCampaign, getTemplateById) están en
+// lib/actions/queries/templates.ts: exportadas desde acá eran Server Actions sin guard (T16).
 
 // ─── Create ───────────────────────────────────────────────────────────────────
 
@@ -108,18 +94,18 @@ export async function createTemplate(
   const initiativeBonus = Number(formData.get("initiativeBonus") ?? 0);
   const campaignId      = formData.get("campaignId")?.toString();
 
-  if (!campaignId)           return { error: "Missing campaignId" };
+  if (!campaignId)           return { error: "Falta la campaña" };
 
   const denied = await requireDm(campaignId);
   if (denied) return denied;
 
-  if (!name)                 return { error: "Name is required" };
+  if (!name)                 return { error: "El nombre es obligatorio" };
   if (!Object.values(CharacterType).includes(type))
-                             return { error: "Invalid character type" };
-  if (!maxHp || maxHp < 1)  return { error: "HP must be at least 1" };
-  if (!baseAc || baseAc < 1) return { error: "AC must be at least 1" };
+                             return { error: "Tipo de personaje inválido" };
+  if (!maxHp || maxHp < 1)  return { error: "Los PG deben ser al menos 1" };
+  if (!baseAc || baseAc < 1) return { error: "La CA debe ser al menos 1" };
 
-  const stats = parseStatFields(formData);
+  const stats = parseStatFields(formData, type, null);
   if ("error" in stats) return stats;
 
   await prisma.characterTemplate.create({
@@ -142,18 +128,19 @@ export async function updateTemplate(
   const baseAc          = Number(formData.get("baseAc"));
   const initiativeBonus = Number(formData.get("initiativeBonus") ?? 0);
 
-  if (!id)                   return { error: "Missing template ID" };
-  if (!name)                 return { error: "Name is required" };
-  if (!maxHp || maxHp < 1)  return { error: "HP must be at least 1" };
-  if (!baseAc || baseAc < 1) return { error: "AC must be at least 1" };
+  if (!id)                   return { error: "Falta el personaje" };
+  if (!name)                 return { error: "El nombre es obligatorio" };
+  if (!maxHp || maxHp < 1)  return { error: "Los PG deben ser al menos 1" };
+  if (!baseAc || baseAc < 1) return { error: "La CA debe ser al menos 1" };
 
   const existing = await prisma.characterTemplate.findUnique({ where: { id } });
-  if (!existing) return { error: "Template not found" };
+  if (!existing) return { error: "Personaje no encontrado" };
 
   const denied = await requireDm(existing.campaignId);
   if (denied) return denied;
 
-  const stats = parseStatFields(formData);
+  // 7.2: un PJ guardado con nivel mayor al tope se puede editar sin subirlo.
+  const stats = parseStatFields(formData, existing.type, existing.level);
   if ("error" in stats) return stats;
 
   await prisma.characterTemplate.update({
@@ -175,7 +162,7 @@ export async function deleteTemplate(id: string): Promise<TemplateFormState> {
     where:  { id },
     select: { campaignId: true },
   });
-  if (!template) return { error: "Template not found" };
+  if (!template) return { error: "Personaje no encontrado" };
 
   const denied = await requireDm(template.campaignId);
   if (denied) return denied;
@@ -189,7 +176,7 @@ export async function deleteTemplate(id: string): Promise<TemplateFormState> {
   });
 
   if (activeParticipant) {
-    return { error: "Cannot delete — this template is in an active combat." };
+    return { error: "No se puede borrar: el personaje está en un combate activo." };
   }
 
   // Check if used in finished combats — warn but allow deletion
@@ -198,7 +185,7 @@ export async function deleteTemplate(id: string): Promise<TemplateFormState> {
   try {
     deleted = await prisma.characterTemplate.delete({ where: { id } });
   } catch {
-    return { error: "Cannot delete — this template has combat history. Archive it instead." };
+    return { error: "No se puede borrar: el personaje tiene historial de combates." };
   }
 
   revalidatePath(`/campaigns/${deleted.campaignId}/templates`);
@@ -217,7 +204,7 @@ export async function longRest(templateIds: string[]): Promise<TemplateFormState
     });
     const campaignIds = new Set(templates.map((t) => t.campaignId));
     if (templates.length !== templateIds.length || campaignIds.size !== 1) {
-      return { error: "Invalid template selection" };
+      return { error: "Selección de personajes inválida" };
     }
     const [campaignId] = [...campaignIds];
 
@@ -242,7 +229,7 @@ export async function longRest(templateIds: string[]): Promise<TemplateFormState
     revalidatePath(`/campaigns/${campaignId}/templates`);
     return { success: true };
   } catch {
-    return { error: "Failed to apply long rest" };
+    return { error: "No se pudo aplicar el descanso largo" };
   }
 }
 
@@ -257,14 +244,14 @@ export async function shortRest(
     });
     const campaignIds = new Set(templates.map((t) => t.campaignId));
     if (templates.length !== ids.length || campaignIds.size !== 1) {
-      return { error: "Invalid template selection" };
+      return { error: "Selección de personajes inválida" };
     }
     const [campaignId] = [...campaignIds];
 
     const denied = await requireDm(campaignId);
     if (denied) return denied;
 
-    // P2: el descanso corto recupera solo los recursos de recarga corta.
+    // El descanso corto recupera según la regla de cada recurso (usedAfterRest).
     const resources = await prisma.characterResource.findMany({ where: { templateId: { in: ids } } });
     const resourceOps = resources
       .filter((r) => usedAfterRest(r, "SHORT") !== r.used)
@@ -286,6 +273,6 @@ export async function shortRest(
     revalidatePath(`/campaigns/${campaignId}/templates`);
     return { success: true };
   } catch {
-    return { error: "Failed to apply short rest" };
+    return { error: "No se pudo aplicar el descanso corto" };
   }
 }

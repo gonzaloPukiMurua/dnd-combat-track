@@ -1,6 +1,6 @@
 # Fase A — Personaje v2: inventario y plan
 
-> **Estado: alcance aprobado por Gonzalo (2026-11-23). Este plan está en revisión; ningún tramo se programa hasta que lo apruebe.**
+> **Estado: alcance y plan aprobados por Gonzalo (2026-11-23), con T16 dentro de A1. A1 programado y migrado en desarrollo (2026-11-23); producción pendiente de aprobación (§6).**
 > Alcance: historias H1, H3, H4, H6 y H16, U13, T11 y el tope de nivel 7 de [`v2-historias.md`](./v2-historias.md).
 > Etiquetas: **[código]** leído en `main` @ `7f7a79b` · **[DB]** consulta de solo lectura · **[regla]** · **[verificar]** contra el PHB 2024 · **[decidir]**.
 
@@ -82,7 +82,30 @@ Orden: A1 → A2 → A3; A4 y A5 pueden ir en cualquier momento después de A1.
 
 ---
 
-## 5. Lo que no entra en la fase A
+## 5. Tramo A1: lo hecho y decisiones tomadas al programarlo
+
+| Tema | Qué se hizo | Por qué |
+|---|---|---|
+| Migración `20261123120000_phase_a_character_v2` | Enum `CharacterClass`; en `CharacterTemplate`: `characterClass`, `subclass`, `eyeColor`, `hairColor`, `skinColor`, `height`, `build`, `backstory`, `armorName`, `silver`, `hitDiceUsed`, `tempHp`; tabla `CharacterTrait`; en `CharacterResource`: `shortRestRecoveryAmount` y `fullRecoveryOnShortRest`, con `SHORT` convertido a recuperación total | §4 |
+| Nombre `characterClass` en vez de `class` | `class` es palabra reservada de JavaScript: no se puede desestructurar y complica el código | Cambio menor respecto de `catalogo-recursos-clase.md` §3 |
+| La columna `recharge` **no se borra** | Queda nula y sin uso, igual que `proficiencyBonus`. La migración no destruye nada y se puede volver atrás. Las dos columnas se eliminan juntas en una migración de limpieza, con confirmación | Regla de operaciones destructivas del `CLAUDE.md` |
+| A-H1 decidido: se llena | `CombatParticipant.hitDice` se escribe al agregar el personaje al combate ("3d8") si la plantilla tiene clase | Se ve en la ficha de combate sin cambiar el esquema del participante |
+| Competencia (T11) | Sale de `proficiencyForLevel(nivel)` en el alta de participantes, en el mapper del combate (también para combates viejos), en la edición (se muestra, no se edita) y en el alta por invitación. Ningún código lee ni escribe la columna. Monstruos globales: siguen con +2 (no tienen nivel) | D-5 |
+| Tope de nivel | `levelError` en el dominio: `PLAYER` 1–7, con la excepción de 7.2; **NPC y monstruos 1–20** (antes no tenían máximo; en producción el mayor es 20) | D-12. El tope 20 para NPC es nuevo: la competencia no está definida por encima |
+| Reglas de descanso | `spendHitDice` y `longRestState` en el dominio, con tests. **Todavía no las usa ninguna acción**: se conectan en A3 | A3 |
+| T16 | `getTemplatesForCampaign` y `getTemplateById` pasaron a `lib/actions/queries/templates.ts` (sin `"use server"`) | A-H7 |
+| Mensajes | Traducidos los de `templates.ts` | A-H5 |
+| T17 (sumado a pedido) | `createCombatRecord` → `lib/actions/internal/combat-records.ts`; `getGroupsForCampaign` y `getGroupById` → `lib/actions/queries/groups.ts`; borradas `getActiveCombat`, `getCombatById` y `getCombatByJoinCode` (sin uso) | Misma clase de error que T16 |
+
+## 6. Pasar A1 a producción (pendiente de aprobación)
+
+1. Fusionar el PR de A1.
+2. Correr `prisma migrate deploy` contra producción con el host impreso antes. La migración solo agrega columnas y una tabla, y convierte los 8 recursos existentes (6 `LONG`, 2 `SHORT`).
+3. Verificar: sin diferencias entre esquema y base, y los 2 recursos `SHORT` con `fullRecoveryOnShortRest = true`.
+
+Orden importante: la migración tiene que aplicarse **antes o junto con** el deploy de Vercel, porque el código nuevo lee las columnas nuevas.
+
+## 7. Lo que no entra en la fase A
 
 - Hechizos y espacios de conjuro desde la tabla (fase C). Los espacios siguen cargándose a mano como recursos.
 - Armas y armaduras del catálogo (fase C). Las armas siguen siendo acciones manuales.

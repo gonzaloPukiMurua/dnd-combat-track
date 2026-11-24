@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getTemplatesForCampaign } from "@/lib/actions/templates";
-import { getGroupsForCampaign } from "@/lib/actions/groups";
+import { getTemplatesForCampaign } from "@/lib/actions/queries/templates";
+import { getGroupsForCampaign } from "@/lib/actions/queries/groups";
 import {
   addParticipant,
   removeParticipant,

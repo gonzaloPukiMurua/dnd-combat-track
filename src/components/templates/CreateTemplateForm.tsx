@@ -95,16 +95,15 @@ export function CreateTemplateForm({ campaignId }: { campaignId: string }) {
         </div>
       </div>
 
-      {/* Level + Proficiency bonus */}
+      {/* Nivel; la competencia sale del nivel (D-5) y el servidor aplica el tope (D-12) */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>Nivel</label>
-          <input name="level" type="number" min={1} defaultValue={1} className={numberInputClass} />
+          <input name="level" type="number" min={1} max={20} defaultValue={1} className={numberInputClass} />
         </div>
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>Bono de competencia</label>
-          <input name="proficiencyBonus" type="number" defaultValue={2} className={numberInputClass} />
-        </div>
+        <p className="self-end pb-2 text-xs text-gothic-on-surface-variant">
+          Jugadores: hasta nivel 7. La competencia se calcula desde el nivel.
+        </p>
       </div>
 
       {/* Ability scores */}

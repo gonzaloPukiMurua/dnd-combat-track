@@ -7,8 +7,9 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const r = require("./resources.ts") as typeof import("./resources");
 
-const slot = { max: 3, used: 1, recharge: "LONG" as const };
-const furia = { max: 2, used: 2, recharge: "SHORT" as const };
+const slot = { max: 3, used: 1, shortRestRecoveryAmount: 0, fullRecoveryOnShortRest: false };
+const furia = { max: 2, used: 2, shortRestRecoveryAmount: 0, fullRecoveryOnShortRest: true };
+const segundoAire = { max: 2, used: 2, shortRestRecoveryAmount: 1, fullRecoveryOnShortRest: false };
 
 test("spendResource: suma usos hasta el máximo", () => {
   assert.equal(r.spendResource(slot, 1), 2);
@@ -39,7 +40,19 @@ test("usedAfterRest LARGO: todo vuelve a estar disponible", () => {
   assert.equal(r.usedAfterRest(furia, "LONG"), 0);
 });
 
-test("usedAfterRest CORTO: solo recupera los de recarga corta", () => {
-  assert.equal(r.usedAfterRest(furia, "SHORT"), 0);   // recarga SHORT → vuelve
-  assert.equal(r.usedAfterRest(slot, "SHORT"), 1);    // recarga LONG → queda como está
+test("usedAfterRest CORTO: recupera según la regla del recurso", () => {
+  assert.equal(r.usedAfterRest(furia, "SHORT"), 0);   // recupera todo con el corto
+  assert.equal(r.usedAfterRest(slot, "SHORT"), 1);    // solo con el largo → queda como está
+});
+
+test("usedAfterRest CORTO parcial: Segundo Aire recupera 1 uso, sin bajar de 0", () => {
+  assert.equal(r.usedAfterRest(segundoAire, "SHORT"), 1);
+  assert.equal(r.usedAfterRest({ ...segundoAire, used: 0 }, "SHORT"), 0);
+  assert.equal(r.usedAfterRest(segundoAire, "LONG"), 0);
+});
+
+test("rechargeLabel: describe las tres reglas", () => {
+  assert.equal(r.rechargeLabel(slot), "recupera con descanso largo");
+  assert.equal(r.rechargeLabel(furia), "recupera todo con descanso corto");
+  assert.equal(r.rechargeLabel(segundoAire), "recupera 1 uso con descanso corto, todo con largo");
 });

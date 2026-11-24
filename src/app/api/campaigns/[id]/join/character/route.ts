@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { CharacterType } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { levelError } from "@/domain/character/progression";
 
 class TemplateNotFoundError extends Error {}
 class TemplateUnavailableError extends Error {}
@@ -107,6 +108,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!name) return NextResponse.json({ error: "NAME_REQUIRED" }, { status: 400 });
     if (!Number.isFinite(maxHp) || maxHp < 1) return NextResponse.json({ error: "INVALID_MAX_HP" }, { status: 400 });
     if (!Number.isFinite(baseAc) || baseAc < 1) return NextResponse.json({ error: "INVALID_BASE_AC" }, { status: 400 });
+    // D-12: el formulario no manda nivel (queda en 1), pero la ruta acepta uno: se valida igual.
+    const level = numberOr(body.level, 1);
+    if (levelError({ type: "PLAYER", level })) return NextResponse.json({ error: "INVALID_LEVEL" }, { status: 400 });
 
     const result = await prisma.$transaction(async (tx) => {
       const template = await tx.characterTemplate.create({
@@ -118,8 +122,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           maxHp,
           baseAc,
           initiativeBonus: numberOr(body.initiativeBonus, 0),
-          level: numberOr(body.level, 1),
-          proficiencyBonus: numberOr(body.proficiencyBonus, 2),
+          level,
+          // proficiencyBonus ya no se escribe: sale del nivel (D-5, T11).
           str: numberOr(body.str, 10),
           dex: numberOr(body.dex, 10),
           con: numberOr(body.con, 10),

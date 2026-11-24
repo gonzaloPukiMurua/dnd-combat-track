@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createResource, deleteResource, updateResourceMax } from "@/lib/actions/resources";
+import { rechargeLabel } from "@/domain/character/resources";
 
 // P2 — el DM crea, ajusta el máximo y borra los recursos consumibles del personaje.
 // El uso (gastar/recuperar) lo hace el dueño desde su ficha.
@@ -12,8 +13,12 @@ type Row = {
   level: number | null;
   max: number;
   used: number;
-  recharge: "SHORT" | "LONG";
+  shortRestRecoveryAmount: number;
+  fullRecoveryOnShortRest: boolean;
 };
+
+// Las tres reglas de recarga que muestra el formulario (catalogo-recursos-clase.md §2.1).
+type RechargeMode = "LONG" | "SHORT_FULL" | "SHORT_PARTIAL";
 
 const labelClass = "text-xs font-medium uppercase tracking-widest text-gothic-on-surface-variant";
 const inputClass =
@@ -46,7 +51,7 @@ function ResourceRow({ row }: { row: Row }) {
         <span>
           {row.name}
           <span className="ml-2 text-xs text-gothic-on-surface-variant">
-            {row.level !== null ? `nivel ${row.level}` : "clase"} · recarga {row.recharge === "SHORT" ? "corta" : "larga"}
+            {row.level !== null ? `nivel ${row.level}` : "clase"} · {rechargeLabel(row)}
           </span>
         </span>
         <span className="text-xs text-gothic-on-surface-variant">usados {row.used}</span>
@@ -76,7 +81,8 @@ function ResourceRow({ row }: { row: Row }) {
 export function ResourcesManager({ templateId, resources }: { templateId: string; resources: Row[] }) {
   const [name, setName] = useState("");
   const [max, setMax] = useState("1");
-  const [recharge, setRecharge] = useState<"SHORT" | "LONG">("LONG");
+  const [mode, setMode] = useState<RechargeMode>("LONG");
+  const [shortAmount, setShortAmount] = useState("1");
   const [level, setLevel] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -87,11 +93,12 @@ export function ResourcesManager({ templateId, resources }: { templateId: string
       const r = await createResource(templateId, {
         name,
         max: Number(max),
-        recharge,
+        fullRecoveryOnShortRest: mode === "SHORT_FULL",
+        shortRestRecoveryAmount: mode === "SHORT_PARTIAL" ? Number(shortAmount) : 0,
         level: level === "" ? null : Number(level),
       });
       if (r.ok) {
-        setName(""); setMax("1"); setLevel("");
+        setName(""); setMax("1"); setLevel(""); setMode("LONG"); setShortAmount("1");
         setMsg({ ok: true, text: "Recurso agregado" });
       } else {
         setMsg({ ok: false, text: r.error });
@@ -119,11 +126,18 @@ export function ResourcesManager({ templateId, resources }: { templateId: string
         <div className="grid grid-cols-2 gap-2">
           <input className={inputClass} placeholder="Nombre (ej. Furia)" value={name} onChange={(e) => setName(e.target.value)} />
           <input className={`${inputClass} font-mono`} type="number" min={1} max={20} placeholder="Máximo" value={max} onChange={(e) => setMax(e.target.value)} />
-          <select className={inputClass} value={recharge} onChange={(e) => setRecharge(e.target.value as "SHORT" | "LONG")}>
-            <option value="LONG">Recarga larga</option>
-            <option value="SHORT">Recarga corta</option>
+          <select className={inputClass} aria-label="Recarga" value={mode} onChange={(e) => setMode(e.target.value as RechargeMode)}>
+            <option value="LONG">Solo con descanso largo</option>
+            <option value="SHORT_FULL">Todo con descanso corto</option>
+            <option value="SHORT_PARTIAL">Algunos usos con descanso corto</option>
           </select>
           <input className={`${inputClass} font-mono`} type="number" min={1} max={9} placeholder="Nivel (solo conjuros)" value={level} onChange={(e) => setLevel(e.target.value)} />
+          {mode === "SHORT_PARTIAL" && (
+            <label className="col-span-2 flex items-center gap-2 text-xs text-gothic-on-surface-variant">
+              Usos que vuelven con descanso corto
+              <input className={`${inputClass} h-9 w-20 font-mono`} type="number" min={1} max={20} value={shortAmount} onChange={(e) => setShortAmount(e.target.value)} />
+            </label>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <button type="button" onClick={add} disabled={isPending || name.trim() === ""} className="h-11 px-5 rounded-gothic-sm bg-gothic-primary font-gothic-body text-sm font-semibold text-gothic-on-primary hover:bg-gothic-brass-bright disabled:opacity-40">

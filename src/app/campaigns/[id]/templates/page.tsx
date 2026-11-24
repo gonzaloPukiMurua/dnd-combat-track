@@ -1,4 +1,4 @@
-import { getTemplatesForCampaign } from "@/lib/actions/templates";
+import { getTemplatesForCampaign } from "@/lib/actions/queries/templates";
 import { requireCampaignDm } from "@/lib/auth/guards";
 import { CreateTemplateForm } from "@/components/templates/CreateTemplateForm";
 import { RestPanel } from "@/components/templates/RestPanel";

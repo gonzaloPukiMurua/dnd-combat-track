@@ -16,8 +16,6 @@ import { setUsed } from "@/domain/character/resources";
 
 type ResourceResult = { ok: true } | { ok: false; error: string };
 
-const RECHARGES = ["SHORT", "LONG"] as const;
-
 async function guard<T>(check: () => Promise<T>): Promise<{ ok: true; ctx: T } | { ok: false; error: string }> {
   try {
     return { ok: true, ctx: await check() };
@@ -30,7 +28,7 @@ async function guard<T>(check: () => Promise<T>): Promise<{ ok: true; ctx: T } |
 async function resourceWithTemplate(resourceId: string) {
   return prisma.characterResource.findUnique({
     where:  { id: resourceId },
-    select: { id: true, templateId: true, name: true, max: true, used: true, recharge: true, template: { select: { campaignId: true } } },
+    select: { id: true, templateId: true, name: true, max: true, used: true, shortRestRecoveryAmount: true, fullRecoveryOnShortRest: true, template: { select: { campaignId: true } } },
   });
 }
 
@@ -57,7 +55,13 @@ export async function setResourceUsed(resourceId: string, used: number): Promise
 /** Crea un recurso en la plantilla. DM de la campaña. */
 export async function createResource(
   templateId: string,
-  input: { name: string; max: number; recharge: string; level?: number | null }
+  input: {
+    name: string;
+    max: number;
+    shortRestRecoveryAmount: number;
+    fullRecoveryOnShortRest: boolean;
+    level?: number | null;
+  }
 ): Promise<ResourceResult> {
   const template = await prisma.characterTemplate.findUnique({
     where:  { id: templateId },
@@ -71,13 +75,17 @@ export async function createResource(
   const name = input.name?.trim() ?? "";
   if (name.length < 1 || name.length > 40) return { ok: false, error: "El nombre debe tener entre 1 y 40 caracteres" };
   if (!Number.isInteger(input.max) || input.max < 1 || input.max > 20) return { ok: false, error: "El máximo debe ser un entero entre 1 y 20" };
-  if (!RECHARGES.includes(input.recharge as (typeof RECHARGES)[number])) return { ok: false, error: "Recarga inválida" };
+  // Recarga generalizada (catalogo-recursos-clase.md §2.1). Si el corto repone todo, la cantidad no importa.
+  const fullRecoveryOnShortRest = input.fullRecoveryOnShortRest === true;
+  const shortRestRecoveryAmount = fullRecoveryOnShortRest ? 0 : input.shortRestRecoveryAmount;
+  if (!Number.isInteger(shortRestRecoveryAmount) || shortRestRecoveryAmount < 0 || shortRestRecoveryAmount > input.max)
+    return { ok: false, error: "Los usos que vuelven con descanso corto deben estar entre 0 y el máximo" };
   const level = input.level ?? null;
   if (level !== null && (!Number.isInteger(level) || level < 1 || level > 9)) return { ok: false, error: "El nivel del espacio debe estar entre 1 y 9" };
 
   try {
     await prisma.characterResource.create({
-      data: { templateId, name, max: input.max, used: 0, recharge: input.recharge as (typeof RECHARGES)[number], level },
+      data: { templateId, name, max: input.max, used: 0, shortRestRecoveryAmount, fullRecoveryOnShortRest, level },
     });
   } catch (err) {
     if (typeof err === "object" && err && "code" in err && (err as { code: string }).code === "P2002") {
