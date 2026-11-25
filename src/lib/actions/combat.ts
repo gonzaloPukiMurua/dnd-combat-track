@@ -139,7 +139,7 @@ export async function addParticipant(formData: FormData): Promise<string[]> {
         displayName:      `${template.name}${suffix}`,
         maxHp:            template.maxHp,
         currentHp:        template.currentHp ?? template.maxHp,
-        tempHp:           0,
+        tempHp:           template.tempHp, // A-H2: se arrastran entre combates
         baseAc:           template.baseAc,
         level:            template.level,
         ...derivedParticipantStats(template),
@@ -477,6 +477,7 @@ export async function endCombat(
             currentHp:       p.currentHp,
             conditions:      p.conditions as Prisma.InputJsonValue,
             exhaustionLevel: p.exhaustionLevel,
+            tempHp:          p.tempHp, // A-H2: los PG temporales duran hasta el descanso largo
           },
         })
       );
@@ -524,7 +525,7 @@ export async function addParticipantsFromGroup(formData: FormData) {
         : m.template.name,
       maxHp:            m.template.maxHp,
       currentHp:        m.template.currentHp ?? m.template.maxHp,
-      tempHp:           0,
+      tempHp:           m.template.tempHp, // A-H2
       baseAc:           m.template.baseAc,
       level:            m.template.level,
       ...derivedParticipantStats(m.template),

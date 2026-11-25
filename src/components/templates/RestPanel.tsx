@@ -24,13 +24,10 @@ export function RestPanel({ templates }: { templates: Template[] }) {
     (t) => t.type === "PLAYER" || t.type === "NPC"
   );
 
+  // A3: el panel se muestra siempre que haya PJ o PNJ. Antes solo aparecía con
+  // alguien herido, pero el descanso también repone recursos, dados de golpe y
+  // agotamiento.
   if (restCandidates.length === 0) return null;
-
-  // Only show panel if any character has less than full HP
-  const anyWounded = restCandidates.some(
-    (t) => t.currentHp !== null && t.currentHp < t.maxHp
-  );
-  if (!anyWounded) return null;
 
   function toggleAll() {
     if (selected.length === restCandidates.length) {
@@ -135,18 +132,21 @@ export function RestPanel({ templates }: { templates: Template[] }) {
       <div className="flex gap-2">
         <input
           type="number"
-          min={1}
+          min={0}
           value={shortHeal}
           onChange={(e) => setShortHeal(e.target.value)}
-          placeholder="PV a restaurar"
+          placeholder="PV a curar (opcional)"
           className="flex-1 rounded-gothic-sm bg-gothic-surface px-3 h-11 text-sm font-mono text-gothic-on-surface outline-none ring-1 ring-gothic-outline-variant placeholder:text-gothic-outline placeholder:font-gothic-body transition-all focus:ring-gothic-primary"
         />
         <button
           type="button"
-          disabled={selected.length === 0 || !shortHeal || isPending}
+          disabled={selected.length === 0 || isPending}
           onClick={() => {
-            const n = parseInt(shortHeal);
-            if (!n || n < 1) return;
+            // La curación fija es opcional (vacío = 0): en general cada jugador
+            // gasta sus dados de golpe desde su ficha.
+            const n = shortHeal === "" ? 0 : Number(shortHeal);
+            if (!Number.isInteger(n) || n < 0) { setError("La curación debe ser un número entero mayor o igual a 0"); return; }
+            setError(null);
             startTransition(async () => {
               const result = await shortRest(
                 selected.map((id) => ({ id, healAmount: n }))
@@ -161,7 +161,7 @@ export function RestPanel({ templates }: { templates: Template[] }) {
         </button>
       </div>
       <p className="text-xs text-gothic-on-surface-variant text-center">
-        El descanso largo restaura a los personajes seleccionados a PV máximos al iniciar el próximo combate.
+        Largo: PV completos, PV temporales a 0, todos los dados de golpe y recursos, −1 de agotamiento. Corto: recursos según su regla; los jugadores gastan dados de golpe desde su ficha.
       </p>
     </div>
   );

@@ -1,6 +1,6 @@
 # Fase A — Personaje v2: inventario y plan
 
-> **Estado: alcance y plan aprobados por Gonzalo (2026-11-23), con T16 dentro de A1. A1 terminado: migrado en desarrollo y producción y fusionado en el PR #9 (2026-11-23). A2 programado y probado en local contra desarrollo (2026-11-24), sin fusionar (§7).**
+> **Estado: alcance y plan aprobados por Gonzalo (2026-11-23), con T16 dentro de A1. A1 terminado: migrado en desarrollo y producción y fusionado en el PR #9 (2026-11-23). A2 fusionado en el PR #10 (2026-11-24). A3 programado y probado en local contra desarrollo (2026-11-24), sin fusionar (§8).**
 > Alcance: historias H1, H3, H4, H6 y H16, U13, T11 y el tope de nivel 7 de [`v2-historias.md`](./v2-historias.md).
 > Etiquetas: **[código]** leído en `main` @ `7f7a79b` · **[DB]** consulta de solo lectura · **[regla]** · **[verificar]** contra el PHB 2024 · **[decidir]**.
 
@@ -121,7 +121,19 @@ Orden importante: la migración tiene que aplicarse **antes o junto con** el dep
 | Decisión: el DM no edita los datos del jugador | D-17 le asigna esos campos al jugador. Un personaje del DM sin dueño queda sin datos físicos hasta que alguien lo reclame |
 | Hallazgo corregido (anterior a la fase A) | El formulario de edición del DM descartaba los errores del servidor: si `updateTemplate` rechazaba algo, no guardaba y no avisaba. Ahora lo envuelve `TemplateEditForm.tsx` (cliente): muestra el mensaje, conserva lo escrito y, si sale bien, vuelve al listado como antes. Envía con `onSubmit` porque React 19 vacía el formulario después de una `action`. Corregido a pedido de Gonzalo (2026-11-24) |
 
-## 8. Lo que no entra en la fase A
+## 8. Tramo A3: lo hecho y decisiones
+
+| Tema | Qué se hizo |
+|---|---|
+| Descanso largo (`longRest`, DM) | Por personaje, con `longRestState`: PG completos, PG temporales a 0, todos los dados de golpe, todos los recursos, −1 de agotamiento (A-H3) |
+| Descanso corto (`shortRest`, DM) | Recursos según su regla, incluida la recuperación parcial. La curación fija del DM pasa a ser opcional (vacío = 0) y se valida (entero ≥ 0); antes no se validaba |
+| Dados de golpe (`spendHitDice` en `lib/actions/character.ts`, dueño) | El jugador elige cuántos dados gasta y escribe el total con su mod. de CON (D-14). Regla `hitDiceHeal` en el dominio, con tests: sin clase no se puede, no se gastan más de los que quedan, el total va de 0 a dados × (dado + mod. CON positivo), los PG no pasan del máximo. Escritura condicionada al valor leído para que dos clics seguidos no gasten de más |
+| PG temporales (A-H2) | `endCombat` con guardado de estado los escribe en la plantilla; al agregar el personaje a un combate (uno o por grupo) se copian al participante |
+| Panel de descanso | Aparece siempre que haya PJ o PNJ. Antes solo con alguien herido, pero el descanso también repone recursos, dados y agotamiento |
+| Decisión: no hay "descanso abierto" | La app no modela la sesión de descanso: el jugador puede gastar dados desde su ficha en cualquier momento y la mesa lo controla. Modelarlo pide estado nuevo en la base |
+| Decisión: el DM no gasta dados por un PNJ | Solo el dueño gasta dados. Para un PNJ, el DM usa la curación fija del descanso corto |
+
+## 9. Lo que no entra en la fase A
 
 - Hechizos y espacios de conjuro desde la tabla (fase C). Los espacios siguen cargándose a mano como recursos.
 - Armas y armaduras del catálogo (fase C). Las armas siguen siendo acciones manuales.
