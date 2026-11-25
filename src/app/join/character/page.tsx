@@ -63,6 +63,11 @@ export default async function JoinCharacterPage({
   const characters: AvailableCharacter[] = data.characters;
 
   return (
-    <CharacterPicker campaignId={campaignId} campaignName={data.campaignName} characters={characters} />
+    <CharacterPicker
+      campaignId={campaignId}
+      campaignName={data.campaignName}
+      characters={characters}
+      isMember={data.isMember === true}
+    />
   );
 }

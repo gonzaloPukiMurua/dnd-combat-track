@@ -64,7 +64,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     select: { id: true, name: true, level: true, maxHp: true, currentHp: true, baseAc: true },
   });
 
-  return NextResponse.json({ campaignName: campaign.name, characters });
+  // isMember: la pantalla cambia el texto para quien ya es jugador de la campaña (A5).
+  return NextResponse.json({ campaignName: campaign.name, characters, isMember: ctx.mode === "MEMBER_WITHOUT_CHARACTER" });
 }
 
 // ─── C3 — Confirm campaign membership with a character ─────────────────────
