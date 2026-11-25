@@ -1,6 +1,6 @@
 # Fase A — Personaje v2: inventario y plan
 
-> **Estado: alcance y plan aprobados por Gonzalo (2026-11-23), con T16 dentro de A1. A1 terminado: migrado en desarrollo y producción y fusionado en el PR #9 (2026-11-23). A2 fusionado en el PR #10 (2026-11-24). A3 programado y probado en local contra desarrollo (2026-11-24), sin fusionar (§8).**
+> **Estado: alcance y plan aprobados por Gonzalo (2026-11-23), con T16 dentro de A1. A1 terminado: migrado en desarrollo y producción y fusionado en el PR #9 (2026-11-23). A2 fusionado en el PR #10 (2026-11-24). A3 fusionado en el PR #11 (2026-11-24). A5 programado y probado en local contra desarrollo (2026-11-25), sin fusionar (§9). Falta A4.**
 > Alcance: historias H1, H3, H4, H6 y H16, U13, T11 y el tope de nivel 7 de [`v2-historias.md`](./v2-historias.md).
 > Etiquetas: **[código]** leído en `main` @ `7f7a79b` · **[DB]** consulta de solo lectura · **[regla]** · **[verificar]** contra el PHB 2024 · **[decidir]**.
 
@@ -133,7 +133,16 @@ Orden importante: la migración tiene que aplicarse **antes o junto con** el dep
 | Decisión: no hay "descanso abierto" | La app no modela la sesión de descanso: el jugador puede gastar dados desde su ficha en cualquier momento y la mesa lo controla. Modelarlo pide estado nuevo en la base |
 | Decisión: el DM no gasta dados por un PNJ | Solo el dueño gasta dados. Para un PNJ, el DM usa la curación fija del descanso corto |
 
-## 9. Lo que no entra en la fase A
+## 9. Tramo A5: lo hecho y decisiones
+
+| Tema | Qué se hizo |
+|---|---|
+| Panel `/campaigns` (H1, H6) | Nombre y email del usuario con link al perfil; secciones "Juego en" y "Dirijo". En las de jugador, nombre y nivel del personaje propio o "Todavía no tenés personaje". En las de DM, la cantidad de jugadores. Los datos salen de `GET /api/campaigns` (campos nuevos `user`, `character`, `playerCount`; `/profile` usa la misma ruta y no cambia) |
+| Aviso en la campaña (H4) | Un jugador miembro sin personaje ve "Crear o elegir personaje", que lleva a `/join/character` |
+| Permiso nuevo en `/api/campaigns/[id]/join/character` | Antes rechazaba a cualquier miembro (`ALREADY_MEMBER`), así que el aviso de H4 llevaba a una pantalla que fallaba. Ahora decide `joinMode` (`domain/campaign/join.ts`, con tests): quien no es miembro entra como jugador nuevo (igual que antes); un **jugador** miembro **sin personaje** puede reclamar o crear uno y conserva su membresía; el DM y el jugador que ya tiene personaje siguen rechazados. Dentro de la transacción se vuelve a contar el personaje propio para que un doble envío no deje dos. El reclamo sigue siendo atómico y el nivel nuevo sigue con tope 7 |
+| Pendiente menor | La pantalla de reclamo dice "Te vas a unir a…" también para quien ya es miembro |
+
+## 10. Lo que no entra en la fase A
 
 - Hechizos y espacios de conjuro desde la tabla (fase C). Los espacios siguen cargándose a mano como recursos.
 - Armas y armaduras del catálogo (fase C). Las armas siguen siendo acciones manuales.

@@ -1,11 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CharacterType } from "@prisma/client";
+import { CharacterType, Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { levelError } from "@/domain/character/progression";
+import { joinMode, type JoinMode } from "@/domain/campaign/join";
 
 class TemplateNotFoundError extends Error {}
 class TemplateUnavailableError extends Error {}
+class AlreadyHasCharacterError extends Error {}
+
+type JoinContext = {
+  campaign: { name: string };
+  mode: Exclude<JoinMode, "REJECT">;
+  membership: { id: string; campaignId: string } | null;
+};
+
+// A5 / H4 — preconditions shared by GET and POST. Before A5 any existing
+// member got ALREADY_MEMBER; now a PLAYER member who owns no character in
+// this campaign may claim or create one (joinMode, domain/campaign/join.ts).
+// DMs and players who already have a character are still rejected with
+// ALREADY_MEMBER, same code as before, so the page keeps its message.
+async function loadJoinContext(userId: string, campaignId: string): Promise<{ error: NextResponse } | JoinContext> {
+  const [campaign, user, membership, owned] = await Promise.all([
+    prisma.campaign.findUnique({ where: { id: campaignId }, select: { name: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { emailVerified: true } }),
+    prisma.campaignMember.findUnique({ where: { userId_campaignId: { userId, campaignId } } }),
+    prisma.characterTemplate.count({ where: { campaignId, ownerId: userId } }),
+  ]);
+
+  if (!campaign) return { error: NextResponse.json({ error: "CAMPAIGN_NOT_FOUND" }, { status: 404 }) };
+  if (!user?.emailVerified) return { error: NextResponse.json({ error: "EMAIL_NOT_VERIFIED" }, { status: 403 }) };
+
+  const mode = joinMode({ membershipRole: membership?.role ?? null, ownsCharacter: owned > 0 });
+  if (mode === "REJECT") return { error: NextResponse.json({ error: "ALREADY_MEMBER" }, { status: 409 }) };
+
+  return { campaign, mode, membership: membership ? { id: membership.id, campaignId: membership.campaignId } : null };
+}
 
 function numberOr<T extends number>(value: unknown, fallback: T): number {
   const n = Number(value);
@@ -24,15 +54,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   const { id: campaignId } = await params;
 
-  const [campaign, user, existingMembership] = await Promise.all([
-    prisma.campaign.findUnique({ where: { id: campaignId } }),
-    prisma.user.findUnique({ where: { id: userId }, select: { emailVerified: true } }),
-    prisma.campaignMember.findUnique({ where: { userId_campaignId: { userId, campaignId } } }),
-  ]);
-
-  if (!campaign) return NextResponse.json({ error: "CAMPAIGN_NOT_FOUND" }, { status: 404 });
-  if (!user?.emailVerified) return NextResponse.json({ error: "EMAIL_NOT_VERIFIED" }, { status: 403 });
-  if (existingMembership) return NextResponse.json({ error: "ALREADY_MEMBER" }, { status: 409 });
+  const ctx = await loadJoinContext(userId, campaignId);
+  if ("error" in ctx) return ctx.error;
+  const { campaign } = ctx;
 
   const characters = await prisma.characterTemplate.findMany({
     where: { campaignId, ownerId: null, type: "PLAYER" },
@@ -45,9 +69,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
 // ─── C3 — Confirm campaign membership with a character ─────────────────────
 // Either claims an existing ownerless CharacterTemplate from this campaign,
-// or creates a new one owned by the current user. Either way, this is the
+// or creates a new one owned by the current user. For a newcomer this is the
 // step that actually creates the CampaignMember (role = PLAYER) — C2 only
-// validated the invite code.
+// validated the invite code. A5: a PLAYER member without a character also
+// comes through here and keeps their existing membership.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   const userId = session?.user?.id;
@@ -55,15 +80,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { id: campaignId } = await params;
 
-  const [campaign, user, existingMembership] = await Promise.all([
-    prisma.campaign.findUnique({ where: { id: campaignId } }),
-    prisma.user.findUnique({ where: { id: userId }, select: { emailVerified: true } }),
-    prisma.campaignMember.findUnique({ where: { userId_campaignId: { userId, campaignId } } }),
-  ]);
+  const ctx = await loadJoinContext(userId, campaignId);
+  if ("error" in ctx) return ctx.error;
+  const join: JoinContext = ctx;
+  const ownerId: string = userId;
 
-  if (!campaign) return NextResponse.json({ error: "CAMPAIGN_NOT_FOUND" }, { status: 404 });
-  if (!user?.emailVerified) return NextResponse.json({ error: "EMAIL_NOT_VERIFIED" }, { status: 403 });
-  if (existingMembership) return NextResponse.json({ error: "ALREADY_MEMBER" }, { status: 409 });
+  // A5: a newcomer gets a PLAYER membership in the same transaction as the
+  // character; a member without a character keeps theirs. For a member the
+  // owned-character check is repeated inside the transaction so a double
+  // submit can't leave them with two characters.
+  async function membershipFor(tx: Prisma.TransactionClient) {
+    if (join.mode === "NEW_MEMBER") {
+      return tx.campaignMember.create({ data: { userId: ownerId, campaignId, role: "PLAYER" } });
+    }
+    const owned = await tx.characterTemplate.count({ where: { campaignId, ownerId } });
+    if (owned > 0) throw new AlreadyHasCharacterError();
+    return join.membership;
+  }
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
@@ -83,16 +116,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         // Atomic claim — only succeeds if ownerId is still null. If someone
         // else took it in the meantime this updates zero rows instead of
         // overwriting their claim.
+        const member = await membershipFor(tx);
+
         const claim = await tx.characterTemplate.updateMany({
           where: { id: templateId, campaignId, ownerId: null },
           data: { ownerId: userId },
         });
         if (claim.count === 0) throw new TemplateUnavailableError();
 
-        const [member, updatedTemplate] = await Promise.all([
-          tx.campaignMember.create({ data: { userId, campaignId, role: "PLAYER" } }),
-          tx.characterTemplate.findUniqueOrThrow({ where: { id: templateId } }),
-        ]);
+        const updatedTemplate = await tx.characterTemplate.findUniqueOrThrow({ where: { id: templateId } });
 
         return { member, template: updatedTemplate };
       });
@@ -113,6 +145,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (levelError({ type: "PLAYER", level })) return NextResponse.json({ error: "INVALID_LEVEL" }, { status: 400 });
 
     const result = await prisma.$transaction(async (tx) => {
+      const member = await membershipFor(tx);
       const template = await tx.characterTemplate.create({
         data: {
           campaignId,
@@ -132,7 +165,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           cha: numberOr(body.cha, 10),
         },
       });
-      const member = await tx.campaignMember.create({ data: { userId, campaignId, role: "PLAYER" } });
       return { member, template };
     });
 
@@ -143,6 +175,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
     if (error instanceof TemplateUnavailableError) {
       return NextResponse.json({ error: "TEMPLATE_ALREADY_TAKEN" }, { status: 409 });
+    }
+    if (error instanceof AlreadyHasCharacterError) {
+      return NextResponse.json({ error: "ALREADY_MEMBER" }, { status: 409 });
     }
     throw error;
   }

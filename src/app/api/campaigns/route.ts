@@ -63,11 +63,32 @@ export async function GET() {
   });
 
   const campaignIds = memberships.map((m) => m.campaignId);
-  const activeCombats = await prisma.combat.findMany({
-    where: { campaignId: { in: campaignIds }, status: { in: ["SETUP", "ACTIVE"] } },
-    select: { campaignId: true },
-  });
+  const dmCampaignIds = memberships.filter((m) => m.role === "DM").map((m) => m.campaignId);
+  // A5 / H1 y H6 — datos del panel: el usuario, su personaje en cada campaña
+  // donde juega y la cantidad de jugadores de cada campaña que dirige.
+  const [user, activeCombats, ownCharacters, playerCounts] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } }),
+    prisma.combat.findMany({
+      where: { campaignId: { in: campaignIds }, status: { in: ["SETUP", "ACTIVE"] } },
+      select: { campaignId: true },
+    }),
+    prisma.characterTemplate.findMany({
+      where: { campaignId: { in: campaignIds }, ownerId: userId },
+      select: { campaignId: true, name: true, level: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.campaignMember.groupBy({
+      by: ["campaignId"],
+      where: { campaignId: { in: dmCampaignIds }, role: "PLAYER" },
+      _count: { _all: true },
+    }),
+  ]);
   const campaignsWithActiveCombat = new Set(activeCombats.map((c) => c.campaignId));
+  const characterByCampaign = new Map<string, { name: string; level: number }>();
+  for (const c of ownCharacters) {
+    if (!characterByCampaign.has(c.campaignId)) characterByCampaign.set(c.campaignId, { name: c.name, level: c.level });
+  }
+  const playersByCampaign = new Map(playerCounts.map((p) => [p.campaignId, p._count._all]));
 
   const campaigns = memberships.map((m) => ({
     id: m.campaign.id,
@@ -77,7 +98,9 @@ export async function GET() {
     role: m.role,
     hasActiveCombat: campaignsWithActiveCombat.has(m.campaignId),
     createdAt: m.campaign.createdAt,
+    character: m.role === "PLAYER" ? characterByCampaign.get(m.campaignId) ?? null : null,
+    playerCount: m.role === "DM" ? playersByCampaign.get(m.campaignId) ?? 0 : null,
   }));
 
-  return NextResponse.json({ campaigns });
+  return NextResponse.json({ user, campaigns });
 }
