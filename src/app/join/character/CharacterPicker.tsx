@@ -22,10 +22,13 @@ export function CharacterPicker({
   campaignId,
   campaignName,
   characters,
+  isMember = false,
 }: {
   campaignId: string;
   campaignName: string;
   characters: AvailableCharacter[];
+  /** A5: ya es jugador de la campaña y le falta personaje; no "se va a unir". */
+  isMember?: boolean;
 }) {
   const router = useRouter();
   const [state, action, isPending] = useActionState(joinCampaignWithCharacter, INITIAL);
@@ -43,8 +46,10 @@ export function CharacterPicker({
           Elegí tu personaje
         </h1>
         <p className="text-sm text-gothic-on-surface-variant">
-          Te vas a unir a <strong className="text-gothic-on-surface">{campaignName}</strong>. Elegí con quién vas a
-          jugar, o creá uno nuevo.
+          {isMember ? "Ya sos parte de " : "Te vas a unir a "}
+          <strong className="text-gothic-on-surface">{campaignName}</strong>
+          {isMember ? ", pero todavía no tenés personaje. " : ". "}
+          Elegí con quién vas a jugar, o creá uno nuevo.
         </p>
       </div>
 
