@@ -5,7 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { CharacterType } from "@prisma/client";
 import { requireCampaignDmAction, UnauthorizedError } from "@/lib/auth/action-guards";
 import { usedAfterRest } from "@/domain/character/resources";
-import { levelError, type CharacterKind } from "@/domain/character/progression";
+import { isCharacterClass, levelError, type CharacterKind } from "@/domain/character/progression";
+import { validateDmDetails } from "@/domain/character/details";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,19 @@ function parseStatFields(
   return { level, exhaustionLevel, ...abilities };
 }
 
+// A2 / D-17 — clase, subclase y nombre de armadura: los edita el DM desde la
+// pantalla de edición. Vacío = sin clase (NPC y monstruos no la necesitan).
+function parseDmDetails(formData: FormData) {
+  const rawClass = formData.get("characterClass")?.toString() ?? "";
+  if (rawClass !== "" && !isCharacterClass(rawClass)) return { error: "Clase inválida" };
+  const details = validateDmDetails({
+    subclass:  formData.get("subclass")?.toString(),
+    armorName: formData.get("armorName")?.toString(),
+  });
+  if (!details.ok) return { error: details.error };
+  return { data: { characterClass: rawClass === "" ? null : rawClass, ...details.data } };
+}
+
 // Las consultas de lectura (getTemplatesForCampaign, getTemplateById) están en
 // lib/actions/queries/templates.ts: exportadas desde acá eran Server Actions sin guard (T16).
 
@@ -143,9 +157,12 @@ export async function updateTemplate(
   const stats = parseStatFields(formData, existing.type, existing.level);
   if ("error" in stats) return stats;
 
+  const dm = parseDmDetails(formData);
+  if ("error" in dm) return { error: dm.error };
+
   await prisma.characterTemplate.update({
     where: { id },
-    data:  { name, maxHp, baseAc, initiativeBonus, ...stats },
+    data:  { name, maxHp, baseAc, initiativeBonus, ...stats, ...dm.data },
     // Note: type is intentionally not updatable — changing a PC to a Monster
     // mid-campaign causes confusion. Create a new template instead.
   });
