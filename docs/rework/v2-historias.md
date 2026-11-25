@@ -174,17 +174,24 @@ Cada migración se aplica primero en la base de desarrollo, se verifica, y reci�
 
 El patrón que se espera encontrar (**[verificar]** contra el PHB 2024):
 
-| Nivel | Lanzador completo (Bardo, Clérigo, Druida, Hechicero, Mago) | Medio lanzador (Paladín, Explorador) | Brujo (pacto) |
+| Nivel | Lanzador completo (Bardo, Clérigo, Druida, Hechicero, Mago) | Medio lanzador (Artífice, Paladín, Explorador) | Brujo (pacto) |
 |---|---|---|---|
 | 1 | 2 de nivel 1 | 2 de nivel 1 | 1 espacio de nivel 1 |
 | 2 | 3 | 2 | 2 de nivel 1 |
 | 3 | 4 · 2 | 3 | 2 de nivel 2 |
 | 4 | 4 · 3 | 3 | 2 de nivel 2 |
 | 5 | 4 · 3 · 2 | 4 · 2 | 2 de nivel 3 |
-| 6 | 4 · 3 · 3 | 4 · 2 | 2 de nivel 3 |
+| 6 | 4 · 3 · 3 ✔ | 4 · 2 ✔ | 2 de nivel 3 ✔ (recarga con descanso corto) |
 | 7 | 4 · 3 · 3 · 1 | 4 · 3 | 2 de nivel 4 |
 
 Patrón: **un medio lanzador de nivel N tiene los espacios de un lanzador completo de nivel ⌈N/2⌉.** Si se confirma, alcanza con una tabla y una regla.
+
+**Fila de nivel 6 confirmada por Gonzalo (2026-11-24)**, el nivel actual de sus jugadores (✔ en la tabla): completo 4 · 3 · 3, medio 4 · 2, Brujo 2 espacios de nivel 3 que se recuperan con descanso corto. Coincide con el patrón. Las demás filas siguen **[verificar]**.
+
+Datos de la misma lista que quedan anotados:
+- **Un tercio de lanzador** (Guerrero Caballero Arcano, Pícaro Embaucador Arcano): 3 espacios de nivel 1 a nivel 6. Coincide con el patrón "lanzador completo de nivel ⌈N/3⌉, desde nivel 3" (nivel 3 → 2; nivel 4–6 → 3; nivel 7 → 4 · 2) **[verificar]** los demás niveles. **Entran al alcance** (§8).
+- **Artífice:** medio lanzador, 4 · 2 a nivel 6. No es una de las 12 clases del PHB 2024. **Entra al alcance** como clase 13 (§8).
+- Los datos de "conjuros de nivel 6" (nivel 11 de clase, Arcano Místico) no aplican: con el tope de nivel 7 los espacios llegan hasta nivel 4.
 
 Las subclases lanzadoras de Guerrero y Pícaro (un tercio de lanzador desde nivel 3) quedan afuera, salvo que se acuerde sumarlas.
 
@@ -214,4 +221,10 @@ Listas cerradas y chicas, sin escalado por nivel. Gonzalo arma la selección bá
 
 ## 8. Cambios acordados después de este documento
 
-_Vacío. Cada diferencia que se negocie durante el trabajo se anota acá con fecha, qué cambió y por qué._
+Cada diferencia que se negocie durante el trabajo se anota acá con fecha, qué cambió y por qué.
+
+| Fecha | Cambio | Por qué | Efecto |
+|---|---|---|---|
+| 2026-11-23 | **NPC y monstruos con tope de nivel 20** (D-12 decía "sin tope") | La competencia del libro está definida hasta nivel 20; por encima la ficha fallaba. En producción el mayor es 20 | Validación en `levelError` (A1, `fase-a-plan.md` §5). Anotado acá después, al revisar este documento |
+| 2026-11-24 | **Artífice como clase 13** | Decisión de Gonzalo | Enum `CharacterClass` + `ARTIFICER` (migración solo agrega el valor). Dado de golpe d8 y medio lanzador **[verificar]** contra su libro: no está en el PHB 2024. El catálogo de recursos de clase (A4) y la planilla de catálogos tienen que sumarlo |
+| 2026-11-24 | **Tercios de lanzador entran**: Guerrero Caballero Arcano y Pícaro Embaucador Arcano | Decisión de Gonzalo | La tabla de espacios suma la regla "lanzador completo de nivel ⌈N/3⌉ desde nivel 3" (§6.1). Hoy los espacios se cargan a mano (D-9), así que no cambia código todavía. Cuando se calculen solos, hace falta reconocer la subclase: hoy es texto libre |

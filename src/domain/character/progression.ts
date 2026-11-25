@@ -3,15 +3,17 @@
 
 export type CharacterKind = "PLAYER" | "NPC" | "MONSTER";
 
-// Mismos valores que el enum CharacterClass de Prisma.
+// Mismos valores que el enum CharacterClass de Prisma. Las 12 del PHB 2024 más
+// el Artífice, sumado por decisión de Gonzalo (v2-historias.md §8, 2026-11-24).
 export const CHARACTER_CLASSES = [
-  "BARBARIAN", "BARD", "CLERIC", "DRUID", "FIGHTER", "MONK",
+  "ARTIFICER", "BARBARIAN", "BARD", "CLERIC", "DRUID", "FIGHTER", "MONK",
   "PALADIN", "RANGER", "ROGUE", "SORCERER", "WARLOCK", "WIZARD",
 ] as const;
 
 export type CharacterClass = (typeof CHARACTER_CLASSES)[number];
 
 export const CLASS_LABELS: Record<CharacterClass, string> = {
+  ARTIFICER: "Artífice",
   BARBARIAN: "Bárbaro",
   BARD: "Bardo",
   CLERIC: "Clérigo",
@@ -35,7 +37,7 @@ export function isCharacterClass(value: unknown): value is CharacterClass {
 export const HIT_DIE: Record<CharacterClass, 6 | 8 | 10 | 12> = {
   BARBARIAN: 12,
   FIGHTER: 10, PALADIN: 10, RANGER: 10,
-  BARD: 8, CLERIC: 8, DRUID: 8, MONK: 8, ROGUE: 8, WARLOCK: 8,
+  ARTIFICER: 8, BARD: 8, CLERIC: 8, DRUID: 8, MONK: 8, ROGUE: 8, WARLOCK: 8,
   SORCERER: 6, WIZARD: 6,
 };
 
