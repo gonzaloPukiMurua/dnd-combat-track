@@ -63,7 +63,7 @@ Orden: A1 → A2 → A3; A4 y A5 pueden ir en cualquier momento después de A1.
 
 | Regla | Valor | Estado |
 |---|---|---|
-| Dado de golpe por clase | d12 Bárbaro · d10 Guerrero, Paladín, Explorador · d8 Bardo, Clérigo, Druida, Monje, Pícaro, Brujo · d6 Hechicero, Mago | **[verificar]** |
+| Dado de golpe por clase | d12 Bárbaro · d10 Guerrero, Paladín, Explorador · d8 Artífice, Bardo, Clérigo, Druida, Monje, Pícaro, Brujo · d6 Hechicero, Mago | **[verificar]** (el Artífice no está en el PHB 2024: confirmar contra su libro) |
 | Dados de golpe totales | igual al nivel | **[regla]** |
 | Descanso largo y dados de golpe | 2024: se recuperan **todos** (en 2014 era la mitad). Corrige lo que dice `v2-historias.md` H16 | **[verificar]** |
 | PG temporales | duran hasta gastarse o hasta terminar un descanso largo | **[verificar]** |

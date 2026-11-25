@@ -66,6 +66,7 @@ Para filtrar el catálogo por clase hace falta que el personaje declare una. Hoy
 
 ```prisma
 enum CharacterClass {
+  ARTIFICER // sumado el 2026-11-24 (v2-historias.md §8)
   BARBARIAN
   BARD
   CLERIC
@@ -80,6 +81,8 @@ enum CharacterClass {
   WIZARD
 }
 ```
+> Implementado en A1 como `CharacterTemplate.characterClass` (no `class`, palabra reservada de JavaScript). El catálogo de A4 tiene que incluir los recursos del Artífice.
+
 `CharacterTemplate.class CharacterClass?` — opcional, para no romper personajes ya creados
 y porque NPCs/monstruos modelados como `CharacterTemplate` no necesariamente la tienen.
 Enum y no texto libre, mismo criterio que `CharacterType`/`CampaignRole`/`ActionKind` en el

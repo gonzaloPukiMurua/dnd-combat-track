@@ -8,8 +8,9 @@ const require = createRequire(import.meta.url);
 const p = require("./progression.ts") as typeof import("./progression");
 const rules = require("./rules.ts") as typeof import("./rules");
 
-test("HIT_DIE: un dado por cada una de las 12 clases", () => {
-  assert.equal(Object.keys(p.HIT_DIE).length, 12);
+test("HIT_DIE: un dado por cada una de las 13 clases (12 del PHB 2024 + Artífice)", () => {
+  assert.equal(Object.keys(p.HIT_DIE).length, 13);
+  assert.equal(p.HIT_DIE.ARTIFICER, 8);
   assert.equal(p.HIT_DIE.BARBARIAN, 12);
   assert.equal(p.HIT_DIE.FIGHTER, 10);
   assert.equal(p.HIT_DIE.ROGUE, 8);

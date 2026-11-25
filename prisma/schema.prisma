@@ -54,7 +54,9 @@ enum RechargeType {
 }
 
 // Fase A (catalogo-recursos-clase.md §3). Mismos valores que domain/character/progression.ts.
+// ARTIFICER sumado el 2026-11-24 (v2-historias.md §8).
 enum CharacterClass {
+  ARTIFICER
   BARBARIAN
   BARD
   CLERIC
