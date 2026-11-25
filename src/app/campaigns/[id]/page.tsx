@@ -91,7 +91,19 @@ function StatusBlock({ data }: { data: HubData }) {
           </Link>
         </>
       ) : (
-        <p className="text-sm text-gothic-on-surface-variant">No se encontró un personaje asignado.</p>
+        // A5 / H4 — un jugador miembro sin personaje puede crear uno o elegir
+        // uno del DM que nadie reclamó, en la misma pantalla que al unirse.
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-gothic-on-surface-variant">
+            Todavía no tenés personaje en esta campaña. Podés crear uno o elegir uno que haya preparado el DM.
+          </p>
+          <Link
+            href={`/join/character?campaignId=${data.campaign.id}`}
+            className="self-start rounded-gothic-sm bg-gothic-primary px-4 py-2 text-sm font-semibold text-gothic-on-primary transition-colors hover:bg-gothic-brass-bright"
+          >
+            Crear o elegir personaje
+          </Link>
+        </div>
       )}
     </section>
   );
