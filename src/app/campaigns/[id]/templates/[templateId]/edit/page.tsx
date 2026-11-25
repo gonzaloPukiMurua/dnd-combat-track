@@ -1,14 +1,16 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
-import { updateTemplate } from "@/lib/actions/templates";
 import { getTemplateById } from "@/lib/actions/queries/templates";
 import { proficiencyForLevel } from "@/domain/character/rules";
-import { MAX_LEVEL, MAX_PLAYER_LEVEL } from "@/domain/character/progression";
+import { CHARACTER_CLASSES, CLASS_LABELS, MAX_LEVEL, MAX_PLAYER_LEVEL } from "@/domain/character/progression";
+import { MAX_SHORT_TEXT } from "@/domain/character/details";
 import { requireCampaignDm } from "@/lib/auth/guards";
 import { TemplateActionsSection } from "@/components/templates/TemplateActionsSection";
 import { prisma } from "@/lib/prisma";
 import { SheetConfigForm } from "./SheetConfigForm";
 import { ResourcesManager } from "./ResourcesManager";
+import { TraitsManager } from "./TraitsManager";
+import { TemplateEditForm } from "./TemplateEditForm";
 
 const TYPE_LABELS: Record<string, string> = {
   PLAYER:  "Jugador",
@@ -41,11 +43,18 @@ export default async function EditTemplatePage({
 
   if (!template || template.campaignId !== campaignId) notFound();
 
-  // P2 — recursos consumibles del personaje (tabla CharacterResource).
-  const resources = await prisma.characterResource.findMany({
-    where:   { templateId: template.id },
-    orderBy: [{ fullRecoveryOnShortRest: "desc" }, { shortRestRecoveryAmount: "desc" }, { name: "asc" }],
-  });
+  // P2 — recursos consumibles del personaje (tabla CharacterResource). A2 — rasgos.
+  const [resources, traits] = await Promise.all([
+    prisma.characterResource.findMany({
+      where:   { templateId: template.id },
+      orderBy: [{ fullRecoveryOnShortRest: "desc" }, { shortRestRecoveryAmount: "desc" }, { name: "asc" }],
+    }),
+    prisma.characterTrait.findMany({
+      where:   { templateId: template.id },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      select:  { id: true, name: true, description: true },
+    }),
+  ]);
 
   const bonus = template.initiativeBonus >= 0
     ? `+${template.initiativeBonus}`
@@ -76,12 +85,8 @@ export default async function EditTemplatePage({
       </div>
 
       {/* Form */}
-      <form
-        action={async (formData: FormData) => {
-          "use server";
-          const result = await updateTemplate(undefined as never, formData);
-          if (result.success) redirect(`/campaigns/${campaignId}/templates`);
-        }}
+      <TemplateEditForm
+        campaignId={campaignId}
         className="rounded-gothic-md bg-gothic-surface-low ring-1 ring-gothic-outline-variant p-5 space-y-4"
       >
         {/* Hidden ID */}
@@ -138,6 +143,28 @@ export default async function EditTemplatePage({
               className={numberInputClass}
             />
           </div>
+        </div>
+
+        {/* A2 / D-17 — clase, subclase y armadura (las edita el DM). La CA sigue
+            siendo la de arriba: la armadura es solo el nombre (7.4). */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label htmlFor="characterClass" className={labelClass}>Clase</label>
+            <select id="characterClass" name="characterClass" defaultValue={template.characterClass ?? ""} className={inputClass}>
+              <option value="">Sin clase</option>
+              {CHARACTER_CLASSES.map((c) => (
+                <option key={c} value={c}>{CLASS_LABELS[c]}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="subclass" className={labelClass}>Subclase</label>
+            <input id="subclass" name="subclass" maxLength={MAX_SHORT_TEXT} defaultValue={template.subclass ?? ""} placeholder="Ej. Campeón" className={inputClass} />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="armorName" className={labelClass}>Armadura</label>
+          <input id="armorName" name="armorName" maxLength={MAX_SHORT_TEXT} defaultValue={template.armorName ?? ""} placeholder="Ej. Cota de malla y escudo" className={inputClass} />
         </div>
 
         {/* Initiative bonus */}
@@ -219,7 +246,7 @@ export default async function EditTemplatePage({
             Guardar cambios
           </button>
         </div>
-      </form>
+      </TemplateEditForm>
 
       {/* E — attacks / heals (spec-tecnico-etapa-3-acciones-tiradas.md §6).
           Its own <section> with independent forms — never nested in the
@@ -246,6 +273,7 @@ export default async function EditTemplatePage({
         initialExpertise={template.skillExpertise}
         initialSpellcasting={template.spellcastingAbility}
       />
+      <TraitsManager templateId={template.id} traits={traits} />
       <ResourcesManager templateId={template.id} resources={resources} />
     </div>
   );

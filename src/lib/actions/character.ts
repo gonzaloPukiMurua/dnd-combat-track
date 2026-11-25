@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireTemplateOwner, UnauthorizedError } from "@/lib/auth/action-guards";
 import { MAX_NOTES_LENGTH } from "@/lib/constants/character";
+import { validatePlayerDetails } from "@/domain/character/details";
 
 export type CharacterNotesState = { error?: string; success?: boolean };
 
@@ -35,5 +36,34 @@ export async function updateCharacterNotes(
     if (err instanceof UnauthorizedError) return { error: err.message };
     console.error("[updateCharacterNotes]", err);
     return { error: "No se pudieron guardar las notas. Probá de nuevo." };
+  }
+}
+
+// ─── A2 / D-17 — datos que edita el jugador ──────────────────────────────────
+
+export type CharacterDetailsState = { error?: string; success?: boolean };
+
+/**
+ * Datos físicos, historia breve y plata. Solo el dueño del personaje (D-17):
+ * lo mecánico (clase, armadura, rasgos, stats) sigue siendo del DM.
+ */
+export async function updateCharacterDetails(
+  templateId: string,
+  input: Record<string, unknown>
+): Promise<CharacterDetailsState> {
+  try {
+    const { campaignId } = await requireTemplateOwner(templateId);
+
+    const parsed = validatePlayerDetails(input);
+    if (!parsed.ok) return { error: parsed.error };
+
+    await prisma.characterTemplate.update({ where: { id: templateId }, data: parsed.data });
+
+    revalidatePath(`/campaigns/${campaignId}/character`);
+    return { success: true };
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { error: err.message };
+    console.error("[updateCharacterDetails]", err);
+    return { error: "No se pudieron guardar los datos. Probá de nuevo." };
   }
 }

@@ -1,6 +1,6 @@
 # Fase A — Personaje v2: inventario y plan
 
-> **Estado: alcance y plan aprobados por Gonzalo (2026-11-23), con T16 dentro de A1. A1 programado y migrado en desarrollo (2026-11-23); producción pendiente de aprobación (§6).**
+> **Estado: alcance y plan aprobados por Gonzalo (2026-11-23), con T16 dentro de A1. A1 terminado: migrado en desarrollo y producción y fusionado en el PR #9 (2026-11-23). A2 programado y probado en local contra desarrollo (2026-11-24), sin fusionar (§7).**
 > Alcance: historias H1, H3, H4, H6 y H16, U13, T11 y el tope de nivel 7 de [`v2-historias.md`](./v2-historias.md).
 > Etiquetas: **[código]** leído en `main` @ `7f7a79b` · **[DB]** consulta de solo lectura · **[regla]** · **[verificar]** contra el PHB 2024 · **[decidir]**.
 
@@ -97,7 +97,11 @@ Orden: A1 → A2 → A3; A4 y A5 pueden ir en cualquier momento después de A1.
 | Mensajes | Traducidos los de `templates.ts` | A-H5 |
 | T17 (sumado a pedido) | `createCombatRecord` → `lib/actions/internal/combat-records.ts`; `getGroupsForCampaign` y `getGroupById` → `lib/actions/queries/groups.ts`; borradas `getActiveCombat`, `getCombatById` y `getCombatByJoinCode` (sin uso) | Misma clase de error que T16 |
 
-## 6. Pasar A1 a producción (pendiente de aprobación)
+## 6. Pasar A1 a producción (hecho el 2026-11-23, con confirmación de Gonzalo)
+
+Resultado: 24 migraciones aplicadas, sin diferencias entre esquema y base; 6 recursos `LONG` → solo descanso largo, 2 `SHORT` → recuperación total; 21 plantillas intactas. Luego se fusionó el PR #9.
+
+Pasos seguidos:
 
 1. Fusionar el PR de A1.
 2. Correr `prisma migrate deploy` contra producción con el host impreso antes. La migración solo agrega columnas y una tabla, y convierte los 8 recursos existentes (6 `LONG`, 2 `SHORT`).
@@ -105,7 +109,19 @@ Orden: A1 → A2 → A3; A4 y A5 pueden ir en cualquier momento después de A1.
 
 Orden importante: la migración tiene que aplicarse **antes o junto con** el deploy de Vercel, porque el código nuevo lee las columnas nuevas.
 
-## 7. Lo que no entra en la fase A
+## 7. Tramo A2: lo hecho y decisiones
+
+| Tema | Qué se hizo |
+|---|---|
+| Ficha del jugador (`campaigns/[id]/character`) | Suma clase y subclase, PG temporales, armadura bajo la CA, dados de golpe (restantes/total y dado de la clase, o "sin clase cargada"), rasgos y dotes, armas y acciones guardadas, y el formulario de datos del personaje |
+| Lo que edita el jugador (D-17) | `updateCharacterDetails` en `lib/actions/character.ts`, guard `requireTemplateOwner`: datos físicos, historia breve (máx. 300) y plata |
+| Lo que edita el DM (D-17) | Clase, subclase y armadura en el formulario de edición (`updateTemplate`, guard `requireCampaignDmAction`). Rasgos en `lib/actions/traits.ts` (`createTrait`, `deleteTrait`, mismo guard) y la sección "Rasgos y dotes" |
+| Validación | `domain/character/details.ts`, con tests: textos cortos de 40 caracteres, historia 300, rasgo 60 + 300, plata entera de 0 a 10 000 000 |
+| Decisión: rasgo y recurso van separados | H3 dice "si tienen usos, un recurso asociado". No se agregó un vínculo en la base: el rasgo es texto y sus usos se cargan como recurso, con un aviso en la pantalla del DM. Evita otra migración; se puede vincular después si hace falta |
+| Decisión: el DM no edita los datos del jugador | D-17 le asigna esos campos al jugador. Un personaje del DM sin dueño queda sin datos físicos hasta que alguien lo reclame |
+| Hallazgo corregido (anterior a la fase A) | El formulario de edición del DM descartaba los errores del servidor: si `updateTemplate` rechazaba algo, no guardaba y no avisaba. Ahora lo envuelve `TemplateEditForm.tsx` (cliente): muestra el mensaje, conserva lo escrito y, si sale bien, vuelve al listado como antes. Envía con `onSubmit` porque React 19 vacía el formulario después de una `action`. Corregido a pedido de Gonzalo (2026-11-24) |
+
+## 8. Lo que no entra en la fase A
 
 - Hechizos y espacios de conjuro desde la tabla (fase C). Los espacios siguen cargándose a mano como recursos.
 - Armas y armaduras del catálogo (fase C). Las armas siguen siendo acciones manuales.
