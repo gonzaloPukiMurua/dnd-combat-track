@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { requireTemplateOwner, UnauthorizedError } from "@/lib/auth/action-guards";
 import { MAX_NOTES_LENGTH } from "@/lib/constants/character";
 import { validatePlayerDetails } from "@/domain/character/details";
+import { hitDiceHeal } from "@/domain/character/progression";
+import { abilityModifier } from "@/domain/character/rules";
 
 export type CharacterNotesState = { error?: string; success?: boolean };
 
@@ -65,5 +67,56 @@ export async function updateCharacterDetails(
     if (err instanceof UnauthorizedError) return { error: err.message };
     console.error("[updateCharacterDetails]", err);
     return { error: "No se pudieron guardar los datos. Probá de nuevo." };
+  }
+}
+
+// ─── A3 / H16 — gastar dados de golpe ────────────────────────────────────────
+
+export type SpendHitDiceState = { error?: string; success?: boolean; currentHp?: number };
+
+/**
+ * El jugador gasta dados de golpe y escribe lo que sacó, ya con el mod. de CON
+ * (D-14). Solo el dueño del personaje. No exige que haya un descanso corto
+ * "abierto": la app no modela la sesión de descanso; la mesa lo controla.
+ */
+export async function spendHitDice(
+  templateId: string,
+  count: number,
+  rolledTotal: number
+): Promise<SpendHitDiceState> {
+  try {
+    const { campaignId } = await requireTemplateOwner(templateId);
+
+    const t = await prisma.characterTemplate.findUniqueOrThrow({
+      where:  { id: templateId },
+      select: { characterClass: true, level: true, hitDiceUsed: true, con: true, maxHp: true, currentHp: true },
+    });
+
+    const result = hitDiceHeal({
+      characterClass: t.characterClass,
+      level:          t.level,
+      hitDiceUsed:    t.hitDiceUsed,
+      count,
+      rolledTotal,
+      conModifier:    abilityModifier(t.con),
+      maxHp:          t.maxHp,
+      currentHp:      t.currentHp,
+    });
+    if (!result.ok) return { error: result.error };
+
+    // Escritura condicionada a que nadie haya gastado dados entre la lectura y
+    // ahora (dos clics seguidos): si cambió, no se escribe y se pide reintentar.
+    const { count: updated } = await prisma.characterTemplate.updateMany({
+      where: { id: templateId, hitDiceUsed: t.hitDiceUsed },
+      data:  { hitDiceUsed: result.hitDiceUsed, currentHp: result.currentHp },
+    });
+    if (updated === 0) return { error: "Los dados cambiaron mientras guardabas. Probá de nuevo." };
+
+    revalidatePath(`/campaigns/${campaignId}/character`);
+    return { success: true, currentHp: result.currentHp };
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { error: err.message };
+    console.error("[spendHitDice]", err);
+    return { error: "No se pudieron gastar los dados. Probá de nuevo." };
   }
 }

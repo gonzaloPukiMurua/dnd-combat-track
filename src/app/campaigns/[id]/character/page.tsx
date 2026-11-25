@@ -13,6 +13,7 @@ import { rechargeLabel } from "@/domain/character/resources";
 import { CLASS_LABELS, HIT_DIE } from "@/domain/character/progression";
 import { PHYSICAL_FIELDS } from "@/domain/character/details";
 import { CharacterDetailsForm } from "./CharacterDetailsForm";
+import { HitDiceForm } from "./HitDiceForm";
 
 const ECONOMY_LABEL: Record<string, string> = { ACTION: "Acción", BONUS_ACTION: "Acción bonus", REACTION: "Reacción" };
 
@@ -201,6 +202,18 @@ export default async function CharacterSheetPage({
               : `Nivel ${character.exhaustionLevel}: −${ex.d20Penalty} a pruebas de d20 · −${ex.speedPenaltyFt} pies de velocidad`}
         </div>
       </section>
+
+      {character.characterClass && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-xs uppercase tracking-widest text-gothic-on-surface-variant">Descanso corto: dados de golpe</h2>
+          <HitDiceForm
+            templateId={character.id}
+            die={HIT_DIE[character.characterClass]}
+            left={hitDiceLeft}
+            conModifier={sheet.abilities.find((a) => a.key === "con")?.modifier ?? 0}
+          />
+        </section>
+      )}
 
       <section className="flex flex-col gap-2">
         <h2 className="text-xs uppercase tracking-widest text-gothic-on-surface-variant">Rasgos y dotes</h2>

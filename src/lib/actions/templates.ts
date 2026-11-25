@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { CharacterType } from "@prisma/client";
 import { requireCampaignDmAction, UnauthorizedError } from "@/lib/auth/action-guards";
 import { usedAfterRest } from "@/domain/character/resources";
-import { isCharacterClass, levelError, type CharacterKind } from "@/domain/character/progression";
+import { isCharacterClass, levelError, longRestState, type CharacterKind } from "@/domain/character/progression";
 import { validateDmDetails } from "@/domain/character/details";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -209,7 +209,8 @@ export async function deleteTemplate(id: string): Promise<TemplateFormState> {
   return { success: true };
 }
 
-// Long rest — restore all characters to maxHp
+// Descanso largo (A3 / H16): PG completos, PG temporales a 0, todos los dados de
+// golpe, todos los recursos y −1 de agotamiento (longRestState, fase-a-plan.md §3).
 export async function longRest(templateIds: string[]): Promise<TemplateFormState> {
   try {
     // RestPanel sends a raw id list from a single campaign's roster, but the
@@ -217,7 +218,7 @@ export async function longRest(templateIds: string[]): Promise<TemplateFormState
     // campaign before we touch anything (S2-0).
     const templates = await prisma.characterTemplate.findMany({
       where:  { id: { in: templateIds } },
-      select: { id: true, campaignId: true },
+      select: { id: true, campaignId: true, exhaustionLevel: true },
     });
     const campaignIds = new Set(templates.map((t) => t.campaignId));
     if (templates.length !== templateIds.length || campaignIds.size !== 1) {
@@ -235,10 +236,11 @@ export async function longRest(templateIds: string[]): Promise<TemplateFormState
       .map((r) => prisma.characterResource.update({ where: { id: r.id }, data: { used: usedAfterRest(r, "LONG") } }));
 
     await prisma.$transaction([
-      ...templateIds.map((id) =>
+      ...templates.map((t) =>
         prisma.characterTemplate.update({
-          where: { id },
-          data:  { currentHp: null }, // null = full HP on next combat start
+          where: { id: t.id },
+          // currentHp null = PG completos al empezar el próximo combate.
+          data:  longRestState({ exhaustionLevel: t.exhaustionLevel }),
         })
       ),
       ...resourceOps,
@@ -250,11 +252,16 @@ export async function longRest(templateIds: string[]): Promise<TemplateFormState
   }
 }
 
-// Short rest — restore a specific amount to specific characters
+// Descanso corto (A3 / H16): recupera los recursos según su regla y, si el DM la
+// escribe, una curación fija. Los dados de golpe los gasta cada jugador desde su
+// ficha (spendHitDice en lib/actions/character.ts).
 export async function shortRest(
   updates: { id: string; healAmount: number }[]
 ): Promise<TemplateFormState> {
   try {
+    if (updates.some((u) => !Number.isInteger(u.healAmount) || u.healAmount < 0)) {
+      return { error: "La curación debe ser un número entero mayor o igual a 0" };
+    }
     const ids = updates.map((u) => u.id);
     const templates = await prisma.characterTemplate.findMany({
       where: { id: { in: ids } },

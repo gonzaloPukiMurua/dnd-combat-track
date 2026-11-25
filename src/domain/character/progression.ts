@@ -107,3 +107,39 @@ export function longRestState(input: { exhaustionLevel: number }): LongRestResul
     exhaustionLevel: Math.max(0, input.exhaustionLevel - 1),
   };
 }
+
+/**
+ * A3 / H16 — el jugador gasta dados de golpe en un descanso corto y escribe lo
+ * que sacó, ya sumado el mod. de CON (D-14: la app no tira dados). Devuelve los
+ * dados usados y los PG nuevos, o un mensaje de error.
+ * Tope del total: cada dado como máximo `die + mod. CON` (si el mod. es positivo).
+ * `currentHp` null = PG completos (convención de CharacterTemplate).
+ */
+export function hitDiceHeal(input: {
+  characterClass: CharacterClass | null;
+  level: number;
+  hitDiceUsed: number;
+  count: number;
+  rolledTotal: number;
+  conModifier: number;
+  maxHp: number;
+  currentHp: number | null;
+}): { ok: true; hitDiceUsed: number; currentHp: number } | { ok: false; error: string } {
+  const { characterClass, level, hitDiceUsed, count, rolledTotal, conModifier, maxHp } = input;
+  if (!characterClass) return { ok: false, error: "El personaje no tiene clase cargada: el DM tiene que elegirla" };
+
+  let used: number;
+  try {
+    used = spendHitDice({ level, hitDiceUsed, count });
+  } catch (err) {
+    return { ok: false, error: err instanceof RangeError ? err.message : "Cantidad de dados inválida" };
+  }
+
+  const maxRoll = count * (HIT_DIE[characterClass] + Math.max(0, conModifier));
+  if (!Number.isInteger(rolledTotal) || rolledTotal < 0 || rolledTotal > maxRoll) {
+    return { ok: false, error: `La tirada debe ser un número entero entre 0 y ${maxRoll}` };
+  }
+
+  const current = input.currentHp ?? maxHp;
+  return { ok: true, hitDiceUsed: used, currentHp: Math.min(maxHp, current + rolledTotal) };
+}

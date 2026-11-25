@@ -70,3 +70,20 @@ test("longRestState: PG completos, dados y PG temporales a cero, −1 agotamient
   });
   assert.equal(p.longRestState({ exhaustionLevel: 0 }).exhaustionLevel, 0);
 });
+
+test("hitDiceHeal: suma la tirada sin pasar el máximo y cuenta los dados", () => {
+  const base = { characterClass: "FIGHTER" as const, level: 5, hitDiceUsed: 1, conModifier: 2, maxHp: 44, currentHp: 20 };
+  assert.deepEqual(p.hitDiceHeal({ ...base, count: 2, rolledTotal: 15 }), { ok: true, hitDiceUsed: 3, currentHp: 35 });
+  assert.deepEqual(p.hitDiceHeal({ ...base, count: 2, rolledTotal: 24, currentHp: 40 }), { ok: true, hitDiceUsed: 3, currentHp: 44 });
+  assert.deepEqual(p.hitDiceHeal({ ...base, count: 1, rolledTotal: 5, currentHp: null }), { ok: true, hitDiceUsed: 2, currentHp: 44 });
+});
+
+test("hitDiceHeal: rechaza sin clase, sin dados y tiradas imposibles", () => {
+  const base = { characterClass: "WIZARD" as const, level: 3, hitDiceUsed: 0, conModifier: 1, maxHp: 20, currentHp: 5 };
+  assert.equal(p.hitDiceHeal({ ...base, characterClass: null, count: 1, rolledTotal: 3 }).ok, false);
+  assert.equal(p.hitDiceHeal({ ...base, hitDiceUsed: 3, count: 1, rolledTotal: 3 }).ok, false);
+  assert.equal(p.hitDiceHeal({ ...base, count: 1, rolledTotal: 8 }).ok, false); // d6 + 1 = 7 como máximo
+  assert.equal(p.hitDiceHeal({ ...base, count: 1, rolledTotal: 7 }).ok, true);
+  assert.equal(p.hitDiceHeal({ ...base, count: 1, rolledTotal: -1 }).ok, false);
+  assert.equal(p.hitDiceHeal({ ...base, count: 0, rolledTotal: 0 }).ok, false);
+});
