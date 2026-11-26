@@ -11,6 +11,7 @@ import { SheetConfigForm } from "./SheetConfigForm";
 import { ResourcesManager } from "./ResourcesManager";
 import { TraitsManager } from "./TraitsManager";
 import { TemplateEditForm } from "./TemplateEditForm";
+import { getClassResourceCatalog } from "@/lib/actions/queries/classResources";
 
 const TYPE_LABELS: Record<string, string> = {
   PLAYER:  "Jugador",
@@ -44,7 +45,7 @@ export default async function EditTemplatePage({
   if (!template || template.campaignId !== campaignId) notFound();
 
   // P2 — recursos consumibles del personaje (tabla CharacterResource). A2 — rasgos.
-  const [resources, traits] = await Promise.all([
+  const [resources, traits, catalog] = await Promise.all([
     prisma.characterResource.findMany({
       where:   { templateId: template.id },
       orderBy: [{ fullRecoveryOnShortRest: "desc" }, { shortRestRecoveryAmount: "desc" }, { name: "asc" }],
@@ -54,6 +55,8 @@ export default async function EditTemplatePage({
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       select:  { id: true, name: true, description: true },
     }),
+    // A4: catálogo de recursos de la clase del personaje.
+    template.characterClass ? getClassResourceCatalog(template.characterClass) : Promise.resolve([]),
   ]);
 
   const bonus = template.initiativeBonus >= 0
@@ -274,7 +277,23 @@ export default async function EditTemplatePage({
         initialSpellcasting={template.spellcastingAbility}
       />
       <TraitsManager templateId={template.id} traits={traits} />
-      <ResourcesManager templateId={template.id} resources={resources} />
+      <ResourcesManager
+        templateId={template.id}
+        resources={resources}
+        characterLevel={template.level}
+        className={template.characterClass ? CLASS_LABELS[template.characterClass] : null}
+        catalog={catalog.map((c) => ({
+          id:                      c.id,
+          name:                    c.name,
+          fromLevel:               c.fromLevel,
+          shortRestRecoveryAmount: c.shortRestRecoveryAmount,
+          fullRecoveryOnShortRest: c.fullRecoveryOnShortRest,
+          maxByLevel:              (c.maxByLevel as Record<string, number> | null) ?? null,
+          maxPerClassLevel:        c.maxPerClassLevel,
+          note:                    c.note,
+          verified:                c.verified,
+        }))}
+      />
     </div>
   );
 }

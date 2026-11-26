@@ -63,3 +63,41 @@ export function usedAfterRest(resource: ResourceState, rest: RestKind): number {
   if (resource.fullRecoveryOnShortRest) return 0;
   return Math.max(0, resource.used - resource.shortRestRecoveryAmount);
 }
+
+// ─── A4 — catálogo de recursos de clase (catalogo-recursos-clase.md §4) ──────
+
+/** Tope de usos o puntos de un recurso. 100 para que entren los pools (Imposición de manos 5 × nivel). */
+export const MAX_RESOURCE = 100;
+
+export type RechargeMode = "LONG" | "SHORT_FULL" | "SHORT_PARTIAL";
+
+/** Las tres reglas que muestra el formulario, a partir de los dos campos guardados. */
+export function rechargeMode(r: Recharge): RechargeMode {
+  if (r.fullRecoveryOnShortRest) return "SHORT_FULL";
+  return r.shortRestRecoveryAmount > 0 ? "SHORT_PARTIAL" : "LONG";
+}
+
+export type CatalogEntry = Recharge & {
+  fromLevel: number;
+  /** Umbrales nivel → máximo, ej. { "1": 2, "3": 3, "6": 4 }. */
+  maxByLevel: Record<string, number> | null;
+  /** Máximo = nivel × este número (Puntos de hechicería 1, Imposición de manos 5). */
+  maxPerClassLevel: number | null;
+};
+
+/**
+ * Máximo sugerido para un nivel, o null si depende de algo que la app no calcula
+ * (un modificador de característica). Es una sugerencia: el DM lo puede cambiar (D-15).
+ */
+export function suggestedMax(entry: CatalogEntry, level: number): number | null {
+  if (level < entry.fromLevel) return null;
+  let max: number | null = null;
+  if (entry.maxPerClassLevel != null) {
+    max = entry.maxPerClassLevel * level;
+  } else if (entry.maxByLevel) {
+    // El último umbral alcanzado: con { 1: 2, 3: 3, 6: 4 } y nivel 5 → umbral 3 → 3.
+    const reached = Object.keys(entry.maxByLevel).map(Number).filter((n) => n <= level);
+    if (reached.length > 0) max = entry.maxByLevel[String(Math.max(...reached))];
+  }
+  return max === null ? null : Math.min(MAX_RESOURCE, max);
+}

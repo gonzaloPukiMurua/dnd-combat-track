@@ -1,6 +1,6 @@
 # Fase A — Personaje v2: inventario y plan
 
-> **Estado: alcance y plan aprobados por Gonzalo (2026-11-23), con T16 dentro de A1. A1 terminado: migrado en desarrollo y producción y fusionado en el PR #9 (2026-11-23). A2 fusionado en el PR #10 (2026-11-24). A3 fusionado en el PR #11 (2026-11-24). A5 fusionado en el PR #13 (2026-11-25). Falta A4.**
+> **Estado: alcance y plan aprobados por Gonzalo (2026-11-23), con T16 dentro de A1. A1 terminado: migrado en desarrollo y producción y fusionado en el PR #9 (2026-11-23). A2 fusionado en el PR #10 (2026-11-24). A3 fusionado en el PR #11 (2026-11-24). A5 fusionado en el PR #13 (2026-11-25). A4 programado y probado en local contra desarrollo (2026-11-25), sin fusionar (§11): el código está listo; los datos del catálogo esperan la verificación de Gonzalo antes de cargarse en producción.**
 > Alcance: historias H1, H3, H4, H6 y H16, U13, T11 y el tope de nivel 7 de [`v2-historias.md`](./v2-historias.md).
 > Etiquetas: **[código]** leído en `main` @ `7f7a79b` · **[DB]** consulta de solo lectura · **[regla]** · **[verificar]** contra el PHB 2024 · **[decidir]**.
 
@@ -152,7 +152,19 @@ En local contra la base de desarrollo, con los usuarios `[PRUEBA-A2]` (DM) y `[P
 | PV temporales entre combates | La plantilla con 6 → el participante nuevo arranca con 6. El participante con 9 → al terminar "guardando PV", la plantilla queda en 9 |
 | Vista de celular (390 px) en panel, campaña, ficha completa y reclamo | Sin desborde horizontal; la ficha queda en grilla de 2 columnas |
 
-## 11. Lo que no entra en la fase A
+## 11. Tramo A4: lo hecho y decisiones
+
+| Tema | Qué se hizo |
+|---|---|
+| Tabla `ClassResourceTemplate` | Catálogo global de solo lectura: clase, nombre, desde qué nivel, regla de recarga, máximo sugerido (por umbrales de nivel o proporcional al nivel), nota y `verified`. Migración `20261125120000_add_class_resource_catalog`: solo crea la tabla |
+| Datos | `prisma/seed-data/class-resources.json`: 16 filas para las 13 clases, niveles 1–7, todas `verified: false`. Salen de la hoja "Recursos de clase" de `catalogos.xlsx`, que es donde Gonzalo las verifica |
+| Carga | `npm run seed:class-resources -- --target=dev` o `--target=prod`. A diferencia de la semilla de monstruos, exige el destino, lee el archivo de entorno de ese destino, imprime host y proyecto y se corta si no coincide. Idempotente (upsert por clase y nombre); no borra filas |
+| Selector "Elegir del catálogo" | En la sección de recursos de la edición del personaje, filtrado por su clase. Las filas de un nivel mayor aparecen deshabilitadas ("desde nivel N"). Elegir una precarga nombre, recarga y un máximo sugerido para el nivel actual; el DM lo revisa antes de agregar (D-15). Si el máximo depende de un modificador, queda vacío con un aviso. Si la fila no está verificada, lo dice |
+| Decisión: pools | Imposición de manos y los puntos (hechicería, concentración) son un recurso común cuyo contador cuenta puntos. El tope de un recurso sube de 20 a 100 (`MAX_RESOURCE`). Cierra la pregunta §8.2 de `catalogo-recursos-clase.md` |
+| Fuera de A4 | La tabla automática de espacios de conjuro (`catalogo-recursos-clase.md` §5) y los recursos de subclase |
+| Producción | Pendiente: aplicar la migración y cargar el catálogo **después** de que Gonzalo verifique la hoja |
+
+## 12. Lo que no entra en la fase A
 
 - Hechizos y espacios de conjuro desde la tabla (fase C). Los espacios siguen cargándose a mano como recursos.
 - Armas y armaduras del catálogo (fase C). Las armas siguen siendo acciones manuales.

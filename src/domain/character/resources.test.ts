@@ -56,3 +56,29 @@ test("rechargeLabel: describe las tres reglas", () => {
   assert.equal(r.rechargeLabel(furia), "recupera todo con descanso corto");
   assert.equal(r.rechargeLabel(segundoAire), "recupera 1 uso con descanso corto, todo con largo");
 });
+
+test("rechargeMode: deduce la regla desde los dos campos", () => {
+  assert.equal(r.rechargeMode(slot), "LONG");
+  assert.equal(r.rechargeMode(furia), "SHORT_FULL");
+  assert.equal(r.rechargeMode(segundoAire), "SHORT_PARTIAL");
+});
+
+const base = { shortRestRecoveryAmount: 1, fullRecoveryOnShortRest: false, maxPerClassLevel: null };
+
+test("suggestedMax: toma el último umbral alcanzado", () => {
+  const rage = { ...base, fromLevel: 1, maxByLevel: { "1": 2, "3": 3, "6": 4 } };
+  assert.equal(r.suggestedMax(rage, 1), 2);
+  assert.equal(r.suggestedMax(rage, 2), 2);
+  assert.equal(r.suggestedMax(rage, 5), 3);
+  assert.equal(r.suggestedMax(rage, 7), 4);
+});
+
+test("suggestedMax: proporcional al nivel, con tope 100, y null si no aplica", () => {
+  const layOnHands = { ...base, fromLevel: 1, maxByLevel: null, maxPerClassLevel: 5 };
+  assert.equal(r.suggestedMax(layOnHands, 7), 35);
+  assert.equal(r.suggestedMax({ ...layOnHands, maxPerClassLevel: 30 }, 7), 100);
+  const bardic = { ...base, fromLevel: 1, maxByLevel: null };
+  assert.equal(r.suggestedMax(bardic, 4), null); // depende del mod. de CAR
+  const channel = { ...base, fromLevel: 2, maxByLevel: { "2": 2 } };
+  assert.equal(r.suggestedMax(channel, 1), null); // todavía no lo tiene
+});

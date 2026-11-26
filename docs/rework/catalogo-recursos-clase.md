@@ -167,6 +167,8 @@ del catálogo"**, filtrado por `character.class`:
 
 ## 8. Antes de implementar
 
+> **Estado 2026-11-25:** el catálogo se implementó en el tramo A4 (`fase-a-plan.md` §11). El punto 2 se resolvió: los pools son un recurso común con tope 100. El punto 3 ya se hizo en A1. Las filas de datos esperan verificación en la hoja "Recursos de clase" de `catalogos.xlsx`.
+
 1. Confirmar contra el PHB 2024 cada fila de la tabla de §4 (hoy solo Segundo Aire está
    verificado) y la tabla de espacios de §5.
 2. Decidir la forma de dato para recursos tipo "pool" (Imposición de Manos) — ¿un
