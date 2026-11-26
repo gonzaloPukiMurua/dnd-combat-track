@@ -10,6 +10,7 @@
     "test": "node --experimental-strip-types --test src/domain/dice/roll.test.ts src/domain/combat/rules.test.ts src/domain/character/rules.test.ts src/domain/character/resources.test.ts src/domain/character/sheet.test.ts src/domain/character/progression.test.ts src/domain/character/details.test.ts src/domain/campaign/join.test.ts",
     "test:e2e": "playwright test",
     "seed:monsters": "tsx prisma/seed-monsters.ts",
+    "seed:class-resources": "tsx prisma/seed-class-resources.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

@@ -208,6 +208,26 @@ model CharacterResource {
   @@index([templateId])
 }
 
+// A4 — catálogo global de recursos de clase, de solo lectura (catalogo-recursos-clase.md §4).
+// Se carga desde prisma/seed-data/class-resources.json (npm run seed:class-resources).
+// El DM elige una fila y se crea un CharacterResource común: el catálogo solo sugiere
+// nombre, recarga y máximo; el número final lo pone el DM (D-15).
+model ClassResourceTemplate {
+  id                      String         @id @default(uuid())
+  characterClass          CharacterClass
+  name                    String
+  fromLevel               Int            @default(1)
+  shortRestRecoveryAmount Int            @default(0)
+  fullRecoveryOnShortRest Boolean        @default(false)
+  maxByLevel              Json? // umbrales nivel → máximo, ej. {"1":2,"3":3,"6":4}
+  maxPerClassLevel        Int? // máximo = nivel × este número (pools y puntos)
+  note                    String?
+  verified                Boolean        @default(false) // comparado contra el libro
+  createdAt               DateTime       @default(now())
+
+  @@unique([characterClass, name])
+}
+
 // Rasgo de clase o dote del personaje, en texto libre (7.3). El máximo de usos,
 // si tiene, vive en CharacterResource (D-15). Lo edita el DM (D-17).
 model CharacterTrait {

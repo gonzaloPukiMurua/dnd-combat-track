@@ -7,7 +7,7 @@ import {
   requireTemplateOwner,
   UnauthorizedError,
 } from "@/lib/auth/action-guards";
-import { setUsed } from "@/domain/character/resources";
+import { setUsed, MAX_RESOURCE } from "@/domain/character/resources";
 
 // P2 — recursos consumibles del personaje (tabla CharacterResource).
 // Permisos: el DE USO (marcar gastados/recuperados) es del dueño del personaje;
@@ -74,7 +74,7 @@ export async function createResource(
 
   const name = input.name?.trim() ?? "";
   if (name.length < 1 || name.length > 40) return { ok: false, error: "El nombre debe tener entre 1 y 40 caracteres" };
-  if (!Number.isInteger(input.max) || input.max < 1 || input.max > 20) return { ok: false, error: "El máximo debe ser un entero entre 1 y 20" };
+  if (!Number.isInteger(input.max) || input.max < 1 || input.max > MAX_RESOURCE) return { ok: false, error: `El máximo debe ser un entero entre 1 y ${MAX_RESOURCE}` };
   // Recarga generalizada (catalogo-recursos-clase.md §2.1). Si el corto repone todo, la cantidad no importa.
   const fullRecoveryOnShortRest = input.fullRecoveryOnShortRest === true;
   const shortRestRecoveryAmount = fullRecoveryOnShortRest ? 0 : input.shortRestRecoveryAmount;
@@ -105,7 +105,7 @@ export async function updateResourceMax(resourceId: string, max: number): Promis
   const g = await guard(() => requireCampaignDmAction(res.template.campaignId));
   if (!g.ok) return g;
 
-  if (!Number.isInteger(max) || max < 1 || max > 20) return { ok: false, error: "El máximo debe ser un entero entre 1 y 20" };
+  if (!Number.isInteger(max) || max < 1 || max > MAX_RESOURCE) return { ok: false, error: `El máximo debe ser un entero entre 1 y ${MAX_RESOURCE}` };
   if (max < res.used) return { ok: false, error: `Hay ${res.used} usados; el máximo no puede bajar de eso` };
 
   await prisma.characterResource.update({ where: { id: res.id }, data: { max } });
